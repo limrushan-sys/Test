@@ -92,58 +92,67 @@ export function createItemMesh(type: ItemType): THREE.Group {
 
   switch (type) {
 
-    // ── Sleeping Hide: hollow half plant pot ────────────────────────────────
+    // ── Sleeping Hide: plant pot lying on its side, hollow inside ───────────
     case ItemType.SLEEPING_HIDE: {
-      const outerR = 0.32, innerR = 0.27, potH = 0.34;
-      const baseR  = 0.24; // narrower base like a pot
-      const mat    = new THREE.MeshLambertMaterial({ color: 0x8B5e3c, side: THREE.DoubleSide });
-      const rimMat = new THREE.MeshLambertMaterial({ color: 0x6b4028, side: THREE.DoubleSide });
-      const baseMat= new THREE.MeshLambertMaterial({ color: 0x7a4e30, side: THREE.DoubleSide });
+      // The pot lies with its axis along X. The opening faces +X (front).
+      // Outer radius tapers from mouth (outerR) to closed end (baseR), like a real pot.
+      const outerR = 0.30;   // mouth outer radius
+      const baseR  = 0.18;   // closed-end outer radius
+      const innerR = 0.25;   // mouth inner radius
+      const baseIR = 0.14;   // closed-end inner radius
+      const len    = 0.48;   // pot length along X
+      const wall   = 0.04;   // wall thickness (rim annulus)
 
-      // Outer half-cylinder wall (tapered like a pot)
+      const mat    = new THREE.MeshLambertMaterial({ color: 0x8b5e3c, side: THREE.DoubleSide });
+      const rimMat = new THREE.MeshLambertMaterial({ color: 0x6b4028 });
+      const darkMat= new THREE.MeshLambertMaterial({ color: 0x3a2010 });
+
+      // Outer shell — full cylinder so you see the back half on the ground
       const outer = new THREE.Mesh(
-        new THREE.CylinderGeometry(outerR, baseR, potH, 18, 1, true, -Math.PI/2, Math.PI),
+        new THREE.CylinderGeometry(outerR, baseR, len, 20, 1, true),
         mat
       );
-      outer.position.y = potH / 2;
+      outer.rotation.z = Math.PI / 2;       // axis now along X
+      outer.position.set(len / 2, outerR, 0); // rest on ground (Y = outerR centres it)
 
-      // Inner half-cylinder wall (slightly smaller to show thickness)
+      // Inner shell — slightly smaller, open, shows the hollow
       const inner = new THREE.Mesh(
-        new THREE.CylinderGeometry(innerR, baseR - 0.04, potH, 18, 1, true, -Math.PI/2, Math.PI),
+        new THREE.CylinderGeometry(innerR, baseIR, len - wall, 20, 1, true),
         mat
       );
-      inner.position.y = potH / 2;
+      inner.rotation.z = Math.PI / 2;
+      inner.position.set(len / 2, outerR, 0);
 
-      // Top rim ring (half annulus)
-      const rim = new THREE.Mesh(
-        new THREE.CylinderGeometry(outerR + 0.02, outerR, 0.04, 18, 1, false, -Math.PI/2, Math.PI),
+      // Closed back end (solid disc at the small end)
+      const backDisc = new THREE.Mesh(
+        new THREE.CircleGeometry(baseR, 20),
+        mat
+      );
+      backDisc.rotation.y = Math.PI / 2;    // face outward in -X direction
+      backDisc.position.set(0, outerR, 0);
+
+      // Rim annulus at the open mouth
+      const rimRing = new THREE.Mesh(
+        new THREE.TorusGeometry((outerR + innerR) / 2, wall / 2, 8, 20),
         rimMat
       );
-      rim.position.y = potH + 0.02;
+      rimRing.rotation.y = Math.PI / 2;     // ring in YZ plane
+      rimRing.position.set(len, outerR, 0);
 
-      // Semi-circular base (half disc)
-      const baseGeo = new THREE.CircleGeometry(baseR, 18, -Math.PI/2, Math.PI);
-      const base = new THREE.Mesh(baseGeo, baseMat);
-      base.rotation.x = -Math.PI / 2;
-      base.position.y = 0.005;
-
-      // Flat back wall (rectangle spanning the cut face)
-      const backWall = new THREE.Mesh(
-        new THREE.PlaneGeometry(outerR * 2, potH),
+      // Flat bottom strip — the part of the outer shell touching the ground
+      // A thin box so it sits level without tipping
+      const strip = new THREE.Mesh(
+        new THREE.BoxGeometry(len, 0.018, outerR * 1.1),
         mat
       );
-      backWall.position.set(0, potH / 2, 0);
+      strip.position.set(len / 2, 0.009, 0);
 
-      // Drainage holes on base (decorative)
-      const holeMat = new THREE.MeshLambertMaterial({ color: 0x4a2810 });
-      for (let i = 0; i < 3; i++) {
-        const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.01, 8), holeMat);
-        hole.position.set(Math.cos((i / 3) * Math.PI - Math.PI/2) * 0.1, 0.01,
-                          Math.sin((i / 3) * Math.PI - Math.PI/2) * 0.1);
-        group.add(hole);
-      }
+      // Drainage hole on the back
+      const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 8), darkMat);
+      hole.rotation.z = Math.PI / 2;
+      hole.position.set(0.01, outerR, 0);
 
-      group.add(outer, inner, rim, base, backWall);
+      group.add(outer, inner, backDisc, rimRing, strip, hole);
       break;
     }
 
