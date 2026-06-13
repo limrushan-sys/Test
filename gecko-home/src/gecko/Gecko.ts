@@ -40,6 +40,8 @@ export class Gecko {
   private target = new THREE.Vector3();
   private targetItemId: number | null = null;
   private walkTime = 0;
+  private sleepingInHide = false;
+  private turnAroundAngle: number | null = null; // target Y rotation after arriving at hide
   private geckoY = 0;        // current Y (for climbing)
   private targetY = 0;
 
@@ -316,13 +318,24 @@ export class Gecko {
         if (dist < ARRIVE_DIST) {
           this.state = 'ARRIVED';
           this.idleTimer = IDLE_WAIT_MIN + Math.random() * (IDLE_WAIT_MAX - IDLE_WAIT_MIN);
-          this.showTongue();
-          // Notify if arrived at food bowl
-          if (this.targetItemId !== null) {
-            const item = items.find(i => i.id === this.targetItemId);
-            if (item?.type === 'Food Bowl') this.onArrivedAtFoodBowl?.(item.id);
+
+          // Check if we arrived at a hide
+          const arrivedItem = this.targetItemId !== null
+            ? items.find(i => i.id === this.targetItemId) : null;
+
+          if (arrivedItem?.type === ItemType.SLEEPING_HIDE) {
+            // Turn around to face the opening (add PI to current facing angle)
+            this.turnAroundAngle = this.group.rotation.y + Math.PI;
+            this.sleepingInHide = true;
+            this.idleTimer = 4 + Math.random() * 5; // rest longer in the hide
+            this.setStatus('Resting…');
+          } else {
+            this.turnAroundAngle = null;
+            this.sleepingInHide = false;
+            this.showTongue();
+            if (arrivedItem?.type === 'Food Bowl') this.onArrivedAtFoodBowl?.(arrivedItem.id);
+            this.setStatus(`At ${this.nearestName(items)}`);
           }
-          this.setStatus(`At ${this.nearestName(items)}`);
           break;
         }
 
@@ -418,18 +431,35 @@ export class Gecko {
 
       case 'ARRIVED':
         this.idleTimer -= delta;
-        // Settle legs and rotation back to neutral
+        // Settle legs and body
         this.legGroups.forEach(lg => { lg.position.y += (0 - lg.position.y) * 0.15; });
         this.group.rotation.z += (0 - this.group.rotation.z) * 0.12;
         this.targetY = 0;
         this.geckoY += (this.targetY - this.geckoY) * Math.min(3 * delta, 1);
         this.group.position.y = this.geckoY;
 
+        // Smoothly rotate to face outward if in hide
+        if (this.turnAroundAngle !== null) {
+          const diff = this.turnAroundAngle - this.group.rotation.y;
+          this.group.rotation.y += diff * Math.min(4 * delta, 1);
+          // Once roughly aligned, lock and close eyes
+          if (Math.abs(diff) < 0.05) {
+            this.group.rotation.y = this.turnAroundAngle;
+            this.turnAroundAngle = null;
+            this.eyeMeshes.forEach(e => { e.scale.y = 0.04; }); // eyes shut
+          }
+        }
+
         if (this.idleTimer <= 0) {
-          this.hideTongue();
+          if (this.sleepingInHide) {
+            this.sleepingInHide = false;
+            this.eyeMeshes.forEach(e => { e.scale.y = 1; }); // wake up
+          } else {
+            this.hideTongue();
+          }
           this.state = 'IDLE';
           this.idleTimer = 0.5 + Math.random() * 1.2;
-          this.setStatus('Resting…');
+          this.setStatus('Exploring…');
         }
         break;
     }
@@ -438,7 +468,8 @@ export class Gecko {
     const sway = Math.sin(Date.now() * 0.0012) * 0.18;
     this.tailGroup.rotation.y = sway;
 
-    // Blink: squish eye Y scale to ~0 then spring back
+    // Blink: squish eye Y scale to ~0 then spring back (skip while sleeping)
+    if (this.sleepingInHide) return;
     this.blinkTimer -= delta;
     if (this.blinkTimer <= 0) {
       this.blinkTime  = 0;
