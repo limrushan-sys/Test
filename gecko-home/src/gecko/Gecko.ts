@@ -21,10 +21,14 @@ export class Gecko {
   private tailGroup = new THREE.Group();
   private legGroups: THREE.Group[] = [];
 
-  private baseMat!: THREE.MeshLambertMaterial;
+  private bodyGeo!: THREE.SphereGeometry;
+  private bodyTopColor  = new THREE.Color(0xa8c060);
+  private bodyBotColor  = new THREE.Color(0xd4c890);
+
+  private baseMat!: THREE.MeshLambertMaterial; // head, tail, legs — solid base colour
+  private bodyMat!: THREE.MeshLambertMaterial; // body only — vertex colours
   private spotMat!: THREE.MeshLambertMaterial;
   private darkMat!: THREE.MeshLambertMaterial;
-  private bellyMat!: THREE.MeshLambertMaterial;
   private spotMeshes: THREE.Mesh[] = [];
 
   private state: GeckoState = 'IDLE';
@@ -49,31 +53,26 @@ export class Gecko {
   // ── Build gecko mesh ───────────────────────────────────────────────────────
   private buildMesh() {
     this.baseMat = new THREE.MeshLambertMaterial({ color: 0xa8c060 });
+    this.bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.spotMat = new THREE.MeshLambertMaterial({ color: 0xf0d070 });
     this.darkMat = new THREE.MeshLambertMaterial({ color: 0x7a9040 });
-    const eyeMat  = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
-    const pupilMat= new THREE.MeshLambertMaterial({ color: 0x050505 });
+    const eyeMat   = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+    const pupilMat = new THREE.MeshLambertMaterial({ color: 0x050505 });
     const tongueMat = new THREE.MeshLambertMaterial({ color: 0xe05070 });
 
-    // Body
-    this.bodyMesh = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), this.baseMat);
+    // Body — vertex-coloured sphere: top half = body colour, bottom half = belly colour
+    this.bodyGeo = new THREE.SphereGeometry(0.13, 16, 12);
+    const colAttr = new THREE.BufferAttribute(
+      new Float32Array(this.bodyGeo.attributes.position.count * 3), 3
+    );
+    this.bodyGeo.setAttribute('color', colAttr);
+    this.refreshBodyColors();
+
+    this.bodyMesh = new THREE.Mesh(this.bodyGeo, this.bodyMat);
     this.bodyMesh.scale.set(1.55, 0.52, 0.95);
     this.bodyMesh.position.y = 0.075;
     this.bodyMesh.castShadow = true;
     this.group.add(this.bodyMesh);
-
-    // Belly — wider than body so it shows as lower flank band from camera above
-    this.bellyMat = new THREE.MeshLambertMaterial({
-      color: 0xd4c890,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -2,
-    });
-    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), this.bellyMat);
-    belly.scale.set(1.90, 0.28, 1.15); // wider than body (1.55) so it peeks out at sides
-    belly.position.set(0, 0.060, 0);   // lower than body centre (0.075)
-    belly.renderOrder = 1;
-    this.group.add(belly);
 
     // Spots along back
     this.spotMeshes = [];
@@ -177,12 +176,31 @@ export class Gecko {
     this.group.add(this.tailGroup);
   }
 
+  // ── Vertex colour gradient: top = body, bottom = belly ────────────────────
+  private refreshBodyColors() {
+    const pos = this.bodyGeo.attributes.position;
+    const col = this.bodyGeo.attributes.color as THREE.BufferAttribute;
+    const R   = 0.13; // sphere radius
+
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);            // -R … +R
+      const t = (R - y) / (2 * R);     // 0 = top, 1 = bottom
+      // smooth transition starting at 40% down, reaching belly at 100%
+      const raw    = Math.max(0, (t - 0.35) / 0.65);
+      const smooth = raw * raw * (3 - 2 * raw); // smoothstep
+      const c = this.bodyTopColor.clone().lerp(this.bodyBotColor, smooth);
+      col.setXYZ(i, c.r, c.g, c.b);
+    }
+    col.needsUpdate = true;
+  }
+
   // ── Gecko colour setters ──────────────────────────────────────────────────
   setBodyColor(hex: number) {
-    this.baseMat.color.setHex(hex);
-    // Keep dark (legs/snout) proportional to body
+    this.bodyTopColor.setHex(hex);
+    this.baseMat.color.setHex(hex);   // head, tail, legs stay in sync
     const c = new THREE.Color(hex);
     this.darkMat.color.setRGB(c.r * 0.72, c.g * 0.78, c.b * 0.65);
+    this.refreshBodyColors();
   }
 
   setSpotColor(hex: number | null) {
@@ -195,7 +213,8 @@ export class Gecko {
   }
 
   setBellyColor(hex: number) {
-    this.bellyMat.color.setHex(hex);
+    this.bodyBotColor.setHex(hex);
+    this.refreshBodyColors();
   }
 
   // ── AI update ─────────────────────────────────────────────────────────────
