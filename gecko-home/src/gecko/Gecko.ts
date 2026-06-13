@@ -87,74 +87,76 @@ export class Gecko {
       this.spotMeshes.push(spot);
     }
 
-    // Head — trapezoidal prism: wide at neck, narrow at snout, flat top & bottom,
-    //         vertical back face (right angle between bottom and back plate).
-    //         Snout face is a small rectangle with a rounded cylinder cap.
+    // Head — trapezoidal prism.
+    // Side profile (right-angled trapezium):
+    //   - flat bottom, vertical back (right angle), vertical snout (right angle)
+    //   - top face is slanted from tall back down to short snout
+    // Plan view: wider at neck, narrower at snout (true prism with two equal side faces).
+    // Snout face is replaced by a smooth ellipsoid cap.
     {
-      const hwB = 0.068;  // half-width at neck (wide end)
-      const hwF = 0.030;  // half-width at snout (narrow end)
-      const bx  = 0.185;  // neck X
-      const tx  = 0.370;  // snout X
-      const yb  = 0.030;  // bottom Y
-      const yt  = 0.155;  // top Y — taller back plate
-      const hh  = yt - yb; // head height
+      const bx      = 0.185;  // neck X
+      const tx      = 0.370;  // snout X
+      const hwB     = 0.070;  // half-width at neck
+      const hwF     = 0.028;  // half-width at snout
+      const yb      = 0.032;  // bottom Y (flat base)
+      const ytB     = 0.158;  // top Y at neck  (tall)
+      const ytF     = 0.072;  // top Y at snout (short)
 
-      // 8 vertices: back (wide) + front (narrow)
+      //  0  back-bottom-left     1  back-bottom-right
+      //  2  back-top-left        3  back-top-right
+      //  4  front-bottom-left    5  front-bottom-right
+      //  6  front-top-left       7  front-top-right
       const verts = new Float32Array([
-        bx, yb,  hwB,  // 0 back-bottom-left
-        bx, yb, -hwB,  // 1 back-bottom-right
-        bx, yt,  hwB,  // 2 back-top-left
-        bx, yt, -hwB,  // 3 back-top-right
-        tx, yb,  hwF,  // 4 front-bottom-left
-        tx, yb, -hwF,  // 5 front-bottom-right
-        tx, yt,  hwF,  // 6 front-top-left
-        tx, yt, -hwF,  // 7 front-top-right
+        bx, yb,   hwB,   // 0
+        bx, yb,  -hwB,   // 1
+        bx, ytB,  hwB,   // 2
+        bx, ytB, -hwB,   // 3
+        tx, yb,   hwF,   // 4
+        tx, yb,  -hwF,   // 5
+        tx, ytF,  hwF,   // 6
+        tx, ytF, -hwF,   // 7
       ]);
 
       const idx = new Uint16Array([
-        0, 3, 1,  0, 2, 3,   // back face
-        0, 1, 5,  0, 5, 4,   // bottom face
-        2, 6, 7,  2, 7, 3,   // top face
-        0, 4, 6,  0, 6, 2,   // left side
-        1, 3, 7,  1, 7, 5,   // right side
-        // front face omitted — covered by the rounded snout cap
+        0, 3, 1,  0, 2, 3,   // back face  (vertical, tall)
+        0, 1, 5,  0, 5, 4,   // bottom face (flat)
+        2, 6, 7,  2, 7, 3,   // top face   (slanted)
+        0, 4, 6,  0, 6, 2,   // left side  (+Z trapezoid)
+        1, 3, 7,  1, 7, 5,   // right side (-Z trapezoid)
+        // front face omitted — replaced by curved snout cap below
       ]);
 
       const headGeo = new THREE.BufferGeometry();
       headGeo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
       headGeo.setIndex(new THREE.BufferAttribute(idx, 1));
       headGeo.computeVertexNormals();
+      this.group.add(new THREE.Mesh(headGeo, this.baseMat));
 
-      const headMesh = new THREE.Mesh(headGeo, this.baseMat);
-      headMesh.castShadow = true;
-      this.group.add(headMesh);
-
-      // Rounded snout: ellipsoid scaled to match the narrow front face,
-      // bulging outward (+X) to give a smooth curved nose — no flat end caps
-      const snoutCap = new THREE.Mesh(
-        new THREE.SphereGeometry(1, 14, 10),
-        this.baseMat
-      );
-      snoutCap.scale.set(hh * 0.52, hh * 0.5, hwF * 0.98);
-      snoutCap.position.set(tx, yb + hh / 2, 0);
+      // Snout cap: ellipsoid scaled to match the front face (hwF wide, ytF-yb tall)
+      // Placed so its back half merges with the snout face, front half curves outward
+      const snoutH = ytF - yb;
+      const snoutCap = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), this.baseMat);
+      snoutCap.scale.set(snoutH * 0.55, snoutH * 0.5, hwF);
+      snoutCap.position.set(tx, yb + snoutH / 2, 0);
       this.group.add(snoutCap);
 
-      // Nostrils on top of snout cap
+      // Nostrils near the top of the snout cap
       const nostMat = new THREE.MeshLambertMaterial({ color: 0x3a5010 });
       for (const side of [-1, 1] as const) {
         const n = new THREE.Mesh(new THREE.SphereGeometry(0.007, 5, 4), nostMat);
-        n.position.set(tx + 0.016, yb + hh * 0.7, side * 0.015);
+        n.position.set(tx + 0.014, yb + snoutH * 0.78, side * 0.014);
         this.group.add(n);
       }
 
-      // Eyes on the outer left/right side faces, upper portion
+      // Eyes on the outer side faces, in the upper portion
       this.eyeMeshes = [];
       for (const side of [-1, 1] as const) {
-        const ex = bx + (tx - bx) * 0.30;
-        const t  = (ex - bx) / (tx - bx);
-        const eyeHW = hwB - (hwB - hwF) * t; // interpolated side-face width at this X
+        const ex  = bx + (tx - bx) * 0.28;
+        const t   = (ex - bx) / (tx - bx);
+        const eyeHW = hwB - (hwB - hwF) * t;
+        const eyeY  = yb + (ytB - (ytB - ytF) * t) * 0.68; // follow slope
         const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), eyeMat);
-        eye.position.set(ex, yb + hh * 0.72, side * (eyeHW + 0.008));
+        eye.position.set(ex, eyeY, side * (eyeHW + 0.008));
         this.group.add(eye);
         this.eyeMeshes.push(eye);
       }
