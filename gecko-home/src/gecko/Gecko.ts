@@ -25,10 +25,14 @@ export class Gecko {
   private bodyTopColor  = new THREE.Color(0xa8c060);
   private bodyBotColor  = new THREE.Color(0xd4c890);
 
-  private baseMat!: THREE.MeshLambertMaterial; // head, tail, legs — solid base colour
-  private bodyMat!: THREE.MeshLambertMaterial; // body only — vertex colours
+  private baseMat!: THREE.MeshLambertMaterial;
+  private bodyMat!: THREE.MeshLambertMaterial;
   private spotMat!: THREE.MeshLambertMaterial;
   private darkMat!: THREE.MeshLambertMaterial;
+
+  private eyeMeshes: THREE.Mesh[] = [];
+  private blinkTimer = 3.5;
+  private blinkTime  = -1;
   private spotMeshes: THREE.Mesh[] = [];
 
   private state: GeckoState = 'IDLE';
@@ -56,8 +60,7 @@ export class Gecko {
     this.bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.spotMat = new THREE.MeshLambertMaterial({ color: 0xf0d070 });
     this.darkMat = new THREE.MeshLambertMaterial({ color: 0x7a9040 });
-    const eyeMat   = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
-    const pupilMat = new THREE.MeshLambertMaterial({ color: 0x050505 });
+    const eyeMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
     const tongueMat = new THREE.MeshLambertMaterial({ color: 0xe05070 });
 
     // Body — vertex-coloured sphere: top half = body colour, bottom half = belly colour
@@ -95,18 +98,13 @@ export class Gecko {
     snout.position.set(0.335, 0.078, 0);
     this.group.add(snout);
 
-    // Eyes
+    // Eyes — one black sphere per side, stored for blink animation
+    this.eyeMeshes = [];
     for (const side of [-1, 1] as const) {
-      const eye   = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8), eyeMat);
-      const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.017, 6, 6), pupilMat);
-      eye.position.set(0.245, 0.118, side * 0.065);
-      pupil.position.set(0.272, 0.118, side * 0.066);
-      // Eyelid crease
-      const lid = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.006, 4, 10, Math.PI),
-        this.darkMat);
-      lid.rotation.z = Math.PI / 2;
-      lid.position.set(0.245, 0.124, side * 0.065);
-      this.group.add(eye, pupil, lid);
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), eyeMat);
+      eye.position.set(0.248, 0.118, side * 0.063);
+      this.group.add(eye);
+      this.eyeMeshes.push(eye);
     }
 
     // Nostrils
@@ -348,11 +346,24 @@ export class Gecko {
     const sway = Math.sin(Date.now() * 0.0012) * 0.18;
     this.tailGroup.rotation.y = sway;
 
-    // Slow blink-like eyelid shift (subtle)
-    const blink = Math.sin(Date.now() * 0.0008);
-    this.group.children.forEach(c => {
-      if (c.name === 'tongue') return;
-    });
+    // Blink: squish eye Y scale to ~0 then spring back
+    this.blinkTimer -= delta;
+    if (this.blinkTimer <= 0) {
+      this.blinkTime  = 0;
+      this.blinkTimer = 3 + Math.random() * 5;
+    }
+    if (this.blinkTime >= 0) {
+      this.blinkTime += delta;
+      const BLINK_DUR = 0.22;
+      const t = Math.min(this.blinkTime / BLINK_DUR, 1);
+      // t 0→0.5: squish down; t 0.5→1: open back up
+      const squish = t < 0.5 ? 1 - t * 2 * 0.96 : 0.04 + (t - 0.5) * 2 * 0.96;
+      this.eyeMeshes.forEach(e => { e.scale.y = Math.max(0.04, squish); });
+      if (t >= 1) {
+        this.blinkTime = -1;
+        this.eyeMeshes.forEach(e => { e.scale.y = 1; });
+      }
+    }
   }
 
   private animateIdle(delta: number) {
