@@ -125,15 +125,7 @@ export function createItemMesh(type: ItemType): THREE.Group {
       backCap.rotation.z = Math.PI / 2;
       backCap.position.x = -len / 2 + wall * 0.4;
 
-      // Front rim lip at opening
-      const rimCap = new THREE.Mesh(
-        new THREE.CylinderGeometry(R + 0.014, R + 0.014, wall * 0.6, SEG, 1, false, 0, Math.PI),
-        dark
-      );
-      rimCap.rotation.z = Math.PI / 2;
-      rimCap.position.x = len / 2 - wall * 0.3;
-
-      group.add(outer, inner, backCap, rimCap);
+      group.add(outer, inner, backCap);
       break;
     }
 
