@@ -153,12 +153,12 @@ export class Gecko {
         idxArr.push(l0, r0, r1,  l0, r1, l1);
       }
 
-      // End-cap fans at z=±hw (semicircle fans, centre = midpoint on the arc axis)
+      // End-cap fans at z=±hw — winding for outward normals (+Z left, -Z right)
       const lcx = v(tx, cy,  hw);
       const rcx = v(tx, cy, -hw);
       for (let i = 0; i < ARC; i++) {
-        idxArr.push(lcx, leftRing[i + 1],  leftRing[i]);
-        idxArr.push(rcx, rightRing[i],     rightRing[i + 1]);
+        idxArr.push(lcx, leftRing[i],  leftRing[i + 1]);   // +Z face, CCW from +Z
+        idxArr.push(rcx, rightRing[i + 1], rightRing[i]);  // -Z face, CCW from -Z
       }
 
       // ── Build mesh ────────────────────────────────────────────────────────────
