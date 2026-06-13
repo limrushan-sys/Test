@@ -126,12 +126,14 @@ export class Gecko {
     this.group.add(tongue);
 
     // ── Legs ────────────────────────────────────────────────────────────────
+    // Hip anchors sit at y=0.04. Upper leg splays horizontally outward
+    // (lizard stance). Lower leg drops vertically so foot lands at world y=0.
     // Order: [0]=FrontLeft [1]=FrontRight [2]=RearLeft [3]=RearRight
     const legDefs: [number, number, number][] = [
-      [ 0.13,  0,  0.13],  // FL
-      [ 0.13,  0, -0.13],  // FR
-      [-0.10,  0,  0.13],  // RL
-      [-0.10,  0, -0.13],  // RR
+      [ 0.12,  0.04,  0.11],  // FL
+      [ 0.12,  0.04, -0.11],  // FR
+      [-0.09,  0.04,  0.11],  // RL
+      [-0.09,  0.04, -0.11],  // RR
     ];
 
     for (let li = 0; li < 4; li++) {
@@ -140,21 +142,23 @@ export class Gecko {
       lgGroup.position.set(lx, ly, lz);
 
       const outSide = lz > 0 ? 1 : -1;
-      // Upper leg
-      const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.018, 0.095, 5), this.darkMat);
-      upper.position.set(0, -0.025, outSide * 0.022);
-      upper.rotation.z = outSide * 0.35;
+
+      // Upper leg: horizontal splay outward from hip (rotation.z ≈ ±90°)
+      const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.020, 0.017, 0.065, 5), this.darkMat);
+      upper.position.set(outSide * 0.032, 0, 0);
+      upper.rotation.z = outSide * (Math.PI / 2);
       lgGroup.add(upper);
 
-      // Lower leg
-      const lower = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.01, 0.085, 5), this.darkMat);
-      lower.position.set(0, -0.085, outSide * 0.032);
+      // Lower leg: drops straight down from elbow to ground (world y=0)
+      // Elbow is at local (outSide*0.064, 0). Foot must reach local y=-0.04.
+      const lower = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.010, 0.048, 5), this.darkMat);
+      lower.position.set(outSide * 0.064, -0.024, 0);
       lgGroup.add(lower);
 
-      // Foot
-      const foot = new THREE.Mesh(new THREE.SphereGeometry(0.026, 6, 4), this.darkMat);
-      foot.scale.set(1.5, 0.38, 1.0);
-      foot.position.set(outSide * 0.01, -0.125, outSide * 0.034);
+      // Foot: local y=-0.040 → world y = 0.04 - 0.04 = 0 (on ground)
+      const foot = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 4), this.darkMat);
+      foot.scale.set(1.4, 0.35, 1.0);
+      foot.position.set(outSide * 0.064, -0.040, 0.006);
       lgGroup.add(foot);
 
       this.group.add(lgGroup);
