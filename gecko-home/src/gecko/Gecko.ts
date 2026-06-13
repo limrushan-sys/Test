@@ -161,18 +161,14 @@ export class Gecko {
       this.legGroups.push(lgGroup);
     }
 
-    // ── Tail (segmented, curves gently) ──────────────────────────────────────
-    const tailSegs = 7;
-    for (let i = 0; i < tailSegs; i++) {
-      const r   = Math.max(0.045 - i * 0.005, 0.008);
-      const seg = new THREE.Mesh(
-        new THREE.SphereGeometry(r, 7, 5),
-        i % 2 === 0 ? this.baseMat : this.spotMat
-      );
-      seg.scale.set(0.75, 0.42, 0.75);
-      seg.position.set(-0.155 - i * 0.095, 0.075, 0);
-      this.tailGroup.add(seg);
-    }
+    // ── Tail — tapered cone ───────────────────────────────────────────────────
+    const tail = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.008, 0.06, 0.72, 10),
+      this.baseMat
+    );
+    tail.rotation.z = Math.PI / 2;   // point it along -X
+    tail.position.set(-0.565, 0.075, 0); // base sits flush with body rear
+    this.tailGroup.add(tail);
     this.group.add(this.tailGroup);
   }
 
