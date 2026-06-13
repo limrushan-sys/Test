@@ -345,30 +345,48 @@ export class Gecko {
         let nz = pos.z + ndz * step;
 
         // ── Collision with items ────────────────────────────────────────────
+        // Check both the body centre AND the head tip (~0.37 units ahead along facing).
+        // If either penetrates a solid item, push the whole gecko back out.
+        const facingX = Math.cos(this.group.rotation.y);
+        const facingZ = -Math.sin(this.group.rotation.y);
+        const HEAD_REACH = 0.37;
+
         this.targetY = 0;
         for (const item of items) {
           const col  = ITEM_COLLISION[item.type];
-          const cdx  = nx - item.position.x;
-          const cdz  = nz - item.position.z;
-          const d2   = cdx * cdx + cdz * cdz;
           const r2   = col.radius * col.radius;
 
-          if (d2 < r2) {
-            if (col.climbable) {
-              // Smoothly raise gecko Y
-              const d = Math.sqrt(d2);
-              const t = Math.min(1, 1 - d / col.radius);
-              this.targetY = Math.max(this.targetY, col.height * Math.min(t * 2.5, 1));
-            } else {
-              // Push gecko out
-              const d = Math.sqrt(d2);
-              if (d < 0.001) { nx += col.radius; }
-              else {
-                const pushAmt = col.radius - d + 0.02;
-                nx += (cdx / d) * pushAmt;
-                nz += (cdz / d) * pushAmt;
+          // Test both probe points; use whichever is deeper inside the item
+          let worstPush = 0;
+          let pushDx = 0, pushDz = 0;
+
+          for (const [px, pz] of [
+            [nx,                    nz],
+            [nx + facingX * HEAD_REACH, nz + facingZ * HEAD_REACH],
+          ] as [number, number][]) {
+            const cdx = px - item.position.x;
+            const cdz = pz - item.position.z;
+            const d2  = cdx * cdx + cdz * cdz;
+            if (d2 < r2) {
+              if (col.climbable) {
+                const d = Math.sqrt(d2);
+                const t = Math.min(1, 1 - d / col.radius);
+                this.targetY = Math.max(this.targetY, col.height * Math.min(t * 2.5, 1));
+              } else {
+                const d = Math.sqrt(d2) || 0.001;
+                const push = col.radius - d + 0.02;
+                if (push > worstPush) {
+                  worstPush = push;
+                  pushDx = (cdx / d) * push;
+                  pushDz = (cdz / d) * push;
+                }
               }
             }
+          }
+
+          if (worstPush > 0) {
+            nx += pushDx;
+            nz += pushDz;
           }
         }
 
