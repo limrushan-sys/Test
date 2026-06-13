@@ -315,9 +315,11 @@ export class Gecko {
         this.group.rotation.z = sway;
 
         // Leg animation — trot gait, diagonal pairs lift together
+        // Subtract bob so legs stay grounded despite the group Y rising
         const phases = [0, Math.PI, Math.PI, 0];
         this.legGroups.forEach((lg, i) => {
-          lg.position.y = Math.max(0, Math.sin(this.walkTime * LEG_SWING_SPEED + phases[i])) * 0.04;
+          const lift = Math.max(0, Math.sin(this.walkTime * LEG_SWING_SPEED + phases[i])) * 0.04;
+          lg.position.y = lift - bob;
         });
 
         this.setStatus('Walking…');
@@ -368,9 +370,13 @@ export class Gecko {
 
   private animateIdle(_delta: number) {
     // Gentle whole-body breathing bob
-    this.group.position.y = this.geckoY + Math.sin(Date.now() * 0.0015) * 0.005;
+    const breathBob = Math.sin(Date.now() * 0.0015) * 0.005;
+    this.group.position.y = this.geckoY + breathBob;
     this.group.rotation.z += (0 - this.group.rotation.z) * 0.1;
-    this.legGroups.forEach(lg => { lg.position.y *= 0.9; });
+    // Cancel the breath bob in leg local Y so feet stay on ground
+    this.legGroups.forEach(lg => {
+      lg.position.y = lg.position.y * 0.9 - breathBob;
+    });
   }
 
   private pickTarget(items: PlacedItem[], bounds: EnclosureBounds) {
