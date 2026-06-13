@@ -135,7 +135,7 @@ export class UI {
     const status = document.createElement('div');
     status.id = 'status-bar';
     status.className = 'panel';
-    status.innerHTML = `<span id="gecko-status">🦎 Gecko: Resting…</span>`;
+    status.innerHTML = `<span id="gecko-status">🦎 Gecko: Exploring…</span>`;
     root.appendChild(status);
 
     // ── Info tip ─────────────────────────────────────────────────────────────

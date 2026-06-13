@@ -55,6 +55,7 @@ export class Gecko {
     this.group.position.set(0, 0, 0);
     scene.add(this.group);
     this.statusEl = document.getElementById('gecko-status');
+    this.setStatus('🦎 Exploring…');
   }
 
   // ── Build gecko mesh ───────────────────────────────────────────────────────
@@ -328,7 +329,7 @@ export class Gecko {
             // Turn around to face the opening (add PI to current facing angle)
             this.turnAroundAngle = this.group.rotation.y + Math.PI;
             this.sleepingInHide = true;
-            this.idleTimer = 4 + Math.random() * 5; // rest longer in the hide
+            this.idleTimer = 15 + Math.random() * 15; // rest longer in the hide
             this.setStatus('💤 Resting…');
           } else {
             this.turnAroundAngle = null;
