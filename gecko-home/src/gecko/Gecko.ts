@@ -349,7 +349,7 @@ export class Gecko {
         // If either penetrates a solid item, push the whole gecko back out.
         const facingX = Math.cos(this.group.rotation.y);
         const facingZ = -Math.sin(this.group.rotation.y);
-        const HEAD_REACH = 0.37;
+        const HEAD_REACH = 0.42;
 
         this.targetY = 0;
         for (const item of items) {
@@ -475,7 +475,9 @@ export class Gecko {
       this.targetItemId = item.id;
       const col = ITEM_COLLISION[item.type];
       // Approach to just outside collision radius
-      const approachR = col.climbable ? col.radius * 0.3 : col.radius + 0.08;
+      // For solid items: stop far enough that the head tip (HEAD_REACH ahead) clears the radius
+      const HEAD_REACH = 0.42;
+      const approachR = col.climbable ? col.radius * 0.3 : col.radius + HEAD_REACH + 0.10;
       // Angle from current gecko pos toward item
       const adx = this.group.position.x - item.position.x;
       const adz = this.group.position.z - item.position.z;
