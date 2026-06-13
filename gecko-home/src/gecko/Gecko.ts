@@ -40,6 +40,7 @@ export class Gecko {
   private target = new THREE.Vector3();
   private targetItemId: number | null = null;
   private walkTime = 0;
+  private justLeftHide = false; // skip hide on next target pick after waking
   private sleepingInHide = false;
   private turnAroundAngle: number | null = null; // target Y rotation after arriving at hide
   private geckoY = 0;        // current Y (for climbing)
@@ -455,12 +456,13 @@ export class Gecko {
         if (this.idleTimer <= 0) {
           if (this.sleepingInHide) {
             this.sleepingInHide = false;
+            this.justLeftHide = true;          // don't go straight back in
             this.eyeMeshes.forEach(e => { e.scale.y = 1; }); // wake up
           } else {
             this.hideTongue();
           }
           this.state = 'IDLE';
-          this.idleTimer = 0.5 + Math.random() * 1.2;
+          this.idleTimer = 1.5 + Math.random() * 2.0; // wander for a bit first
           this.setStatus('🦎 Exploring…');
         }
         break;
@@ -503,8 +505,14 @@ export class Gecko {
   private pickTarget(items: PlacedItem[], bounds: EnclosureBounds) {
     this.targetItemId = null;
 
-    if (items.length > 0 && Math.random() < 0.88) {
-      const item = items[Math.floor(Math.random() * items.length)];
+    // Filter out the hide right after waking so the gecko explores first
+    const pickable = this.justLeftHide
+      ? items.filter(i => i.type !== ItemType.SLEEPING_HIDE)
+      : items;
+    this.justLeftHide = false; // consume the flag
+
+    if (pickable.length > 0 && Math.random() < 0.88) {
+      const item = pickable[Math.floor(Math.random() * pickable.length)];
       this.targetItemId = item.id;
       const col = ITEM_COLLISION[item.type];
       const HEAD_REACH = 0.42;
