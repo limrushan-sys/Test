@@ -190,6 +190,18 @@ export class Gecko {
       geo.computeVertexNormals();
       this.group.add(new THREE.Mesh(geo, this.baseMat));
 
+      // Crown spike
+      const spike = new THREE.Mesh(
+        new THREE.ConeGeometry(0.014, 0.055, 6),
+        this.baseMat
+      );
+      // Place at crown of head (slightly toward neck from midpoint)
+      const spikeX = bx + (tx - bx) * 0.30;
+      const spikeY = ytB + (ytF - ytB) * 0.30; // interpolated top surface
+      spike.position.set(spikeX, spikeY + 0.027, 0);
+      spike.rotation.z = -0.25; // tilt back slightly
+      this.group.add(spike);
+
       // Nostrils
       const nostMat = new THREE.MeshLambertMaterial({ color: 0x3a5010 });
       for (const side of [-1, 1] as const) {
