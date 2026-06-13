@@ -125,13 +125,13 @@ export class Gecko {
     tongue.visible = false;
     this.group.add(tongue);
 
-    // ── Legs: simple semicircles, arc hangs down, opening at top ─────────────
-    const LEG_R = 0.042; // major radius — bottom of arc = world y 0
+    // ── Legs: hemispheres, dome pointing up, flat bottom on ground ───────────
+    const LEG_R = 0.046;
     const legDefs: [number, number, number][] = [
-      [ 0.14, LEG_R,  0.10],  // FL
-      [ 0.14, LEG_R, -0.10],  // FR
-      [-0.08, LEG_R,  0.10],  // RL
-      [-0.08, LEG_R, -0.10],  // RR
+      [ 0.13, 0,  0.11],  // FL
+      [ 0.13, 0, -0.11],  // FR
+      [-0.08, 0,  0.11],  // RL
+      [-0.08, 0, -0.11],  // RR
     ];
 
     for (let li = 0; li < 4; li++) {
@@ -139,13 +139,11 @@ export class Gecko {
       const lgGroup = new THREE.Group();
       lgGroup.position.set(lx, ly, lz);
 
+      // thetaStart=0, thetaLength=PI/2 → top hemisphere, dome up, flat at y=0
       const leg = new THREE.Mesh(
-        new THREE.TorusGeometry(LEG_R, 0.013, 6, 16, Math.PI),
+        new THREE.SphereGeometry(LEG_R, 10, 7, 0, Math.PI * 2, 0, Math.PI / 2),
         this.darkMat
       );
-      // Rotate PI so the arc hangs downward with opening at top
-      leg.rotation.z = Math.PI;
-
       lgGroup.add(leg);
       this.group.add(lgGroup);
       this.legGroups.push(lgGroup);
@@ -311,11 +309,11 @@ export class Gecko {
         this.geckoY += (this.targetY - this.geckoY) * Math.min(9 * delta, 1);
         pos.y = this.geckoY;
 
-        // Leg animation — diagonal pairs (trot gait)
-        // FL+RR swing together; FR+RL opposite phase
-        const phases = [0, Math.PI, Math.PI, 0]; // FL, FR, RL, RR
+        // Leg animation — trot gait, diagonal pairs lift together
+        // FL+RR phase 0, FR+RL phase PI
+        const phases = [0, Math.PI, Math.PI, 0];
         this.legGroups.forEach((lg, i) => {
-          lg.rotation.x = Math.sin(this.walkTime * LEG_SWING_SPEED + phases[i]) * 0.42;
+          lg.position.y = Math.max(0, Math.sin(this.walkTime * LEG_SWING_SPEED + phases[i])) * 0.04;
         });
 
         // Body bob
@@ -328,7 +326,7 @@ export class Gecko {
       case 'ARRIVED':
         this.idleTimer -= delta;
         // Settle legs back to neutral
-        this.legGroups.forEach(lg => { lg.rotation.x *= 0.85; });
+        this.legGroups.forEach(lg => { lg.position.y *= 0.8; });
         this.bodyMesh.position.y += (0.075 - this.bodyMesh.position.y) * 0.1;
         // Descend off climbable items over time
         this.targetY = 0;
