@@ -307,17 +307,18 @@ export class Gecko {
 
         // Smooth Y for climbing
         this.geckoY += (this.targetY - this.geckoY) * Math.min(9 * delta, 1);
-        pos.y = this.geckoY;
+
+        // Whole-body walk bob + side-to-side sway — affects everything at once
+        const bob  = Math.abs(Math.sin(this.walkTime * BODY_BOB_SPEED)) * 0.018;
+        const sway = Math.sin(this.walkTime * LEG_SWING_SPEED * 0.5) * 0.07;
+        pos.y = this.geckoY + bob;
+        this.group.rotation.z = sway;
 
         // Leg animation — trot gait, diagonal pairs lift together
-        // FL+RR phase 0, FR+RL phase PI
         const phases = [0, Math.PI, Math.PI, 0];
         this.legGroups.forEach((lg, i) => {
           lg.position.y = Math.max(0, Math.sin(this.walkTime * LEG_SWING_SPEED + phases[i])) * 0.04;
         });
-
-        // Body bob
-        this.bodyMesh.position.y = 0.075 + Math.abs(Math.sin(this.walkTime * BODY_BOB_SPEED)) * BODY_BOB_AMP;
 
         this.setStatus('Walking…');
         break;
@@ -325,10 +326,9 @@ export class Gecko {
 
       case 'ARRIVED':
         this.idleTimer -= delta;
-        // Settle legs back to neutral
+        // Settle legs, sway, and bob back to neutral
         this.legGroups.forEach(lg => { lg.position.y *= 0.8; });
-        this.bodyMesh.position.y += (0.075 - this.bodyMesh.position.y) * 0.1;
-        // Descend off climbable items over time
+        this.group.rotation.z += (0 - this.group.rotation.z) * 0.12;
         this.targetY = 0;
         this.geckoY += (this.targetY - this.geckoY) * Math.min(3 * delta, 1);
         this.group.position.y = this.geckoY;
@@ -366,13 +366,11 @@ export class Gecko {
     }
   }
 
-  private animateIdle(delta: number) {
-    // Slow breathing bob
-    const breath = Math.sin(Date.now() * 0.0015) * 0.006;
-    this.bodyMesh.position.y = 0.075 + breath;
-    // Head look around (slight Y rotation)
-    // Legs relax
-    this.legGroups.forEach(lg => { lg.rotation.x *= 0.92; });
+  private animateIdle(_delta: number) {
+    // Gentle whole-body breathing bob
+    this.group.position.y = this.geckoY + Math.sin(Date.now() * 0.0015) * 0.005;
+    this.group.rotation.z += (0 - this.group.rotation.z) * 0.1;
+    this.legGroups.forEach(lg => { lg.position.y *= 0.9; });
   }
 
   private pickTarget(items: PlacedItem[], bounds: EnclosureBounds) {
