@@ -94,9 +94,9 @@ export function createItemMesh(type: ItemType): THREE.Group {
 
     // ── Sleeping Hide: half hollow cylinder laid on its side ────────────────
     case ItemType.SLEEPING_HIDE: {
-      const R    = 0.38;   // arch radius (bigger)
-      const len  = 0.68;   // length
-      const wall = 0.035;  // shell thickness
+      const R    = 0.38;   // arch radius
+      const len  = 0.95;   // longer
+      const wall = 0.045;  // thicker wall so hollow is clearly visible
       const SEG  = 24;
 
       const mat  = new THREE.MeshLambertMaterial({ color: 0x8b5e3c, side: THREE.DoubleSide });
@@ -112,7 +112,7 @@ export function createItemMesh(type: ItemType): THREE.Group {
 
       // Inner curved shell — hollow cavity
       const inner = new THREE.Mesh(
-        new THREE.CylinderGeometry(R - wall, R - wall, len + 0.01, SEG, 1, true, 0, Math.PI),
+        new THREE.CylinderGeometry(R - wall, R - wall, len + 0.02, SEG, 1, true, 0, Math.PI),
         mat
       );
       inner.rotation.z = Math.PI / 2;
