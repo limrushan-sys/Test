@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { PlacedItem } from '../items/ItemManager.js';
 import type { EnclosureBounds } from '../scene/Enclosure.js';
-import { ITEM_COLLISION } from '../items/ItemTypes.js';
+import { ITEM_COLLISION, ItemType } from '../items/ItemTypes.js';
 
 const WALK_SPEED      = 0.85;
 const ARRIVE_DIST     = 0.15;
@@ -474,10 +474,15 @@ export class Gecko {
       const item = items[Math.floor(Math.random() * items.length)];
       this.targetItemId = item.id;
       const col = ITEM_COLLISION[item.type];
-      // Approach to just outside collision radius
-      // For solid items: stop far enough that the head tip (HEAD_REACH ahead) clears the radius
       const HEAD_REACH = 0.42;
-      const approachR = col.climbable ? col.radius * 0.3 : col.radius + HEAD_REACH + 0.10;
+      // Sleeping hide: walk inside to rest (target = centre of hide)
+      // Other solid items: stop outside, keeping head clear
+      let approachR: number;
+      if (item.type === ItemType.SLEEPING_HIDE) {
+        approachR = 0.05; // walk right into the centre
+      } else {
+        approachR = col.climbable ? col.radius * 0.3 : col.radius + HEAD_REACH + 0.10;
+      }
       // Angle from current gecko pos toward item
       const adx = this.group.position.x - item.position.x;
       const adz = this.group.position.z - item.position.z;

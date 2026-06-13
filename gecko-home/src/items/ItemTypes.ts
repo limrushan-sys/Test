@@ -31,7 +31,7 @@ export interface ItemCollisionData {
 }
 
 export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
-  [ItemType.SLEEPING_HIDE]:   { radius: 0.40, height: 0,    climbable: false },
+  [ItemType.SLEEPING_HIDE]:   { radius: 0.01, height: 0,    climbable: false },
   [ItemType.WATER_DISH]:      { radius: 0.30, height: 0,    climbable: false },
   [ItemType.FOOD_BOWL]:       { radius: 0.28, height: 0,    climbable: false },
   [ItemType.CLIMBING_BRANCH]: { radius: 0.20, height: 0.18, climbable: true  },
