@@ -94,16 +94,15 @@ export function createItemMesh(type: ItemType): THREE.Group {
 
     // ── Sleeping Hide: half hollow cylinder laid on its side ────────────────
     case ItemType.SLEEPING_HIDE: {
-      const R    = 0.38;   // arch radius
-      const len  = 0.95;   // longer
-      const wall = 0.045;  // thicker wall so hollow is clearly visible
+      const R    = 0.38;
+      const len  = 0.95;
+      const wall = 0.045;
       const SEG  = 24;
 
       const mat  = new THREE.MeshLambertMaterial({ color: 0x8b5e3c, side: THREE.DoubleSide });
       const dark = new THREE.MeshLambertMaterial({ color: 0x5c3820, side: THREE.DoubleSide });
 
-      // thetaStart=0, thetaLength=PI with rotation.z=PI/2 → top half sits flat on ground
-      // Outer curved shell
+      // Outer curved shell — openEnded to avoid any overlapping faces
       const outer = new THREE.Mesh(
         new THREE.CylinderGeometry(R, R, len, SEG, 1, true, 0, Math.PI),
         mat
@@ -112,20 +111,28 @@ export function createItemMesh(type: ItemType): THREE.Group {
 
       // Inner curved shell — hollow cavity
       const inner = new THREE.Mesh(
-        new THREE.CylinderGeometry(R - wall, R - wall, len + 0.02, SEG, 1, true, 0, Math.PI),
+        new THREE.CylinderGeometry(R - wall, R - wall, len, SEG, 1, true, 0, Math.PI),
         mat
       );
       inner.rotation.z = Math.PI / 2;
 
-      // Closed back end cap
-      const backCap = new THREE.Mesh(
-        new THREE.CylinderGeometry(R, R, wall * 0.8, SEG, 1, false, 0, Math.PI),
+      // Back: solid half-disc sealing the closed end (CircleGeometry = flat, no overlap)
+      const backDisc = new THREE.Mesh(
+        new THREE.CircleGeometry(R, SEG, 0, Math.PI),
         dark
       );
-      backCap.rotation.z = Math.PI / 2;
-      backCap.position.x = -len / 2 + wall * 0.4;
+      backDisc.rotation.y = -Math.PI / 2;   // face outward (-X)
+      backDisc.position.x = -len / 2;
 
-      group.add(outer, inner, backCap);
+      // Front: half-ring annulus shows the wall edge but leaves the opening clear
+      const frontRing = new THREE.Mesh(
+        new THREE.RingGeometry(R - wall, R, SEG, 1, 0, Math.PI),
+        dark
+      );
+      frontRing.rotation.y = Math.PI / 2;   // face outward (+X)
+      frontRing.position.x = len / 2;
+
+      group.add(outer, inner, backDisc, frontRing);
       break;
     }
 
