@@ -82,24 +82,29 @@ export class Gecko {
     this.bodyMesh.castShadow = true;
     this.group.add(this.bodyMesh);
 
-    // Spots along back — irregular, flattened, varied sizes
+    // Spots along back — irregular positions, flattened to sit on body surface.
+    // Body ellipsoid: centre (0, 0.075, 0), semi-axes ax=0.2015, ay=0.0676, az=0.1235.
+    // surfY(x,z) = bodyCY + ay * sqrt(max(0, 1 - (x/ax)² - (z/az)²)) + tiny lift
     this.spotMeshes = [];
-    const spotDefs: [number, number, number, number][] = [
-      // x,     z,      size,  flatten-y
-      [-0.28,  0.05,  0.020, 0.35],
-      [-0.18, -0.03,  0.026, 0.30],
-      [-0.07,  0.06,  0.018, 0.40],
-      [ 0.01, -0.05,  0.024, 0.32],
-      [ 0.10,  0.04,  0.021, 0.38],
-      [ 0.19, -0.02,  0.016, 0.45],
-      [ 0.27,  0.06,  0.022, 0.33],
-      [ 0.13,  0.07,  0.014, 0.42],
-      [-0.13, -0.06,  0.018, 0.36],
+    const ax = 0.13 * 1.55, ay = 0.13 * 0.52, az = 0.13 * 0.95, bcy = 0.075;
+    const surfY = (x: number, z: number) =>
+      bcy + ay * Math.sqrt(Math.max(0, 1 - (x/ax)**2 - (z/az)**2)) + 0.003;
+    const spotDefs: [number, number, number][] = [
+      // x,      z,      radius
+      [-0.17,  0.04,  0.020],
+      [-0.08, -0.05,  0.026],
+      [-0.13,  0.07,  0.018],
+      [ 0.02, -0.06,  0.024],
+      [ 0.09,  0.05,  0.021],
+      [ 0.16, -0.04,  0.016],
+      [ 0.17,  0.05,  0.022],
+      [ 0.05,  0.08,  0.014],
+      [-0.06, -0.07,  0.018],
     ];
-    for (const [sx, sz, sr, sy] of spotDefs) {
+    for (const [sx, sz, sr] of spotDefs) {
       const spot = new THREE.Mesh(new THREE.SphereGeometry(sr, 6, 5), this.spotMat);
-      spot.position.set(sx, 0.135, sz);
-      spot.scale.set(1, sy, 1);
+      spot.position.set(sx, surfY(sx, sz), sz);
+      spot.scale.set(1, 0.18, 1); // very flat — sits as a skin patch
       this.group.add(spot);
       this.spotMeshes.push(spot);
     }
