@@ -87,31 +87,38 @@ export class Gecko {
       this.spotMeshes.push(spot);
     }
 
-    // Head — triangular pyramid (wide/tall at neck, narrow at snout tip)
-    // Built from a BufferGeometry with 5 vertices: 4-cornered base + apex at snout
+    // Head — right-triangle prism (side profile: right angle at back-bottom,
+    //         flat bottom, vertical back, hypotenuse sloping down as the top face)
     {
-      const hw = 0.068; // half-width at base
-      const hh = 0.055; // half-height at base
-      const bx = 0.19;  // base X (neck end)
-      const tx = 0.37;  // tip X (snout end)
-      const ty = 0.075; // tip Y (slightly below centre for low flat snout)
+      const hw  = 0.065;  // half-width (Z)
+      const bx  = 0.185;  // back X (neck, right-angle corner)
+      const tx  = 0.370;  // front X (snout)
+      const yb  = 0.040;  // bottom Y
+      const yt  = 0.140;  // top Y at neck (only at back)
 
-      // Vertices: base quad (bl, br, tl, tr) + tip
+      // 6 vertices of the triangular prism
+      // Left side (+Z): 0=back-bottom, 1=back-top, 2=front-bottom
+      // Right side (-Z): 3=back-bottom, 4=back-top, 5=front-bottom
       const verts = new Float32Array([
-        bx, -hh,  hw,   // 0 bottom-left
-        bx, -hh, -hw,   // 1 bottom-right
-        bx,  hh,  hw,   // 2 top-left
-        bx,  hh, -hw,   // 3 top-right
-        tx,  ty,    0,  // 4 snout tip
+        bx, yb,  hw,   // 0
+        bx, yt,  hw,   // 1
+        tx, yb,  hw,   // 2
+        bx, yb, -hw,   // 3
+        bx, yt, -hw,   // 4
+        tx, yb, -hw,   // 5
       ]);
 
-      // Triangles: base face + 4 side faces
       const idx = new Uint16Array([
-        0, 1, 3,  0, 3, 2,    // base (neck) quad
-        0, 2, 4,              // left-top side
-        2, 3, 4,              // top side
-        3, 1, 4,              // right-top side
-        1, 0, 4,              // bottom side
+        // Back face (neck, vertical rectangle... actually triangle per side)
+        0, 4, 1,  0, 3, 4,   // back quad
+        // Bottom face (flat)
+        0, 2, 5,  0, 5, 3,   // bottom quad
+        // Hypotenuse face (top slope)
+        1, 4, 5,  1, 5, 2,   // top-slope quad
+        // Left triangular end (+Z)
+        0, 1, 2,
+        // Right triangular end (-Z)
+        3, 5, 4,
       ]);
 
       const headGeo = new THREE.BufferGeometry();
@@ -120,29 +127,30 @@ export class Gecko {
       headGeo.computeVertexNormals();
 
       const headMesh = new THREE.Mesh(headGeo, this.baseMat);
-      headMesh.position.set(0, 0.085, 0);
       headMesh.castShadow = true;
       this.group.add(headMesh);
 
-      // Rounded nose at the tip
-      const noseMesh = new THREE.Mesh(new THREE.SphereGeometry(0.028, 10, 8), this.darkMat);
-      noseMesh.position.set(tx, 0.085 + ty, 0);
+      // Rounded snout — sphere sitting at the front-bottom edge
+      const noseMesh = new THREE.Mesh(new THREE.SphereGeometry(0.032, 12, 9), this.darkMat);
+      noseMesh.position.set(tx, yb + 0.008, 0);
       this.group.add(noseMesh);
 
-      // Nostrils
+      // Nostrils on top of nose sphere
       const nostMat = new THREE.MeshLambertMaterial({ color: 0x3a5010 });
       for (const side of [-1, 1] as const) {
         const n = new THREE.Mesh(new THREE.SphereGeometry(0.007, 5, 4), nostMat);
-        n.position.set(tx + 0.012, 0.085 + ty + 0.01, side * 0.014);
+        n.position.set(tx + 0.022, yb + 0.022, side * 0.016);
         this.group.add(n);
       }
 
-      // Eyes — high on the upper sides of the pyramid, stored for blink
+      // Eyes on the outer side faces, upper portion near the hypotenuse ridge
       this.eyeMeshes = [];
       for (const side of [-1, 1] as const) {
-        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.030, 10, 8), eyeMat);
-        // Place partway along the head, near the top-side ridge
-        eye.position.set(bx + 0.055, 0.085 + hh + 0.01, side * (hw - 0.012));
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.028, 10, 8), eyeMat);
+        // X: one-third from neck toward snout; Y: halfway up the slope at that X
+        const ex = bx + (tx - bx) * 0.32;
+        const ey = yb + (yt - yb) * (1 - (ex - bx) / (tx - bx)) * 0.72;
+        eye.position.set(ex, ey + 0.014, side * (hw + 0.008));
         this.group.add(eye);
         this.eyeMeshes.push(eye);
       }
@@ -151,7 +159,7 @@ export class Gecko {
     // Tongue (hidden by default, shown on arrive)
     const tongue = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.004, 0.045, 5), tongueMat);
     tongue.rotation.z = Math.PI / 2;
-    tongue.position.set(0.40, 0.072, 0);
+    tongue.position.set(0.415, 0.048, 0);
     tongue.name = 'tongue';
     tongue.visible = false;
     this.group.add(tongue);
