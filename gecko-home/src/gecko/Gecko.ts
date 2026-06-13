@@ -136,28 +136,30 @@ export class Gecko {
       // Snout cap: ellipsoid scaled to match the front face (hwF wide, ytF-yb tall)
       // Placed so its back half merges with the snout face, front half curves outward
       const snoutH = ytF - yb;
-      const snoutCap = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 10), this.baseMat);
-      snoutCap.scale.set(snoutH * 0.55, snoutH * 0.5, hwF);
-      snoutCap.position.set(tx, yb + snoutH / 2, 0);
+      // Shift center backward by half the X-radius so the prism's open front face
+      // sits well inside the ellipsoid, closing any corner gaps
+      const capXR  = snoutH * 0.60;
+      const snoutCap = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), this.baseMat);
+      snoutCap.scale.set(capXR, snoutH * 0.5, hw);
+      snoutCap.position.set(tx - capXR * 0.35, yb + snoutH / 2, 0);
       this.group.add(snoutCap);
 
       // Nostrils near the top of the snout cap
       const nostMat = new THREE.MeshLambertMaterial({ color: 0x3a5010 });
       for (const side of [-1, 1] as const) {
         const n = new THREE.Mesh(new THREE.SphereGeometry(0.007, 5, 4), nostMat);
-        n.position.set(tx + 0.014, yb + snoutH * 0.78, side * 0.014);
+        n.position.set(tx + 0.010, yb + snoutH * 0.78, side * 0.014);
         this.group.add(n);
       }
 
-      // Eyes on the outer side faces, in the upper portion
+      // Eyes at the halfway point along the sides, upper portion following the slope
       this.eyeMeshes = [];
       for (const side of [-1, 1] as const) {
-        const ex  = bx + (tx - bx) * 0.28;
-        const t   = (ex - bx) / (tx - bx);
-        const eyeHW = hwB - (hwB - hwF) * t;
-        const eyeY  = yb + (ytB - (ytB - ytF) * t) * 0.68; // follow slope
-        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), eyeMat);
-        eye.position.set(ex, eyeY, side * (eyeHW + 0.008));
+        const ex   = bx + (tx - bx) * 0.50;
+        const t    = 0.50;
+        const eyeY = yb + (ytB - (ytB - ytF) * t) * 0.72;
+        const eye  = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), eyeMat);
+        eye.position.set(ex, eyeY, side * (hw + 0.008));
         this.group.add(eye);
         this.eyeMeshes.push(eye);
       }
