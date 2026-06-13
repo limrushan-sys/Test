@@ -124,7 +124,7 @@ export class Gecko {
         2, 6, 7,  2, 7, 3,   // top face   (slanted)
         0, 4, 6,  0, 6, 2,   // left side  (+Z trapezoid)
         1, 3, 7,  1, 7, 5,   // right side (-Z trapezoid)
-        // front face omitted — replaced by curved snout cap below
+        4, 7, 6,  4, 5, 7,   // front face — fills corners the ellipsoid can't cover
       ]);
 
       const headGeo = new THREE.BufferGeometry();
@@ -136,12 +136,12 @@ export class Gecko {
       // Snout cap: ellipsoid scaled to match the front face (hwF wide, ytF-yb tall)
       // Placed so its back half merges with the snout face, front half curves outward
       const snoutH = ytF - yb;
-      // Shift center backward by half the X-radius so the prism's open front face
-      // sits well inside the ellipsoid, closing any corner gaps
-      const capXR  = snoutH * 0.60;
+      // Ellipsoid centered exactly on the front face (x=tx).
+      // At x=tx the cross-section equals the ellipse axes — maximum size, no gap.
+      // The flat front face fills the four rectangular corners outside the ellipse.
       const snoutCap = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), this.baseMat);
-      snoutCap.scale.set(capXR, snoutH * 0.5, hw);
-      snoutCap.position.set(tx - capXR * 0.35, yb + snoutH / 2, 0);
+      snoutCap.scale.set(snoutH * 0.65, snoutH * 0.5, hw);
+      snoutCap.position.set(tx, yb + snoutH / 2, 0);
       this.group.add(snoutCap);
 
       // Nostrils near the top of the snout cap
@@ -158,7 +158,7 @@ export class Gecko {
         const ex   = bx + (tx - bx) * 0.50;
         const t    = 0.50;
         const eyeY = yb + (ytB - (ytB - ytF) * t) * 0.72;
-        const eye  = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), eyeMat);
+        const eye  = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), eyeMat);
         eye.position.set(ex, eyeY, side * (hw + 0.008));
         this.group.add(eye);
         this.eyeMeshes.push(eye);
