@@ -96,11 +96,12 @@ export class Gecko {
     {
       const bx      = 0.185;  // neck X
       const tx      = 0.370;  // snout X
-      const hwB     = 0.070;  // half-width at neck
-      const hwF     = 0.028;  // half-width at snout
+      const hw      = 0.065;  // half-width — constant both ends (true prism)
+      const hwB     = hw;
+      const hwF     = hw;
       const yb      = 0.032;  // bottom Y (flat base)
-      const ytB     = 0.158;  // top Y at neck  (tall)
-      const ytF     = 0.072;  // top Y at snout (short)
+      const ytB     = 0.148;  // top Y at neck  (tall)
+      const ytF     = 0.108;  // top Y at snout (short, less slant than before)
 
       //  0  back-bottom-left     1  back-bottom-right
       //  2  back-top-left        3  back-top-right
