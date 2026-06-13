@@ -87,38 +87,37 @@ export class Gecko {
       this.spotMeshes.push(spot);
     }
 
-    // Head — right-triangle prism (side profile: right angle at back-bottom,
-    //         flat bottom, vertical back, hypotenuse sloping down as the top face)
+    // Head — trapezoidal prism: wide at neck, narrow at snout, flat top & bottom,
+    //         vertical back face (right angle between bottom and back plate).
+    //         Snout face is a small rectangle with a rounded cylinder cap.
     {
-      const hw  = 0.065;  // half-width (Z)
-      const bx  = 0.185;  // back X (neck, right-angle corner)
-      const tx  = 0.370;  // front X (snout)
-      const yb  = 0.040;  // bottom Y
-      const yt  = 0.140;  // top Y at neck (only at back)
+      const hwB = 0.068;  // half-width at neck (wide end)
+      const hwF = 0.030;  // half-width at snout (narrow end)
+      const bx  = 0.185;  // neck X
+      const tx  = 0.370;  // snout X
+      const yb  = 0.038;  // bottom Y
+      const yt  = 0.118;  // top Y (same at both ends — flat top)
+      const hh  = yt - yb; // head height
 
-      // 6 vertices of the triangular prism
-      // Left side (+Z): 0=back-bottom, 1=back-top, 2=front-bottom
-      // Right side (-Z): 3=back-bottom, 4=back-top, 5=front-bottom
+      // 8 vertices: back (wide) + front (narrow)
       const verts = new Float32Array([
-        bx, yb,  hw,   // 0
-        bx, yt,  hw,   // 1
-        tx, yb,  hw,   // 2
-        bx, yb, -hw,   // 3
-        bx, yt, -hw,   // 4
-        tx, yb, -hw,   // 5
+        bx, yb,  hwB,  // 0 back-bottom-left
+        bx, yb, -hwB,  // 1 back-bottom-right
+        bx, yt,  hwB,  // 2 back-top-left
+        bx, yt, -hwB,  // 3 back-top-right
+        tx, yb,  hwF,  // 4 front-bottom-left
+        tx, yb, -hwF,  // 5 front-bottom-right
+        tx, yt,  hwF,  // 6 front-top-left
+        tx, yt, -hwF,  // 7 front-top-right
       ]);
 
       const idx = new Uint16Array([
-        // Back face (neck, vertical rectangle... actually triangle per side)
-        0, 4, 1,  0, 3, 4,   // back quad
-        // Bottom face (flat)
-        0, 2, 5,  0, 5, 3,   // bottom quad
-        // Hypotenuse face (top slope)
-        1, 4, 5,  1, 5, 2,   // top-slope quad
-        // Left triangular end (+Z)
-        0, 1, 2,
-        // Right triangular end (-Z)
-        3, 5, 4,
+        0, 3, 1,  0, 2, 3,   // back face
+        0, 1, 5,  0, 5, 4,   // bottom face
+        2, 6, 7,  2, 7, 3,   // top face
+        0, 4, 6,  0, 6, 2,   // left side
+        1, 3, 7,  1, 7, 5,   // right side
+        // front face omitted — covered by the rounded snout cap
       ]);
 
       const headGeo = new THREE.BufferGeometry();
@@ -130,27 +129,32 @@ export class Gecko {
       headMesh.castShadow = true;
       this.group.add(headMesh);
 
-      // Rounded snout — sphere sitting at the front-bottom edge
-      const noseMesh = new THREE.Mesh(new THREE.SphereGeometry(0.032, 12, 9), this.darkMat);
-      noseMesh.position.set(tx, yb + 0.008, 0);
-      this.group.add(noseMesh);
+      // Rounded snout cap: cylinder lying along Z, diameter = head height
+      // This rounds off the narrow front edge cleanly with no ball
+      const snoutCap = new THREE.Mesh(
+        new THREE.CylinderGeometry(hh / 2, hh / 2, hwF * 2, 14),
+        this.baseMat
+      );
+      snoutCap.rotation.z = Math.PI / 2; // cylinder axis along Z
+      snoutCap.position.set(tx, yb + hh / 2, 0);
+      this.group.add(snoutCap);
 
-      // Nostrils on top of nose sphere
+      // Nostrils on top of snout cap
       const nostMat = new THREE.MeshLambertMaterial({ color: 0x3a5010 });
       for (const side of [-1, 1] as const) {
         const n = new THREE.Mesh(new THREE.SphereGeometry(0.007, 5, 4), nostMat);
-        n.position.set(tx + 0.022, yb + 0.022, side * 0.016);
+        n.position.set(tx + 0.016, yb + hh * 0.7, side * 0.015);
         this.group.add(n);
       }
 
-      // Eyes on the outer side faces, upper portion near the hypotenuse ridge
+      // Eyes on the outer left/right side faces, upper portion
       this.eyeMeshes = [];
       for (const side of [-1, 1] as const) {
-        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.028, 10, 8), eyeMat);
-        // X: one-third from neck toward snout; Y: halfway up the slope at that X
-        const ex = bx + (tx - bx) * 0.32;
-        const ey = yb + (yt - yb) * (1 - (ex - bx) / (tx - bx)) * 0.72;
-        eye.position.set(ex, ey + 0.014, side * (hw + 0.008));
+        const ex = bx + (tx - bx) * 0.30;
+        const t  = (ex - bx) / (tx - bx);
+        const eyeHW = hwB - (hwB - hwF) * t; // interpolated side-face width at this X
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), eyeMat);
+        eye.position.set(ex, yb + hh * 0.72, side * (eyeHW + 0.008));
         this.group.add(eye);
         this.eyeMeshes.push(eye);
       }
