@@ -42,6 +42,7 @@ export class Gecko {
   private walkTime = 0;
   private justLeftHide = false; // skip hide on next target pick after waking
   private sleepingInHide = false;
+  private hideEntryPhase = 0; // 0=none, 1=approaching mouth, 2=walking inside
   private turnAroundAngle: number | null = null; // target Y rotation after arriving at hide
   private geckoY = 0;        // current Y (for climbing)
   private targetY = 0;
@@ -318,20 +319,30 @@ export class Gecko {
         const dist = Math.sqrt(dx * dx + dz * dz);
 
         if (dist < ARRIVE_DIST) {
-          this.state = 'ARRIVED';
-          this.idleTimer = IDLE_WAIT_MIN + Math.random() * (IDLE_WAIT_MAX - IDLE_WAIT_MIN);
-
           // Check if we arrived at a hide
           const arrivedItem = this.targetItemId !== null
             ? items.find(i => i.id === this.targetItemId) : null;
 
-          if (arrivedItem?.type === ItemType.SLEEPING_HIDE) {
-            // Turn around to face the opening (add PI to current facing angle)
+          if (this.hideEntryPhase === 1 && arrivedItem?.type === ItemType.SLEEPING_HIDE) {
+            // Phase 1 done: now walk straight into the centre of the hide
+            this.target.set(arrivedItem.position.x, 0, arrivedItem.position.z);
+            this.hideEntryPhase = 2;
+            // stay in WALKING so the gecko continues forward through the mouth
+            break;
+          }
+
+          this.state = 'ARRIVED';
+          this.idleTimer = IDLE_WAIT_MIN + Math.random() * (IDLE_WAIT_MAX - IDLE_WAIT_MIN);
+
+          if (this.hideEntryPhase === 2 && arrivedItem?.type === ItemType.SLEEPING_HIDE) {
+            this.hideEntryPhase = 0;
+            // Turn around to face the opening (add PI to face back out through mouth)
             this.turnAroundAngle = this.group.rotation.y + Math.PI;
             this.sleepingInHide = true;
             this.idleTimer = 15 + Math.random() * 15; // rest longer in the hide
             this.setStatus('💤 Resting…');
           } else {
+            this.hideEntryPhase = 0;
             this.turnAroundAngle = null;
             this.sleepingInHide = false;
             this.showTongue();
@@ -455,6 +466,7 @@ export class Gecko {
         }
 
         if (this.idleTimer <= 0) {
+          this.hideEntryPhase = 0;
           if (this.sleepingInHide) {
             this.sleepingInHide = false;
             this.justLeftHide = true;          // don't go straight back in
@@ -517,23 +529,34 @@ export class Gecko {
       this.targetItemId = item.id;
       const col = ITEM_COLLISION[item.type];
       const HEAD_REACH = 0.42;
-      // Sleeping hide: walk inside to rest (target = centre of hide)
-      // Other solid items: stop outside, keeping head clear
-      let approachR: number;
       if (item.type === ItemType.SLEEPING_HIDE) {
-        approachR = 0.05; // walk right into the centre
+        // Phase 1: walk to a staging point just outside the mouth opening.
+        // The hide's open front is at local +X (len/2 = 0.475 along X axis).
+        // item.mesh.rotation.y gives the user-set rotation; local +X → world (cos θ, 0, -sin θ).
+        const rotY = item.mesh.rotation.y;
+        const mDX = Math.cos(rotY);
+        const mDZ = -Math.sin(rotY);
+        const HIDE_HALF_LEN = 0.475;
+        const STAGE_OFFSET  = 0.35; // how far outside the mouth to stage
+        this.target.set(
+          item.position.x + mDX * (HIDE_HALF_LEN + STAGE_OFFSET),
+          0,
+          item.position.z + mDZ * (HIDE_HALF_LEN + STAGE_OFFSET)
+        );
+        this.hideEntryPhase = 1;
       } else {
-        approachR = col.climbable ? col.radius * 0.3 : col.radius + HEAD_REACH + 0.10;
+        this.hideEntryPhase = 0;
+        const approachR = col.climbable ? col.radius * 0.3 : col.radius + HEAD_REACH + 0.10;
+        // Angle from current gecko pos toward item
+        const adx = this.group.position.x - item.position.x;
+        const adz = this.group.position.z - item.position.z;
+        const alen = Math.sqrt(adx*adx + adz*adz) || 1;
+        this.target.set(
+          item.position.x + (adx / alen) * approachR,
+          0,
+          item.position.z + (adz / alen) * approachR
+        );
       }
-      // Angle from current gecko pos toward item
-      const adx = this.group.position.x - item.position.x;
-      const adz = this.group.position.z - item.position.z;
-      const alen = Math.sqrt(adx*adx + adz*adz) || 1;
-      this.target.set(
-        item.position.x + (adx / alen) * approachR,
-        0,
-        item.position.z + (adz / alen) * approachR
-      );
     } else {
       this.target.set(
         bounds.minX + Math.random() * (bounds.maxX - bounds.minX),
