@@ -1,14 +1,15 @@
 import * as THREE from 'three';
 
 export enum ItemType {
-  SLEEPING_HIDE = 'Sleeping Hide',
-  WATER_DISH    = 'Water Dish',
-  FOOD_BOWL     = 'Food Bowl',
+  SLEEPING_HIDE   = 'Sleeping Hide',
+  WATER_DISH      = 'Water Dish',
+  FOOD_BOWL       = 'Food Bowl',
   CLIMBING_BRANCH = 'Climbing Branch',
-  CORK_BARK     = 'Cork Bark',
-  RAMP          = 'Ramp',
-  STONE         = 'Stone',
-  LEAF_DECOR    = 'Leaf Decor',
+  CORK_BARK       = 'Cork Bark',
+  RAMP            = 'Ramp',
+  PLATFORM        = 'Platform',
+  STONE           = 'Stone',
+  LEAF_DECOR      = 'Leaf Decor',
 }
 
 export const ITEM_EMOJIS: Record<ItemType, string> = {
@@ -18,34 +19,135 @@ export const ITEM_EMOJIS: Record<ItemType, string> = {
   [ItemType.CLIMBING_BRANCH]: '🪵',
   [ItemType.CORK_BARK]:       '🪨',
   [ItemType.RAMP]:            '📐',
+  [ItemType.PLATFORM]:        '⬜',
   [ItemType.STONE]:           '⚫',
   [ItemType.LEAF_DECOR]:      '🌿',
 };
 
+export interface ItemCollisionData {
+  radius: number;    // horizontal collision radius
+  height: number;    // elevation gecko reaches when on top
+  climbable: boolean; // true = gecko walks on top; false = gecko is pushed around
+}
+
+export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
+  [ItemType.SLEEPING_HIDE]:   { radius: 0.40, height: 0,    climbable: false },
+  [ItemType.WATER_DISH]:      { radius: 0.30, height: 0,    climbable: false },
+  [ItemType.FOOD_BOWL]:       { radius: 0.28, height: 0,    climbable: false },
+  [ItemType.CLIMBING_BRANCH]: { radius: 0.20, height: 0.18, climbable: true  },
+  [ItemType.CORK_BARK]:       { radius: 0.38, height: 0.12, climbable: true  },
+  [ItemType.RAMP]:            { radius: 0.42, height: 0.30, climbable: true  },
+  [ItemType.PLATFORM]:        { radius: 0.58, height: 0.30, climbable: true  },
+  [ItemType.STONE]:           { radius: 0.26, height: 0,    climbable: false },
+  [ItemType.LEAF_DECOR]:      { radius: 0.12, height: 0,    climbable: false },
+};
+
+// ── Cricket factory ──────────────────────────────────────────────────────────
+export function createCricketMesh(): THREE.Group {
+  const g = new THREE.Group();
+  const bodyMat  = new THREE.MeshLambertMaterial({ color: 0x5a4a20 });
+  const darkMat  = new THREE.MeshLambertMaterial({ color: 0x3a2e10 });
+
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.025, 7, 5), bodyMat);
+  body.scale.set(1.8, 0.9, 1.0);
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 5), darkMat);
+  head.position.set(0.036, 0.005, 0);
+
+  // 6 legs (3 each side)
+  const legMat = new THREE.MeshLambertMaterial({ color: 0x3a2e10 });
+  for (let side = -1; side <= 1; side += 2) {
+    for (let li = 0; li < 3; li++) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.002, 0.05, 3), legMat);
+      leg.rotation.z = (side > 0 ? -1 : 1) * (Math.PI / 2.5 + li * 0.15);
+      leg.position.set((li - 1) * 0.022, -0.01, side * 0.022);
+      g.add(leg);
+    }
+  }
+
+  // Antennae
+  for (const side of [-1, 1]) {
+    const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.002, 0.001, 0.06, 3), darkMat);
+    ant.rotation.z = side * Math.PI / 5;
+    ant.position.set(0.05, 0.01, side * 0.01);
+    g.add(ant);
+  }
+
+  // Hind leg jump legs (longer)
+  for (const side of [-1, 1]) {
+    const hind = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.002, 0.065, 3), legMat);
+    hind.rotation.z = side * Math.PI / 3;
+    hind.position.set(-0.028, -0.005, side * 0.025);
+    g.add(hind);
+  }
+
+  g.add(body, head);
+  return g;
+}
+
+// ── Item mesh factory ─────────────────────────────────────────────────────────
 export function createItemMesh(type: ItemType): THREE.Group {
   const group = new THREE.Group();
   group.userData.itemType = type;
 
   switch (type) {
+
+    // ── Sleeping Hide: hollow half plant pot ────────────────────────────────
     case ItemType.SLEEPING_HIDE: {
-      // Hollow arch hide
-      const mat = new THREE.MeshLambertMaterial({ color: 0x8B4513, side: THREE.DoubleSide });
-      const darkMat = new THREE.MeshLambertMaterial({ color: 0x6b3003 });
-      // Body arch
-      const arch = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.55, 10, 1, true, 0, Math.PI), mat);
-      arch.rotation.z = Math.PI / 2;
-      arch.position.y = 0.15;
-      // Back plate
-      const back = new THREE.Mesh(new THREE.CircleGeometry(0.3, 10, 0, Math.PI), darkMat);
-      back.rotation.set(0, Math.PI/2, Math.PI/2);
-      back.position.set(0.275, 0.15, 0);
-      // Floor
-      const floor = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.03, 0.62), darkMat);
-      floor.position.y = 0.015;
-      group.add(arch, back, floor);
+      const outerR = 0.32, innerR = 0.27, potH = 0.34;
+      const baseR  = 0.24; // narrower base like a pot
+      const mat    = new THREE.MeshLambertMaterial({ color: 0x8B5e3c, side: THREE.DoubleSide });
+      const rimMat = new THREE.MeshLambertMaterial({ color: 0x6b4028, side: THREE.DoubleSide });
+      const baseMat= new THREE.MeshLambertMaterial({ color: 0x7a4e30, side: THREE.DoubleSide });
+
+      // Outer half-cylinder wall (tapered like a pot)
+      const outer = new THREE.Mesh(
+        new THREE.CylinderGeometry(outerR, baseR, potH, 18, 1, true, -Math.PI/2, Math.PI),
+        mat
+      );
+      outer.position.y = potH / 2;
+
+      // Inner half-cylinder wall (slightly smaller to show thickness)
+      const inner = new THREE.Mesh(
+        new THREE.CylinderGeometry(innerR, baseR - 0.04, potH, 18, 1, true, -Math.PI/2, Math.PI),
+        mat
+      );
+      inner.position.y = potH / 2;
+
+      // Top rim ring (half annulus)
+      const rim = new THREE.Mesh(
+        new THREE.CylinderGeometry(outerR + 0.02, outerR, 0.04, 18, 1, false, -Math.PI/2, Math.PI),
+        rimMat
+      );
+      rim.position.y = potH + 0.02;
+
+      // Semi-circular base (half disc)
+      const baseGeo = new THREE.CircleGeometry(baseR, 18, -Math.PI/2, Math.PI);
+      const base = new THREE.Mesh(baseGeo, baseMat);
+      base.rotation.x = -Math.PI / 2;
+      base.position.y = 0.005;
+
+      // Flat back wall (rectangle spanning the cut face)
+      const backWall = new THREE.Mesh(
+        new THREE.PlaneGeometry(outerR * 2, potH),
+        mat
+      );
+      backWall.position.set(0, potH / 2, 0);
+
+      // Drainage holes on base (decorative)
+      const holeMat = new THREE.MeshLambertMaterial({ color: 0x4a2810 });
+      for (let i = 0; i < 3; i++) {
+        const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.01, 8), holeMat);
+        hole.position.set(Math.cos((i / 3) * Math.PI - Math.PI/2) * 0.1, 0.01,
+                          Math.sin((i / 3) * Math.PI - Math.PI/2) * 0.1);
+        group.add(hole);
+      }
+
+      group.add(outer, inner, rim, base, backWall);
       break;
     }
 
+    // ── Water Dish ──────────────────────────────────────────────────────────
     case ItemType.WATER_DISH: {
       const dish = new THREE.Mesh(
         new THREE.CylinderGeometry(0.28, 0.22, 0.09, 16),
@@ -61,37 +163,59 @@ export function createItemMesh(type: ItemType): THREE.Group {
       break;
     }
 
+    // ── Food Bowl: shallow wide dish ────────────────────────────────────────
     case ItemType.FOOD_BOWL: {
-      const bowl = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.22, 0.16, 0.11, 12),
-        new THREE.MeshLambertMaterial({ color: 0xbf360c })
+      const bowlMat  = new THREE.MeshLambertMaterial({ color: 0xc0392b });
+      const innerMat = new THREE.MeshLambertMaterial({ color: 0xe8e0d0 });
+
+      // Outer shallow bowl (wide, low)
+      const outer = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.30, 0.24, 0.07, 18),
+        bowlMat
       );
-      bowl.position.y = 0.055;
-      // Food morsels
-      const foodMat = new THREE.MeshLambertMaterial({ color: 0xffe082 });
-      for (let i = 0; i < 5; i++) {
-        const f = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 6), foodMat);
-        const a = (i / 5) * Math.PI * 2;
-        f.position.set(Math.cos(a) * 0.09, 0.12, Math.sin(a) * 0.09);
-        group.add(f);
-      }
-      group.add(bowl);
+      outer.position.y = 0.035;
+
+      // Inner bowl surface (slightly smaller)
+      const inner = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.26, 0.22, 0.055, 18, 1, true),
+        new THREE.MeshLambertMaterial({ color: 0xc0392b, side: THREE.BackSide })
+      );
+      inner.position.y = 0.035;
+
+      // Bowl rim highlight
+      const rim = new THREE.Mesh(
+        new THREE.TorusGeometry(0.29, 0.012, 8, 24),
+        new THREE.MeshLambertMaterial({ color: 0xa93226 })
+      );
+      rim.rotation.x = Math.PI / 2;
+      rim.position.y = 0.065;
+
+      // Base circle (cream/sand colour - the inside bottom)
+      const floor = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.22, 0.22, 0.01, 18),
+        innerMat
+      );
+      floor.position.y = 0.015;
+
+      group.add(outer, inner, rim, floor);
+      // userData for cricket system
+      group.userData.crickets = [] as THREE.Group[];
+      group.userData.hasCrickets = false;
       break;
     }
 
+    // ── Climbing Branch ─────────────────────────────────────────────────────
     case ItemType.CLIMBING_BRANCH: {
-      const logMat = new THREE.MeshLambertMaterial({ color: 0x5d4037 });
+      const logMat  = new THREE.MeshLambertMaterial({ color: 0x5d4037 });
       const darkMat = new THREE.MeshLambertMaterial({ color: 0x3e2723 });
       const log = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.085, 0.85, 8), logMat);
       log.rotation.z = Math.PI / 2;
       log.position.y = 0.12;
-      // Knot bumps
-      for (const [bx, bz] of [[-0.2, 0.04],[0.1,-0.03],[0.3,0.05]]) {
+      for (const [bx, bz] of [[-0.2, 0.04],[0.1,-0.03],[0.3,0.05]] as [number,number][]) {
         const knot = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), darkMat);
-        knot.position.set(bx, 0.12 + 0.065, bz);
+        knot.position.set(bx, 0.19, bz);
         group.add(knot);
       }
-      // Supports
       for (const sx of [-0.32, 0.32]) {
         const s = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.18, 6), darkMat);
         s.position.set(sx, 0.05, 0);
@@ -101,12 +225,12 @@ export function createItemMesh(type: ItemType): THREE.Group {
       break;
     }
 
+    // ── Cork Bark ───────────────────────────────────────────────────────────
     case ItemType.CORK_BARK: {
-      const barkMat = new THREE.MeshLambertMaterial({ color: 0x795548 });
+      const barkMat  = new THREE.MeshLambertMaterial({ color: 0x795548 });
       const ridgeMat = new THREE.MeshLambertMaterial({ color: 0x5d4037 });
       const bark = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.09, 0.42), barkMat);
       bark.position.y = 0.045;
-      // Ridges for texture
       for (let i = -2; i <= 2; i++) {
         const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.025, 0.045), ridgeMat);
         ridge.position.set(0, 0.095, i * 0.075);
@@ -116,30 +240,117 @@ export function createItemMesh(type: ItemType): THREE.Group {
       break;
     }
 
+    // ── Ramp: proper wedge shape with grip lines ─────────────────────────────
     case ItemType.RAMP: {
-      const rampMat = new THREE.MeshLambertMaterial({ color: 0xd2b48c });
-      const ramp = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.06, 0.65), rampMat);
-      ramp.rotation.x = -Math.PI / 7;
-      ramp.position.y = 0.11;
-      // Grip lines
-      const lineMat = new THREE.MeshLambertMaterial({ color: 0xbca07c });
-      for (let i = -2; i <= 2; i++) {
-        const line = new THREE.Mesh(new THREE.BoxGeometry(0.43, 0.01, 0.025), lineMat);
-        line.rotation.x = ramp.rotation.x;
-        line.position.set(0, ramp.position.y + 0.04, i * 0.1);
-        group.add(line);
+      const RW = 0.50, RL = 0.70, RH = 0.30;
+      const slopeAngle = Math.atan2(RH, RL);
+      const slopeLen   = Math.sqrt(RL * RL + RH * RH);
+
+      const surfMat  = new THREE.MeshLambertMaterial({ color: 0xd2b48c, side: THREE.DoubleSide });
+      const sideMat  = new THREE.MeshLambertMaterial({ color: 0xb8965a, side: THREE.DoubleSide });
+      const gripMat  = new THREE.MeshLambertMaterial({ color: 0xa07840 });
+
+      // Sloped top surface
+      const surface = new THREE.Mesh(new THREE.BoxGeometry(RW, 0.025, slopeLen), surfMat);
+      surface.rotation.x = slopeAngle;
+      surface.position.set(0, RH / 2, 0);
+      group.add(surface);
+
+      // Triangular side walls using ShapeGeometry
+      const sideShape = new THREE.Shape();
+      sideShape.moveTo(-RL / 2, 0);
+      sideShape.lineTo( RL / 2, 0);
+      sideShape.lineTo( RL / 2, RH);
+      sideShape.closePath();
+      const sideGeo = new THREE.ShapeGeometry(sideShape);
+
+      for (const sign of [-1, 1] as const) {
+        const side = new THREE.Mesh(sideGeo, sideMat);
+        side.rotation.y = sign * Math.PI / 2;
+        side.position.set(sign * RW / 2, 0, 0);
+        group.add(side);
       }
-      group.add(ramp);
+
+      // Back wall at high end
+      const back = new THREE.Mesh(new THREE.BoxGeometry(RW, RH, 0.025), sideMat);
+      back.position.set(0, RH / 2, RL / 2);
+      group.add(back);
+
+      // Bottom plate
+      const bottom = new THREE.Mesh(new THREE.BoxGeometry(RW, 0.02, RL), sideMat);
+      bottom.position.y = 0.01;
+      group.add(bottom);
+
+      // Grip strips across slope (evenly spaced)
+      for (let i = 1; i <= 4; i++) {
+        const t = i / 5;
+        const grip = new THREE.Mesh(new THREE.BoxGeometry(RW - 0.04, 0.018, 0.025), gripMat);
+        grip.rotation.x = slopeAngle;
+        const zPos = (t - 0.5) * RL;
+        const yPos = t * RH;
+        grip.position.set(0, yPos + 0.022, zPos);
+        group.add(grip);
+      }
+
+      // Small arrows on surface indicating up-direction
+      const arrowMat = new THREE.MeshLambertMaterial({ color: 0x8a6030 });
+      for (let i = 1; i <= 2; i++) {
+        const t = i / 3;
+        const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.07, 4), arrowMat);
+        arrow.rotation.x = slopeAngle + Math.PI / 2;
+        arrow.position.set(0, t * RH + 0.05, (t - 0.5) * RL);
+        group.add(arrow);
+      }
       break;
     }
 
+    // ── Platform: elevated flat surface gecko walks on ───────────────────────
+    case ItemType.PLATFORM: {
+      const PW = 1.0, PD = 0.8, PH = 0.30;
+      const platMat   = new THREE.MeshLambertMaterial({ color: 0x8d6e4a });
+      const sideMat   = new THREE.MeshLambertMaterial({ color: 0x6d4e2a });
+      const surfaceMat= new THREE.MeshLambertMaterial({ color: 0xa08050 });
+
+      // Main platform body
+      const body = new THREE.Mesh(new THREE.BoxGeometry(PW, PH, PD), sideMat);
+      body.position.y = PH / 2;
+
+      // Surface top
+      const surface = new THREE.Mesh(new THREE.BoxGeometry(PW, 0.025, PD), surfaceMat);
+      surface.position.y = PH + 0.012;
+
+      // Surface edge trim
+      const trimMat = new THREE.MeshLambertMaterial({ color: 0x7d5e3a });
+      for (const [tw, td, tx, tz] of [
+        [PW + 0.02, 0.03, 0, -PD/2] as const,
+        [PW + 0.02, 0.03, 0,  PD/2] as const,
+        [0.03, PD + 0.02, -PW/2, 0] as const,
+        [0.03, PD + 0.02,  PW/2, 0] as const,
+      ]) {
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(tw, 0.04, td), trimMat);
+        trim.position.set(tx, PH + 0.02, tz);
+        group.add(trim);
+      }
+
+      // Support legs under platform
+      const legMat = new THREE.MeshLambertMaterial({ color: 0x5d3e20 });
+      for (const [lx, lz] of [[-0.38, -0.3],[-0.38,0.3],[0.38,-0.3],[0.38,0.3]] as [number,number][]) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, PH - 0.02, 6), legMat);
+        leg.position.set(lx, (PH - 0.02) / 2, lz);
+        group.add(leg);
+      }
+
+      group.add(body, surface);
+      break;
+    }
+
+    // ── Stone ───────────────────────────────────────────────────────────────
     case ItemType.STONE: {
-      const stoneMat = new THREE.MeshLambertMaterial({ color: 0x78909c });
-      const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.22, 0), stoneMat);
+      const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.22, 0),
+        new THREE.MeshLambertMaterial({ color: 0x78909c }));
       stone.scale.set(1, 0.55, 0.9);
       stone.position.y = 0.12;
       stone.rotation.y = Math.random() * Math.PI;
-      // Small pebble next to it
       const pebble = new THREE.Mesh(new THREE.DodecahedronGeometry(0.1, 0),
         new THREE.MeshLambertMaterial({ color: 0x90a4ae }));
       pebble.scale.set(1, 0.5, 0.85);
@@ -148,11 +359,11 @@ export function createItemMesh(type: ItemType): THREE.Group {
       break;
     }
 
+    // ── Leaf Decor ──────────────────────────────────────────────────────────
     case ItemType.LEAF_DECOR: {
       const leafMat = new THREE.MeshLambertMaterial({ color: 0x558b2f, side: THREE.DoubleSide });
-      const darkLeaf = new THREE.MeshLambertMaterial({ color: 0x33691e, side: THREE.DoubleSide });
+      const darkLeaf= new THREE.MeshLambertMaterial({ color: 0x33691e, side: THREE.DoubleSide });
       const stemMat = new THREE.MeshLambertMaterial({ color: 0x2e7d32 });
-      // Main leaves
       for (let i = 0; i < 4; i++) {
         const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.13), i % 2 === 0 ? leafMat : darkLeaf);
         const a = (i / 4) * Math.PI * 2;

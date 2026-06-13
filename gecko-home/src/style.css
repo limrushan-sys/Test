@@ -67,8 +67,8 @@ body {
 
 .item-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 5px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
 }
 
 .item-btn {
