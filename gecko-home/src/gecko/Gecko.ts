@@ -260,7 +260,9 @@ export class Gecko {
         const ndx = dx * inv, ndz = dz * inv;
 
         // Rotate to face movement direction
-        const wantAngle = Math.atan2(ndx, ndz);
+        // Head is at local +X. Rotation matrix: local +X → world (cos θ, 0, -sin θ)
+        // So for head to face (ndx, ndz): cos θ = ndx, -sin θ = ndz → θ = atan2(-ndz, ndx)
+        const wantAngle = Math.atan2(-ndz, ndx);
         let angleDiff   = wantAngle - this.group.rotation.y;
         while (angleDiff >  Math.PI) angleDiff -= 2 * Math.PI;
         while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
