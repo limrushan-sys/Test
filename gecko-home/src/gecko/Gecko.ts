@@ -10,7 +10,7 @@ const IDLE_WAIT_MAX   = 4.5;
 const ROTATE_SPEED    = 6.0;
 const LEG_SWING_SPEED = 9.0;
 const BODY_BOB_AMP    = 0.010;
-const BODY_BOB_SPEED  = LEG_SWING_SPEED * 2; // two bobs per leg cycle (trot)
+const BODY_BOB_SPEED  = 5.0; // one gentle bob per stride
 
 type GeckoState = 'IDLE' | 'WALKING' | 'ARRIVED';
 
