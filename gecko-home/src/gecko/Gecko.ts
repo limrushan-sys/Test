@@ -95,8 +95,8 @@ export class Gecko {
       const hwF = 0.030;  // half-width at snout (narrow end)
       const bx  = 0.185;  // neck X
       const tx  = 0.370;  // snout X
-      const yb  = 0.038;  // bottom Y
-      const yt  = 0.118;  // top Y (same at both ends — flat top)
+      const yb  = 0.030;  // bottom Y
+      const yt  = 0.155;  // top Y — taller back plate
       const hh  = yt - yb; // head height
 
       // 8 vertices: back (wide) + front (narrow)
@@ -129,13 +129,13 @@ export class Gecko {
       headMesh.castShadow = true;
       this.group.add(headMesh);
 
-      // Rounded snout cap: cylinder lying along Z, diameter = head height
-      // This rounds off the narrow front edge cleanly with no ball
+      // Rounded snout: ellipsoid scaled to match the narrow front face,
+      // bulging outward (+X) to give a smooth curved nose — no flat end caps
       const snoutCap = new THREE.Mesh(
-        new THREE.CylinderGeometry(hh / 2, hh / 2, hwF * 2, 14),
+        new THREE.SphereGeometry(1, 14, 10),
         this.baseMat
       );
-      snoutCap.rotation.z = Math.PI / 2; // cylinder axis along Z
+      snoutCap.scale.set(hh * 0.52, hh * 0.5, hwF * 0.98);
       snoutCap.position.set(tx, yb + hh / 2, 0);
       this.group.add(snoutCap);
 
