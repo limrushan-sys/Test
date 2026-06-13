@@ -124,7 +124,7 @@ export class Gecko {
         2, 6, 7,  2, 7, 3,   // top face   (slanted)
         0, 4, 6,  0, 6, 2,   // left side  (+Z trapezoid)
         1, 3, 7,  1, 7, 5,   // right side (-Z trapezoid)
-        4, 7, 6,  4, 5, 7,   // front face — fills corners the ellipsoid can't cover
+        // front face omitted — covered by the cylinder cap below
       ]);
 
       const headGeo = new THREE.BufferGeometry();
@@ -133,14 +133,15 @@ export class Gecko {
       headGeo.computeVertexNormals();
       this.group.add(new THREE.Mesh(headGeo, this.baseMat));
 
-      // Snout cap: ellipsoid scaled to match the front face (hwF wide, ytF-yb tall)
-      // Placed so its back half merges with the snout face, front half curves outward
+      // Cylinder with axis along Z — constant width 2*hw matching the prism exactly.
+      // The circular arc meets the prism's bottom face at (tx,yb) and top face at (tx,ytF)
+      // with no taper in Z, so the side walls connect flush with zero gap.
       const snoutH = ytF - yb;
-      // Ellipsoid centered exactly on the front face (x=tx).
-      // At x=tx the cross-section equals the ellipse axes — maximum size, no gap.
-      // The flat front face fills the four rectangular corners outside the ellipse.
-      const snoutCap = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), this.baseMat);
-      snoutCap.scale.set(snoutH * 0.65, snoutH * 0.5, hw);
+      const snoutCap = new THREE.Mesh(
+        new THREE.CylinderGeometry(snoutH / 2, snoutH / 2, hw * 2, 18),
+        this.baseMat
+      );
+      snoutCap.rotation.x = Math.PI / 2; // rotate axis from Y to Z
       snoutCap.position.set(tx, yb + snoutH / 2, 0);
       this.group.add(snoutCap);
 
@@ -148,7 +149,7 @@ export class Gecko {
       const nostMat = new THREE.MeshLambertMaterial({ color: 0x3a5010 });
       for (const side of [-1, 1] as const) {
         const n = new THREE.Mesh(new THREE.SphereGeometry(0.007, 5, 4), nostMat);
-        n.position.set(tx + 0.010, yb + snoutH * 0.78, side * 0.014);
+        n.position.set(tx + snoutH * 0.30, yb + snoutH * 0.80, side * 0.013);
         this.group.add(n);
       }
 
