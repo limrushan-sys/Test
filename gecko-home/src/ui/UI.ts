@@ -9,40 +9,42 @@ export interface UICallbacks {
   onRotateItem: (angle: number) => void;
   onDeleteItem: () => void;
   onBodyColor: (hex: number) => void;
-  onSpotColor: (hex: number) => void;
+  onSpotColor: (hex: number | null) => void;
   onBellyColor: (hex: number) => void;
   onAddCrickets: () => void;
 }
 
-const BODY_COLOURS = [
-  { label: 'Wild Green',    hex: '#a8c060' },
-  { label: 'Tangerine',     hex: '#e07030' },
-  { label: 'Albino',        hex: '#e8c870' },
-  { label: 'Blizzard',      hex: '#dcddd8' },
-  { label: 'Melanistic',    hex: '#4a5a28' },
-  { label: 'Carrot Tail',   hex: '#d05820' },
-  { label: 'Lavender',      hex: '#9090b8' },
-  { label: 'Chocolate',     hex: '#7a4820' },
+// null hex = "None" (hide spots)
+type SwatchDef = { label: string; hex: string | null };
+
+const BODY_COLOURS: SwatchDef[] = [
+  { label: 'Wild Green',  hex: '#8fad3a' },
+  { label: 'Tangerine',   hex: '#c95f18' },
+  { label: 'Albino',      hex: '#e2c250' },
+  { label: 'Blizzard',    hex: '#d8d6cc' },
+  { label: 'Melanistic',  hex: '#3c4e1a' },
+  { label: 'Carrot Tail', hex: '#c04415' },
+  { label: 'Lavender',    hex: '#8a8ab2' },
+  { label: 'Chocolate',   hex: '#7a4218' },
 ];
 
-const SPOT_COLOURS = [
-  { label: 'Yellow',        hex: '#f0d060' },
-  { label: 'White',         hex: '#f0ede0' },
-  { label: 'Orange',        hex: '#e88030' },
-  { label: 'Cream',         hex: '#e8d8a0' },
-  { label: 'Dark Brown',    hex: '#5a3818' },
-  { label: 'Match Body',    hex: '#a8c060' },
-  { label: 'Bright Red',    hex: '#d04030' },
-  { label: 'None (Hide)',   hex: '#00000000' },
+const SPOT_COLOURS: SwatchDef[] = [
+  { label: 'Yellow',      hex: '#f0d040' },
+  { label: 'White',       hex: '#f0ece0' },
+  { label: 'Orange',      hex: '#d86820' },
+  { label: 'Cream',       hex: '#e8d490' },
+  { label: 'Brown',       hex: '#5c3614' },
+  { label: 'Red',         hex: '#c83828' },
+  { label: 'None',        hex: null      },
 ];
 
-const BELLY_COLOURS = [
-  { label: 'Cream',         hex: '#d4c890' },
-  { label: 'White',         hex: '#eeeae0' },
-  { label: 'Pale Yellow',   hex: '#e8e0a0' },
-  { label: 'Pink Tint',     hex: '#e0c8b8' },
-  { label: 'Light Green',   hex: '#c0d080' },
-  { label: 'Sandy',         hex: '#d8c080' },
+const BELLY_COLOURS: SwatchDef[] = [
+  { label: 'Cream',       hex: '#d4c078' },
+  { label: 'White',       hex: '#eae6d8' },
+  { label: 'Pale Yellow', hex: '#e0d890' },
+  { label: 'Pink',        hex: '#dcc0a8' },
+  { label: 'Light Green', hex: '#b8cc68' },
+  { label: 'Sandy',       hex: '#ccb060' },
 ];
 
 export class UI {
@@ -79,17 +81,17 @@ export class UI {
 
       <div class="section">
         <label>Gecko Colours</label>
-        <div class="colour-row">
-          <span class="colour-label">Body</span>
-          <select id="sel-body" class="colour-select"></select>
+        <div class="swatch-group">
+          <span class="swatch-label">Body</span>
+          <div class="swatch-row" id="swatches-body"></div>
         </div>
-        <div class="colour-row">
-          <span class="colour-label">Spots</span>
-          <select id="sel-spots" class="colour-select"></select>
+        <div class="swatch-group">
+          <span class="swatch-label">Spots</span>
+          <div class="swatch-row" id="swatches-spots"></div>
         </div>
-        <div class="colour-row">
-          <span class="colour-label">Belly</span>
-          <select id="sel-belly" class="colour-select"></select>
+        <div class="swatch-group">
+          <span class="swatch-label">Belly</span>
+          <div class="swatch-row" id="swatches-belly"></div>
         </div>
       </div>
 
@@ -196,10 +198,13 @@ export class UI {
       };
     }
 
-    // ── Gecko colour dropdowns ────────────────────────────────────────────────
-    this.populateSelect('sel-body',  BODY_COLOURS,  '#a8c060', hex => this.callbacks.onBodyColor(hex));
-    this.populateSelect('sel-spots', SPOT_COLOURS,  '#f0d060', hex => this.callbacks.onSpotColor(hex));
-    this.populateSelect('sel-belly', BELLY_COLOURS, '#d4c890', hex => this.callbacks.onBellyColor(hex));
+    // ── Gecko colour swatches ─────────────────────────────────────────────────
+    this.buildSwatches('swatches-body',  BODY_COLOURS,  '#8fad3a',
+      hex => this.callbacks.onBodyColor(hex as number));
+    this.buildSwatches('swatches-spots', SPOT_COLOURS,  '#f0d040',
+      hex => this.callbacks.onSpotColor(hex));
+    this.buildSwatches('swatches-belly', BELLY_COLOURS, '#d4c078',
+      hex => this.callbacks.onBellyColor(hex as number));
 
     // ── Item move/rotate/delete buttons ───────────────────────────────────────
     const step = 0.14;
@@ -213,25 +218,43 @@ export class UI {
     document.getElementById('add-crickets')!.onclick = () => this.callbacks.onAddCrickets();
   }
 
-  // ── Colour select helper ──────────────────────────────────────────────────
-  private populateSelect(
+  // ── Colour swatch builder ─────────────────────────────────────────────────
+  private buildSwatches(
     id: string,
-    options: { label: string; hex: string }[],
+    options: SwatchDef[],
     defaultHex: string,
-    onChange: (hex: number) => void
+    onChange: (hex: number | null) => void
   ) {
-    const sel = document.getElementById(id) as HTMLSelectElement;
-    for (const opt of options) {
-      const el = document.createElement('option');
-      el.value = opt.hex;
-      el.textContent = opt.label;
-      if (opt.hex === defaultHex) el.selected = true;
-      sel.appendChild(el);
-    }
-    sel.onchange = () => {
-      const raw = sel.value.replace('#', '').replace('00000000', '000000');
-      onChange(parseInt(raw, 16));
+    const row = document.getElementById(id)!;
+    let activeBtn: HTMLButtonElement | null = null;
+
+    const setActive = (btn: HTMLButtonElement) => {
+      if (activeBtn) activeBtn.classList.remove('swatch-active');
+      activeBtn = btn;
+      btn.classList.add('swatch-active');
     };
+
+    for (const opt of options) {
+      const btn = document.createElement('button');
+      btn.className = 'swatch';
+      btn.title = opt.label;
+
+      if (opt.hex === null) {
+        // "None" — show an X
+        btn.classList.add('swatch-none');
+        btn.textContent = '✕';
+      } else {
+        btn.style.background = opt.hex;
+        if (opt.hex === defaultHex) setActive(btn);
+      }
+
+      btn.onclick = () => {
+        setActive(btn);
+        onChange(opt.hex === null ? null : parseInt(opt.hex.replace('#', ''), 16));
+      };
+
+      row.appendChild(btn);
+    }
   }
 
   // ── Toggle place mode ─────────────────────────────────────────────────────

@@ -25,6 +25,7 @@ export class Gecko {
   private spotMat!: THREE.MeshLambertMaterial;
   private darkMat!: THREE.MeshLambertMaterial;
   private bellyMat!: THREE.MeshLambertMaterial;
+  private spotMeshes: THREE.Mesh[] = [];
 
   private state: GeckoState = 'IDLE';
   private idleTimer = 1.0;
@@ -70,11 +71,13 @@ export class Gecko {
     this.group.add(belly);
 
     // Spots along back
+    this.spotMeshes = [];
     for (let i = 0; i < 7; i++) {
       const spot = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5), this.spotMat);
       const t = (i / 6) - 0.5;
       spot.position.set(t * 0.32, 0.14, (i % 2 === 0 ? 1 : -1) * 0.04);
       this.group.add(spot);
+      this.spotMeshes.push(spot);
     }
 
     // Head
@@ -177,8 +180,13 @@ export class Gecko {
     this.darkMat.color.setRGB(c.r * 0.72, c.g * 0.78, c.b * 0.65);
   }
 
-  setSpotColor(hex: number) {
-    this.spotMat.color.setHex(hex);
+  setSpotColor(hex: number | null) {
+    if (hex === null) {
+      this.spotMeshes.forEach(s => { s.visible = false; });
+    } else {
+      this.spotMeshes.forEach(s => { s.visible = true; });
+      this.spotMat.color.setHex(hex);
+    }
   }
 
   setBellyColor(hex: number) {

@@ -65,9 +65,9 @@ class GeckoHomeApp {
       onDeleteItem: () => {
         this.itemManager.deleteSelected();
       },
-      onBodyColor:  (hex) => this.gecko.setBodyColor(hex),
+      onBodyColor:  (hex) => this.gecko.setBodyColor(hex as number),
       onSpotColor:  (hex) => this.gecko.setSpotColor(hex),
-      onBellyColor: (hex) => this.gecko.setBellyColor(hex),
+      onBellyColor: (hex) => this.gecko.setBellyColor(hex as number),
       onAddCrickets: () => {
         const item = this.itemManager.selectedItem;
         if (!item) return;
