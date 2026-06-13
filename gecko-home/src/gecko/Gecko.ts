@@ -87,32 +87,65 @@ export class Gecko {
       this.spotMeshes.push(spot);
     }
 
-    // Head
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.075, 0.13), this.baseMat);
-    head.position.set(0.255, 0.08, 0);
-    head.castShadow = true;
-    this.group.add(head);
+    // Head — triangular pyramid (wide/tall at neck, narrow at snout tip)
+    // Built from a BufferGeometry with 5 vertices: 4-cornered base + apex at snout
+    {
+      const hw = 0.068; // half-width at base
+      const hh = 0.055; // half-height at base
+      const bx = 0.19;  // base X (neck end)
+      const tx = 0.37;  // tip X (snout end)
+      const ty = 0.075; // tip Y (slightly below centre for low flat snout)
 
-    // Snout (tapered)
-    const snout = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.055, 0.095), this.darkMat);
-    snout.position.set(0.335, 0.078, 0);
-    this.group.add(snout);
+      // Vertices: base quad (bl, br, tl, tr) + tip
+      const verts = new Float32Array([
+        bx, -hh,  hw,   // 0 bottom-left
+        bx, -hh, -hw,   // 1 bottom-right
+        bx,  hh,  hw,   // 2 top-left
+        bx,  hh, -hw,   // 3 top-right
+        tx,  ty,    0,  // 4 snout tip
+      ]);
 
-    // Eyes — one black sphere per side, stored for blink animation
-    this.eyeMeshes = [];
-    for (const side of [-1, 1] as const) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), eyeMat);
-      eye.position.set(0.248, 0.118, side * 0.063);
-      this.group.add(eye);
-      this.eyeMeshes.push(eye);
-    }
+      // Triangles: base face + 4 side faces
+      const idx = new Uint16Array([
+        0, 1, 3,  0, 3, 2,    // base (neck) quad
+        0, 2, 4,              // left-top side
+        2, 3, 4,              // top side
+        3, 1, 4,              // right-top side
+        1, 0, 4,              // bottom side
+      ]);
 
-    // Nostrils
-    const nostMat = new THREE.MeshLambertMaterial({ color: 0x3a5010 });
-    for (const side of [-1, 1] as const) {
-      const n = new THREE.Mesh(new THREE.SphereGeometry(0.007, 5, 4), nostMat);
-      n.position.set(0.37, 0.088, side * 0.022);
-      this.group.add(n);
+      const headGeo = new THREE.BufferGeometry();
+      headGeo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+      headGeo.setIndex(new THREE.BufferAttribute(idx, 1));
+      headGeo.computeVertexNormals();
+
+      const headMesh = new THREE.Mesh(headGeo, this.baseMat);
+      headMesh.position.set(0, 0.085, 0);
+      headMesh.castShadow = true;
+      this.group.add(headMesh);
+
+      // Rounded nose at the tip
+      const noseMesh = new THREE.Mesh(new THREE.SphereGeometry(0.028, 10, 8), this.darkMat);
+      noseMesh.position.set(tx, 0.085 + ty, 0);
+      this.group.add(noseMesh);
+
+      // Nostrils
+      const nostMat = new THREE.MeshLambertMaterial({ color: 0x3a5010 });
+      for (const side of [-1, 1] as const) {
+        const n = new THREE.Mesh(new THREE.SphereGeometry(0.007, 5, 4), nostMat);
+        n.position.set(tx + 0.012, 0.085 + ty + 0.01, side * 0.014);
+        this.group.add(n);
+      }
+
+      // Eyes — high on the upper sides of the pyramid, stored for blink
+      this.eyeMeshes = [];
+      for (const side of [-1, 1] as const) {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.030, 10, 8), eyeMat);
+        // Place partway along the head, near the top-side ridge
+        eye.position.set(bx + 0.055, 0.085 + hh + 0.01, side * (hw - 0.012));
+        this.group.add(eye);
+        this.eyeMeshes.push(eye);
+      }
     }
 
     // Tongue (hidden by default, shown on arrive)
