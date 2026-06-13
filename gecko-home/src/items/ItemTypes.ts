@@ -92,67 +92,49 @@ export function createItemMesh(type: ItemType): THREE.Group {
 
   switch (type) {
 
-    // ── Sleeping Hide: plant pot lying on its side, hollow inside ───────────
+    // ── Sleeping Hide: half hollow cylinder laid on its side ────────────────
     case ItemType.SLEEPING_HIDE: {
-      // The pot lies with its axis along X. The opening faces +X (front).
-      // Outer radius tapers from mouth (outerR) to closed end (baseR), like a real pot.
-      const outerR = 0.30;   // mouth outer radius
-      const baseR  = 0.18;   // closed-end outer radius
-      const innerR = 0.25;   // mouth inner radius
-      const baseIR = 0.14;   // closed-end inner radius
-      const len    = 0.48;   // pot length along X
-      const wall   = 0.04;   // wall thickness (rim annulus)
+      // Upper half-cylinder (theta = -PI/2 to PI/2 gives the top arch after rotation).
+      // Axis runs along X. Opening at +X end, closed at -X end.
+      const R    = 0.28;   // arch radius
+      const len  = 0.52;   // length
+      const wall = 0.030;  // shell thickness
+      const SEG  = 22;
 
-      const mat    = new THREE.MeshLambertMaterial({ color: 0x8b5e3c, side: THREE.DoubleSide });
-      const rimMat = new THREE.MeshLambertMaterial({ color: 0x6b4028 });
-      const darkMat= new THREE.MeshLambertMaterial({ color: 0x3a2010 });
+      const mat  = new THREE.MeshLambertMaterial({ color: 0x8b5e3c, side: THREE.DoubleSide });
+      const dark = new THREE.MeshLambertMaterial({ color: 0x5c3820, side: THREE.DoubleSide });
 
-      // Outer shell — full cylinder so you see the back half on the ground
+      // Outer curved shell
       const outer = new THREE.Mesh(
-        new THREE.CylinderGeometry(outerR, baseR, len, 20, 1, true),
+        new THREE.CylinderGeometry(R, R, len, SEG, 1, true, -Math.PI / 2, Math.PI),
         mat
       );
-      outer.rotation.z = Math.PI / 2;       // axis now along X
-      outer.position.set(len / 2, outerR, 0); // rest on ground (Y = outerR centres it)
+      outer.rotation.z = Math.PI / 2;
 
-      // Inner shell — slightly smaller, open, shows the hollow
+      // Inner curved shell — slightly smaller, creates the hollow cavity
       const inner = new THREE.Mesh(
-        new THREE.CylinderGeometry(innerR, baseIR, len - wall, 20, 1, true),
+        new THREE.CylinderGeometry(R - wall, R - wall, len + 0.01, SEG, 1, true, -Math.PI / 2, Math.PI),
         mat
       );
       inner.rotation.z = Math.PI / 2;
-      inner.position.set(len / 2, outerR, 0);
 
-      // Closed back end (solid disc at the small end)
-      const backDisc = new THREE.Mesh(
-        new THREE.CircleGeometry(baseR, 20),
-        mat
+      // Closed back end cap — thin half-disc (openEnded=false fills the semicircle caps)
+      const backCap = new THREE.Mesh(
+        new THREE.CylinderGeometry(R, R, wall * 0.8, SEG, 1, false, -Math.PI / 2, Math.PI),
+        dark
       );
-      backDisc.rotation.y = Math.PI / 2;    // face outward in -X direction
-      backDisc.position.set(0, outerR, 0);
+      backCap.rotation.z = Math.PI / 2;
+      backCap.position.x = -len / 2 + wall * 0.4;
 
-      // Rim annulus at the open mouth
-      const rimRing = new THREE.Mesh(
-        new THREE.TorusGeometry((outerR + innerR) / 2, wall / 2, 8, 20),
-        rimMat
+      // Front rim ring — slight lip at the opening
+      const rimCap = new THREE.Mesh(
+        new THREE.CylinderGeometry(R + 0.012, R + 0.012, wall * 0.6, SEG, 1, false, -Math.PI / 2, Math.PI),
+        dark
       );
-      rimRing.rotation.y = Math.PI / 2;     // ring in YZ plane
-      rimRing.position.set(len, outerR, 0);
+      rimCap.rotation.z = Math.PI / 2;
+      rimCap.position.x = len / 2 - wall * 0.3;
 
-      // Flat bottom strip — the part of the outer shell touching the ground
-      // A thin box so it sits level without tipping
-      const strip = new THREE.Mesh(
-        new THREE.BoxGeometry(len, 0.018, outerR * 1.1),
-        mat
-      );
-      strip.position.set(len / 2, 0.009, 0);
-
-      // Drainage hole on the back
-      const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.02, 8), darkMat);
-      hole.rotation.z = Math.PI / 2;
-      hole.position.set(0.01, outerR, 0);
-
-      group.add(outer, inner, backDisc, rimRing, strip, hole);
+      group.add(outer, inner, backCap, rimCap);
       break;
     }
 
