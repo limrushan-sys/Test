@@ -82,12 +82,24 @@ export class Gecko {
     this.bodyMesh.castShadow = true;
     this.group.add(this.bodyMesh);
 
-    // Spots along back
+    // Spots along back — irregular, flattened, varied sizes
     this.spotMeshes = [];
-    for (let i = 0; i < 7; i++) {
-      const spot = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5), this.spotMat);
-      const t = (i / 6) - 0.5;
-      spot.position.set(t * 0.32, 0.14, (i % 2 === 0 ? 1 : -1) * 0.04);
+    const spotDefs: [number, number, number, number][] = [
+      // x,     z,      size,  flatten-y
+      [-0.28,  0.05,  0.020, 0.35],
+      [-0.18, -0.03,  0.026, 0.30],
+      [-0.07,  0.06,  0.018, 0.40],
+      [ 0.01, -0.05,  0.024, 0.32],
+      [ 0.10,  0.04,  0.021, 0.38],
+      [ 0.19, -0.02,  0.016, 0.45],
+      [ 0.27,  0.06,  0.022, 0.33],
+      [ 0.13,  0.07,  0.014, 0.42],
+      [-0.13, -0.06,  0.018, 0.36],
+    ];
+    for (const [sx, sz, sr, sy] of spotDefs) {
+      const spot = new THREE.Mesh(new THREE.SphereGeometry(sr, 6, 5), this.spotMat);
+      spot.position.set(sx, 0.135, sz);
+      spot.scale.set(1, sy, 1);
       this.group.add(spot);
       this.spotMeshes.push(spot);
     }
