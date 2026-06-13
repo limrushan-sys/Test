@@ -328,13 +328,13 @@ export class Gecko {
             this.turnAroundAngle = this.group.rotation.y + Math.PI;
             this.sleepingInHide = true;
             this.idleTimer = 4 + Math.random() * 5; // rest longer in the hide
-            this.setStatus('Resting…');
+            this.setStatus('💤 Resting…');
           } else {
             this.turnAroundAngle = null;
             this.sleepingInHide = false;
             this.showTongue();
             if (arrivedItem?.type === 'Food Bowl') this.onArrivedAtFoodBowl?.(arrivedItem.id);
-            this.setStatus(`At ${this.nearestName(items)}`);
+            this.setStatus('🦎 Exploring…');
           }
           break;
         }
@@ -425,7 +425,7 @@ export class Gecko {
           lg.position.y = lift - bob;
         });
 
-        this.setStatus('Walking…');
+        this.setStatus('🦎 Exploring…');
         break;
       }
 
@@ -440,10 +440,12 @@ export class Gecko {
 
         // Smoothly rotate to face outward if in hide
         if (this.turnAroundAngle !== null) {
-          const diff = this.turnAroundAngle - this.group.rotation.y;
+          let diff = this.turnAroundAngle - this.group.rotation.y;
+          // Normalise to shortest arc (-PI to PI) to prevent spinning the wrong way
+          while (diff >  Math.PI) diff -= 2 * Math.PI;
+          while (diff < -Math.PI) diff += 2 * Math.PI;
           this.group.rotation.y += diff * Math.min(4 * delta, 1);
-          // Once roughly aligned, lock and close eyes
-          if (Math.abs(diff) < 0.05) {
+          if (Math.abs(diff) < 0.04) {
             this.group.rotation.y = this.turnAroundAngle;
             this.turnAroundAngle = null;
             this.eyeMeshes.forEach(e => { e.scale.y = 0.04; }); // eyes shut
@@ -459,7 +461,7 @@ export class Gecko {
           }
           this.state = 'IDLE';
           this.idleTimer = 0.5 + Math.random() * 1.2;
-          this.setStatus('Exploring…');
+          this.setStatus('🦎 Exploring…');
         }
         break;
     }
