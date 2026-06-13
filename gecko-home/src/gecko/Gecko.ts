@@ -161,14 +161,34 @@ export class Gecko {
       this.legGroups.push(lgGroup);
     }
 
-    // ── Tail — tapered cone ───────────────────────────────────────────────────
-    const tail = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.008, 0.06, 0.72, 10),
-      this.baseMat
-    );
-    tail.rotation.z = Math.PI / 2;   // point it along -X
-    tail.position.set(-0.565, 0.075, 0); // base sits flush with body rear
-    this.tailGroup.add(tail);
+    // ── Tail — wavy tapered segments ─────────────────────────────────────────
+    const tailCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.18, 0.075,  0.000),
+      new THREE.Vector3(-0.30, 0.079,  0.030),
+      new THREE.Vector3(-0.44, 0.073, -0.028),
+      new THREE.Vector3(-0.58, 0.077,  0.022),
+      new THREE.Vector3(-0.70, 0.074, -0.010),
+      new THREE.Vector3(-0.80, 0.075,  0.000),
+    ]);
+
+    const N   = 18;
+    const pts = tailCurve.getPoints(N);
+    const up  = new THREE.Vector3(0, 1, 0);
+    const R_BASE = 0.040, R_TIP = 0.005;
+
+    for (let i = 0; i < N; i++) {
+      const t  = i / N;
+      const r1 = R_BASE + (R_TIP - R_BASE) * (i / N);
+      const r2 = R_BASE + (R_TIP - R_BASE) * ((i + 1) / N);
+      const p1 = pts[i], p2 = pts[i + 1];
+      const seg = new THREE.Mesh(
+        new THREE.CylinderGeometry(r2, r1, p1.distanceTo(p2), 7),
+        this.baseMat
+      );
+      seg.position.copy(p1.clone().add(p2).multiplyScalar(0.5));
+      seg.quaternion.setFromUnitVectors(up, p2.clone().sub(p1).normalize());
+      this.tailGroup.add(seg);
+    }
     this.group.add(this.tailGroup);
   }
 
