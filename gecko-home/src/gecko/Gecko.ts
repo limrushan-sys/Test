@@ -62,12 +62,17 @@ export class Gecko {
     this.bodyMesh.castShadow = true;
     this.group.add(this.bodyMesh);
 
-    // Belly (lighter underside)
-    this.bellyMat = new THREE.MeshLambertMaterial({ color: 0xd4c890 });
-    const bellyMat = this.bellyMat;
-    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.115, 10, 6), bellyMat);
-    belly.scale.set(1.4, 0.25, 0.85);
-    belly.position.set(0, 0.058, 0);
+    // Belly — wider than body so it shows as lower flank band from camera above
+    this.bellyMat = new THREE.MeshLambertMaterial({
+      color: 0xd4c890,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+    const belly = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 8), this.bellyMat);
+    belly.scale.set(1.90, 0.28, 1.15); // wider than body (1.55) so it peeks out at sides
+    belly.position.set(0, 0.060, 0);   // lower than body centre (0.075)
+    belly.renderOrder = 1;
     this.group.add(belly);
 
     // Spots along back
