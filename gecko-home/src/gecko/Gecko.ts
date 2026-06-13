@@ -87,78 +87,100 @@ export class Gecko {
       this.spotMeshes.push(spot);
     }
 
-    // Head — trapezoidal prism.
-    // Side profile (right-angled trapezium):
-    //   - flat bottom, vertical back (right angle), vertical snout (right angle)
-    //   - top face is slanted from tall back down to short snout
-    // Plan view: wider at neck, narrower at snout (true prism with two equal side faces).
-    // Snout face is replaced by a smooth ellipsoid cap.
+    // Head — single BufferGeometry: trapezoidal prism + semicircular front cap.
+    // No separate meshes, so zero z-fighting.
     {
-      const bx      = 0.185;  // neck X
-      const tx      = 0.370;  // snout X
-      const hw      = 0.065;  // half-width — constant both ends (true prism)
-      const hwB     = hw;
-      const hwF     = hw;
-      const yb      = 0.032;  // bottom Y (flat base)
-      const ytB     = 0.148;  // top Y at neck  (tall)
-      const ytF     = 0.108;  // top Y at snout (short, less slant than before)
+      const bx  = 0.185;  // neck X
+      const tx  = 0.370;  // snout X (cap arc pivots here)
+      const hw  = 0.065;  // constant half-width (true prism)
+      const yb  = 0.032;  // bottom Y
+      const ytB = 0.148;  // top Y at neck
+      const ytF = 0.108;  // top Y at snout (less slant)
 
-      //  0  back-bottom-left     1  back-bottom-right
-      //  2  back-top-left        3  back-top-right
-      //  4  front-bottom-left    5  front-bottom-right
-      //  6  front-top-left       7  front-top-right
-      const verts = new Float32Array([
-        bx, yb,   hwB,   // 0
-        bx, yb,  -hwB,   // 1
-        bx, ytB,  hwB,   // 2
-        bx, ytB, -hwB,   // 3
-        tx, yb,   hwF,   // 4
-        tx, yb,  -hwF,   // 5
-        tx, ytF,  hwF,   // 6
-        tx, ytF, -hwF,   // 7
-      ]);
-
-      const idx = new Uint16Array([
-        0, 3, 1,  0, 2, 3,   // back face  (vertical, tall)
-        0, 1, 5,  0, 5, 4,   // bottom face (flat)
-        2, 6, 7,  2, 7, 3,   // top face   (slanted)
-        0, 4, 6,  0, 6, 2,   // left side  (+Z trapezoid)
-        1, 3, 7,  1, 7, 5,   // right side (-Z trapezoid)
-        // front face omitted — covered by the cylinder cap below
-      ]);
-
-      const headGeo = new THREE.BufferGeometry();
-      headGeo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
-      headGeo.setIndex(new THREE.BufferAttribute(idx, 1));
-      headGeo.computeVertexNormals();
-      this.group.add(new THREE.Mesh(headGeo, this.baseMat));
-
-      // Cylinder with axis along Z — constant width 2*hw matching the prism exactly.
-      // The circular arc meets the prism's bottom face at (tx,yb) and top face at (tx,ytF)
-      // with no taper in Z, so the side walls connect flush with zero gap.
       const snoutH = ytF - yb;
-      const snoutCap = new THREE.Mesh(
-        new THREE.CylinderGeometry(snoutH / 2, snoutH / 2, hw * 2, 18),
-        this.baseMat
-      );
-      snoutCap.rotation.x = Math.PI / 2; // rotate axis from Y to Z
-      snoutCap.position.set(tx, yb + snoutH / 2, 0);
-      this.group.add(snoutCap);
+      const r  = snoutH / 2;    // arc radius
+      const cy = yb + r;        // arc centre Y
 
-      // Nostrils near the top of the snout cap
+      // Arc segments for the front cap (half-circle from bottom to top)
+      const ARC = 10;
+      const posArr: number[] = [];
+      const idxArr: number[] = [];
+
+      // Helper to push a vertex and return its index
+      const v = (x: number, y: number, z: number) => {
+        posArr.push(x, y, z);
+        return posArr.length / 3 - 1;
+      };
+
+      // ── Prism vertices ───────────────────────────────────────────────────────
+      const v0 = v(bx, yb,   hw);   // back-bottom-left
+      const v1 = v(bx, yb,  -hw);   // back-bottom-right
+      const v2 = v(bx, ytB,  hw);   // back-top-left
+      const v3 = v(bx, ytB, -hw);   // back-top-right
+      // front-bottom and front-top are also the arc endpoints
+      const v4 = v(tx, yb,   hw);   // front-bottom-left  = arc start left
+      const v5 = v(tx, yb,  -hw);   // front-bottom-right = arc start right
+      const v6 = v(tx, ytF,  hw);   // front-top-left     = arc end left
+      const v7 = v(tx, ytF, -hw);   // front-top-right    = arc end right
+
+      // ── Prism faces ──────────────────────────────────────────────────────────
+      idxArr.push(
+        v0,v3,v1,  v0,v2,v3,   // back
+        v0,v1,v5,  v0,v5,v4,   // bottom
+        v2,v6,v7,  v2,v7,v3,   // top (slanted)
+        v0,v4,v6,  v0,v6,v2,   // left side
+        v1,v3,v7,  v1,v7,v5,   // right side
+      );
+
+      // ── Front arc cap ────────────────────────────────────────────────────────
+      // Generate N-1 intermediate ring pairs; endpoints reuse v4/v5 and v6/v7
+      const leftRing:  number[] = [v4];
+      const rightRing: number[] = [v5];
+      for (let i = 1; i < ARC; i++) {
+        const a  = -Math.PI / 2 + (Math.PI / ARC) * i;
+        const ax = tx + r * Math.cos(a);
+        const ay = cy + r * Math.sin(a);
+        leftRing.push(v(ax, ay,  hw));
+        rightRing.push(v(ax, ay, -hw));
+      }
+      leftRing.push(v6);
+      rightRing.push(v7);
+
+      // Curved surface between the two rings
+      for (let i = 0; i < ARC; i++) {
+        const l0 = leftRing[i],  l1 = leftRing[i + 1];
+        const r0 = rightRing[i], r1 = rightRing[i + 1];
+        idxArr.push(l0, r0, r1,  l0, r1, l1);
+      }
+
+      // End-cap fans at z=±hw (semicircle fans, centre = midpoint on the arc axis)
+      const lcx = v(tx, cy,  hw);
+      const rcx = v(tx, cy, -hw);
+      for (let i = 0; i < ARC; i++) {
+        idxArr.push(lcx, leftRing[i + 1],  leftRing[i]);
+        idxArr.push(rcx, rightRing[i],     rightRing[i + 1]);
+      }
+
+      // ── Build mesh ────────────────────────────────────────────────────────────
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posArr), 3));
+      geo.setIndex(idxArr);
+      geo.computeVertexNormals();
+      this.group.add(new THREE.Mesh(geo, this.baseMat));
+
+      // Nostrils
       const nostMat = new THREE.MeshLambertMaterial({ color: 0x3a5010 });
       for (const side of [-1, 1] as const) {
         const n = new THREE.Mesh(new THREE.SphereGeometry(0.007, 5, 4), nostMat);
-        n.position.set(tx + snoutH * 0.30, yb + snoutH * 0.80, side * 0.013);
+        n.position.set(tx + r * 0.65, cy + r * 0.55, side * 0.014);
         this.group.add(n);
       }
 
-      // Eyes at the halfway point along the sides, upper portion following the slope
+      // Eyes at midpoint along the sides, upper portion
       this.eyeMeshes = [];
       for (const side of [-1, 1] as const) {
         const ex   = bx + (tx - bx) * 0.50;
-        const t    = 0.50;
-        const eyeY = yb + (ytB - (ytB - ytF) * t) * 0.72;
+        const eyeY = yb + (ytB - (ytB - ytF) * 0.5) * 0.72;
         const eye  = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), eyeMat);
         eye.position.set(ex, eyeY, side * (hw + 0.008));
         this.group.add(eye);
