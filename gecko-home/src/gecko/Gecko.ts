@@ -308,14 +308,13 @@ export class Gecko {
         // Smooth Y for climbing
         this.geckoY += (this.targetY - this.geckoY) * Math.min(9 * delta, 1);
 
-        // Whole-body walk bob + side-to-side sway — affects everything at once
-        const bob  = Math.abs(Math.sin(this.walkTime * BODY_BOB_SPEED)) * 0.018;
-        const sway = Math.sin(this.walkTime * LEG_SWING_SPEED * 0.5) * 0.07;
+        // Whole-body vertical bob only (no side sway)
+        const bob = Math.abs(Math.sin(this.walkTime * BODY_BOB_SPEED)) * 0.018;
         pos.y = this.geckoY + bob;
-        this.group.rotation.z = sway;
+        this.group.rotation.z += (0 - this.group.rotation.z) * 0.15;
 
         // Leg animation — trot gait, diagonal pairs lift together
-        // Subtract bob so legs stay grounded despite the group Y rising
+        // Subtract bob so feet stay grounded as the body rises
         const phases = [0, Math.PI, Math.PI, 0];
         this.legGroups.forEach((lg, i) => {
           const lift = Math.max(0, Math.sin(this.walkTime * LEG_SWING_SPEED + phases[i])) * 0.04;
@@ -328,8 +327,8 @@ export class Gecko {
 
       case 'ARRIVED':
         this.idleTimer -= delta;
-        // Settle legs, sway, and bob back to neutral
-        this.legGroups.forEach(lg => { lg.position.y *= 0.8; });
+        // Settle legs and rotation back to neutral
+        this.legGroups.forEach(lg => { lg.position.y += (0 - lg.position.y) * 0.15; });
         this.group.rotation.z += (0 - this.group.rotation.z) * 0.12;
         this.targetY = 0;
         this.geckoY += (this.targetY - this.geckoY) * Math.min(3 * delta, 1);
@@ -369,14 +368,12 @@ export class Gecko {
   }
 
   private animateIdle(_delta: number) {
-    // Gentle whole-body breathing bob
+    // Gentle whole-body breathing bob — legs do NOT move
     const breathBob = Math.sin(Date.now() * 0.0015) * 0.005;
     this.group.position.y = this.geckoY + breathBob;
     this.group.rotation.z += (0 - this.group.rotation.z) * 0.1;
-    // Cancel the breath bob in leg local Y so feet stay on ground
-    this.legGroups.forEach(lg => {
-      lg.position.y = lg.position.y * 0.9 - breathBob;
-    });
+    // Keep legs pinned to ground (cancel breath bob in local Y)
+    this.legGroups.forEach(lg => { lg.position.y = -breathBob; });
   }
 
   private pickTarget(items: PlacedItem[], bounds: EnclosureBounds) {
