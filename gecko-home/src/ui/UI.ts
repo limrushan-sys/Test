@@ -8,17 +8,41 @@ export interface UICallbacks {
   onMoveItem: (dx: number, dz: number) => void;
   onRotateItem: (angle: number) => void;
   onDeleteItem: () => void;
-  onGeckoColor: (hex: number) => void;
+  onBodyColor: (hex: number) => void;
+  onSpotColor: (hex: number) => void;
+  onBellyColor: (hex: number) => void;
   onAddCrickets: () => void;
 }
 
-const GECKO_PRESETS = [
-  { label: 'Wild',       hex: '#a8c060' },
-  { label: 'Albino',     hex: '#f5d87a' },
-  { label: 'Tangerine',  hex: '#e88030' },
-  { label: 'Blizzard',   hex: '#e8e4d8' },
-  { label: 'Melanistic', hex: '#4a5a28' },
-  { label: 'Carrot',     hex: '#dd6030' },
+const BODY_COLOURS = [
+  { label: 'Wild Green',    hex: '#a8c060' },
+  { label: 'Tangerine',     hex: '#e07030' },
+  { label: 'Albino',        hex: '#e8c870' },
+  { label: 'Blizzard',      hex: '#dcddd8' },
+  { label: 'Melanistic',    hex: '#4a5a28' },
+  { label: 'Carrot Tail',   hex: '#d05820' },
+  { label: 'Lavender',      hex: '#9090b8' },
+  { label: 'Chocolate',     hex: '#7a4820' },
+];
+
+const SPOT_COLOURS = [
+  { label: 'Yellow',        hex: '#f0d060' },
+  { label: 'White',         hex: '#f0ede0' },
+  { label: 'Orange',        hex: '#e88030' },
+  { label: 'Cream',         hex: '#e8d8a0' },
+  { label: 'Dark Brown',    hex: '#5a3818' },
+  { label: 'Match Body',    hex: '#a8c060' },
+  { label: 'Bright Red',    hex: '#d04030' },
+  { label: 'None (Hide)',   hex: '#00000000' },
+];
+
+const BELLY_COLOURS = [
+  { label: 'Cream',         hex: '#d4c890' },
+  { label: 'White',         hex: '#eeeae0' },
+  { label: 'Pale Yellow',   hex: '#e8e0a0' },
+  { label: 'Pink Tint',     hex: '#e0c8b8' },
+  { label: 'Light Green',   hex: '#c0d080' },
+  { label: 'Sandy',         hex: '#d8c080' },
 ];
 
 export class UI {
@@ -54,13 +78,19 @@ export class UI {
       </div>
 
       <div class="section">
-        <label>Gecko Colour</label>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:7px;">
-          <input type="color" id="gecko-color" value="#a8c060"
-            style="width:36px;height:28px;border:none;border-radius:6px;cursor:pointer;background:none;padding:0;" />
-          <span style="font-size:11px;color:#8890a4">Custom colour</span>
+        <label>Gecko Colours</label>
+        <div class="colour-row">
+          <span class="colour-label">Body</span>
+          <select id="sel-body" class="colour-select"></select>
         </div>
-        <div class="color-presets" id="color-presets"></div>
+        <div class="colour-row">
+          <span class="colour-label">Spots</span>
+          <select id="sel-spots" class="colour-select"></select>
+        </div>
+        <div class="colour-row">
+          <span class="colour-label">Belly</span>
+          <select id="sel-belly" class="colour-select"></select>
+        </div>
       </div>
 
       <div class="section">
@@ -166,33 +196,10 @@ export class UI {
       };
     }
 
-    // ── Gecko colour picker ───────────────────────────────────────────────────
-    const colorInput = document.getElementById('gecko-color') as HTMLInputElement;
-    colorInput.oninput = () => {
-      const hex = parseInt(colorInput.value.replace('#', ''), 16);
-      this.callbacks.onGeckoColor(hex);
-    };
-
-    // Colour presets
-    const presetsEl = document.getElementById('color-presets')!;
-    presetsEl.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;';
-    for (const preset of GECKO_PRESETS) {
-      const pb = document.createElement('button');
-      pb.title = preset.label;
-      pb.style.cssText = `
-        width:28px;height:20px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);
-        background:${preset.hex};cursor:pointer;font-size:0;
-        transition:transform 0.1s;
-      `;
-      pb.onmouseenter = () => { pb.style.transform = 'scale(1.15)'; };
-      pb.onmouseleave = () => { pb.style.transform = ''; };
-      pb.onclick = () => {
-        colorInput.value = preset.hex;
-        const hex = parseInt(preset.hex.replace('#', ''), 16);
-        this.callbacks.onGeckoColor(hex);
-      };
-      presetsEl.appendChild(pb);
-    }
+    // ── Gecko colour dropdowns ────────────────────────────────────────────────
+    this.populateSelect('sel-body',  BODY_COLOURS,  '#a8c060', hex => this.callbacks.onBodyColor(hex));
+    this.populateSelect('sel-spots', SPOT_COLOURS,  '#f0d060', hex => this.callbacks.onSpotColor(hex));
+    this.populateSelect('sel-belly', BELLY_COLOURS, '#d4c890', hex => this.callbacks.onBellyColor(hex));
 
     // ── Item move/rotate/delete buttons ───────────────────────────────────────
     const step = 0.14;
@@ -204,6 +211,27 @@ export class UI {
     document.getElementById('rot-right')!.onclick  = () => this.callbacks.onRotateItem(Math.PI / 8);
     document.getElementById('del-item')!.onclick   = () => this.callbacks.onDeleteItem();
     document.getElementById('add-crickets')!.onclick = () => this.callbacks.onAddCrickets();
+  }
+
+  // ── Colour select helper ──────────────────────────────────────────────────
+  private populateSelect(
+    id: string,
+    options: { label: string; hex: string }[],
+    defaultHex: string,
+    onChange: (hex: number) => void
+  ) {
+    const sel = document.getElementById(id) as HTMLSelectElement;
+    for (const opt of options) {
+      const el = document.createElement('option');
+      el.value = opt.hex;
+      el.textContent = opt.label;
+      if (opt.hex === defaultHex) el.selected = true;
+      sel.appendChild(el);
+    }
+    sel.onchange = () => {
+      const raw = sel.value.replace('#', '').replace('00000000', '000000');
+      onChange(parseInt(raw, 16));
+    };
   }
 
   // ── Toggle place mode ─────────────────────────────────────────────────────

@@ -86,6 +86,41 @@ body {
 .item-btn:hover { background: rgba(255,255,255,0.1); }
 .item-btn.selected { background: rgba(108,99,255,0.3); border-color: #6c63ff; color: #a5b4fc; }
 
+.colour-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.colour-label {
+  font-size: 11px;
+  color: #8890a4;
+  width: 36px;
+  flex-shrink: 0;
+}
+
+.colour-select {
+  flex: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 12px;
+  padding: 4px 6px;
+  cursor: pointer;
+  outline: none;
+}
+
+.colour-select:focus {
+  border-color: var(--accent);
+}
+
+.colour-select option {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
 .resize-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .resize-row span { font-size: 12px; width: 16px; color: #8890a4; }
 .resize-row input[type=range] { flex: 1; accent-color: #6c63ff; }

@@ -24,6 +24,7 @@ export class Gecko {
   private baseMat!: THREE.MeshLambertMaterial;
   private spotMat!: THREE.MeshLambertMaterial;
   private darkMat!: THREE.MeshLambertMaterial;
+  private bellyMat!: THREE.MeshLambertMaterial;
 
   private state: GeckoState = 'IDLE';
   private idleTimer = 1.0;
@@ -61,7 +62,8 @@ export class Gecko {
     this.group.add(this.bodyMesh);
 
     // Belly (lighter underside)
-    const bellyMat = new THREE.MeshLambertMaterial({ color: 0xd4c890 });
+    this.bellyMat = new THREE.MeshLambertMaterial({ color: 0xd4c890 });
+    const bellyMat = this.bellyMat;
     const belly = new THREE.Mesh(new THREE.SphereGeometry(0.115, 10, 6), bellyMat);
     belly.scale.set(1.4, 0.25, 0.85);
     belly.position.set(0, 0.058, 0);
@@ -167,18 +169,20 @@ export class Gecko {
     this.group.add(this.tailGroup);
   }
 
-  // ── Gecko colour ───────────────────────────────────────────────────────────
-  setColor(hex: number) {
+  // ── Gecko colour setters ──────────────────────────────────────────────────
+  setBodyColor(hex: number) {
     this.baseMat.color.setHex(hex);
+    // Keep dark (legs/snout) proportional to body
     const c = new THREE.Color(hex);
-    // Spots slightly lighter/yellower
-    this.spotMat.color.setRGB(
-      Math.min(c.r * 1.35, 1),
-      Math.min(c.g * 1.25, 1),
-      c.b * 0.7
-    );
-    // Dark areas slightly darker
     this.darkMat.color.setRGB(c.r * 0.72, c.g * 0.78, c.b * 0.65);
+  }
+
+  setSpotColor(hex: number) {
+    this.spotMat.color.setHex(hex);
+  }
+
+  setBellyColor(hex: number) {
+    this.bellyMat.color.setHex(hex);
   }
 
   // ── AI update ─────────────────────────────────────────────────────────────
