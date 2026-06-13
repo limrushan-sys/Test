@@ -94,41 +94,40 @@ export function createItemMesh(type: ItemType): THREE.Group {
 
     // ── Sleeping Hide: half hollow cylinder laid on its side ────────────────
     case ItemType.SLEEPING_HIDE: {
-      // Upper half-cylinder (theta = -PI/2 to PI/2 gives the top arch after rotation).
-      // Axis runs along X. Opening at +X end, closed at -X end.
-      const R    = 0.28;   // arch radius
-      const len  = 0.52;   // length
-      const wall = 0.030;  // shell thickness
-      const SEG  = 22;
+      const R    = 0.38;   // arch radius (bigger)
+      const len  = 0.68;   // length
+      const wall = 0.035;  // shell thickness
+      const SEG  = 24;
 
       const mat  = new THREE.MeshLambertMaterial({ color: 0x8b5e3c, side: THREE.DoubleSide });
       const dark = new THREE.MeshLambertMaterial({ color: 0x5c3820, side: THREE.DoubleSide });
 
+      // thetaStart=0, thetaLength=PI with rotation.z=PI/2 → top half sits flat on ground
       // Outer curved shell
       const outer = new THREE.Mesh(
-        new THREE.CylinderGeometry(R, R, len, SEG, 1, true, -Math.PI / 2, Math.PI),
+        new THREE.CylinderGeometry(R, R, len, SEG, 1, true, 0, Math.PI),
         mat
       );
       outer.rotation.z = Math.PI / 2;
 
-      // Inner curved shell — slightly smaller, creates the hollow cavity
+      // Inner curved shell — hollow cavity
       const inner = new THREE.Mesh(
-        new THREE.CylinderGeometry(R - wall, R - wall, len + 0.01, SEG, 1, true, -Math.PI / 2, Math.PI),
+        new THREE.CylinderGeometry(R - wall, R - wall, len + 0.01, SEG, 1, true, 0, Math.PI),
         mat
       );
       inner.rotation.z = Math.PI / 2;
 
-      // Closed back end cap — thin half-disc (openEnded=false fills the semicircle caps)
+      // Closed back end cap
       const backCap = new THREE.Mesh(
-        new THREE.CylinderGeometry(R, R, wall * 0.8, SEG, 1, false, -Math.PI / 2, Math.PI),
+        new THREE.CylinderGeometry(R, R, wall * 0.8, SEG, 1, false, 0, Math.PI),
         dark
       );
       backCap.rotation.z = Math.PI / 2;
       backCap.position.x = -len / 2 + wall * 0.4;
 
-      // Front rim ring — slight lip at the opening
+      // Front rim lip at opening
       const rimCap = new THREE.Mesh(
-        new THREE.CylinderGeometry(R + 0.012, R + 0.012, wall * 0.6, SEG, 1, false, -Math.PI / 2, Math.PI),
+        new THREE.CylinderGeometry(R + 0.014, R + 0.014, wall * 0.6, SEG, 1, false, 0, Math.PI),
         dark
       );
       rimCap.rotation.z = Math.PI / 2;
