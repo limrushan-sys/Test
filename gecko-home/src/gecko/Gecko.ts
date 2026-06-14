@@ -397,7 +397,13 @@ export class Gecko {
         this.targetY = 0;
         for (const item of items) {
           const col  = ITEM_COLLISION[item.type];
-          const r2   = col.radius * col.radius;
+          // While navigating to the hide mouth (phase 1) the hide walls act as a solid
+          // obstacle so the gecko walks around them. Once inside (phase 2+) radius drops
+          // to near-zero so the gecko can move freely to the centre.
+          const colR = (item.type === ItemType.SLEEPING_HIDE && this.hideEntryPhase === 1)
+            ? 0.52
+            : col.radius;
+          const r2   = colR * colR;
 
           // Test both probe points; use whichever is deeper inside the item
           let worstPush = 0;
@@ -413,11 +419,11 @@ export class Gecko {
             if (d2 < r2) {
               if (col.climbable) {
                 const d = Math.sqrt(d2);
-                const t = Math.min(1, 1 - d / col.radius);
+                const t = Math.min(1, 1 - d / colR);
                 this.targetY = Math.max(this.targetY, col.height * Math.min(t * 2.5, 1));
               } else {
                 const d = Math.sqrt(d2) || 0.001;
-                const push = col.radius - d + 0.02;
+                const push = colR - d + 0.02;
                 if (push > worstPush) {
                   worstPush = push;
                   pushDx = (cdx / d) * push;
