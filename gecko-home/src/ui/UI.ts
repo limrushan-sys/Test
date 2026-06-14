@@ -131,13 +131,6 @@ export class UI {
     top.textContent = 'Gecko Home — Single Player Enclosure';
     root.appendChild(top);
 
-    // ── Status bar ───────────────────────────────────────────────────────────
-    const status = document.createElement('div');
-    status.id = 'status-bar';
-    status.className = 'panel';
-    status.innerHTML = `<span id="gecko-status">🦎 Gecko: Exploring…</span>`;
-    root.appendChild(status);
-
     // ── Info tip ─────────────────────────────────────────────────────────────
     const tip = document.createElement('div');
     tip.id = 'info-tip';

@@ -441,7 +441,7 @@ export class Gecko {
           // Phases 1 & 2: hide is a solid obstacle (gecko walks around outside).
           // Phase 3: radius drops to near-zero so gecko can enter freely.
           const colR = (item.type === ItemType.SLEEPING_HIDE && this.hideEntryPhase <= 2 && this.hideEntryPhase >= 1)
-            ? 0.52
+            ? 0.68  // covers hide corners (max extent ≈ 0.61 from centre)
             : col.radius;
           const r2   = colR * colR;
 
@@ -669,11 +669,14 @@ export class Gecko {
         const relX  = this.group.position.x - item.position.x;
         const relZ  = this.group.position.z - item.position.z;
         const side  = (relX * pDX + relZ * pDZ) >= 0 ? 1 : -1;
-        // Side waypoint: beside the hide, clear of the walls
+        // Side waypoint: beside the MOUTH end of the hide so the gecko only
+        // needs to step forward to reach the entrance (not slide around a corner).
+        // Perpendicular clear distance 0.80 > colR 0.68; forward offset puts it
+        // level with the mouth opening.
         this.target.set(
-          item.position.x + pDX * side * 0.65,
+          item.position.x + pDX * side * 0.80 + mDX * 0.40,
           0,
-          item.position.z + pDZ * side * 0.65,
+          item.position.z + pDZ * side * 0.80 + mDZ * 0.40,
         );
         this.hideEntryPhase = 1;
       } else {
