@@ -213,9 +213,9 @@ export class ItemManager {
       const cricket = createCricketMesh();
       const angle = (existing.length + i) / MAX_CRICKETS * Math.PI * 2;
       cricket.position.set(
-        Math.cos(angle) * 0.14,
-        0.08,
-        Math.sin(angle) * 0.14
+        Math.cos(angle) * 0.12,
+        0.028,   // resting on the bowl floor (interior disc at y=0.003, body radius ≈0.025)
+        Math.sin(angle) * 0.12
       );
       cricket.userData.bouncePhase = Math.random() * Math.PI * 2;
       cricket.userData.bounceSpeed = 4 + Math.random() * 3;
@@ -298,7 +298,7 @@ export class ItemManager {
         const phase: number = c.userData.bouncePhase ?? 0;
         const speed: number = c.userData.bounceSpeed ?? 5;
         const bounce = Math.max(0, Math.sin(this.cricketTime * speed + phase));
-        c.position.y = 0.08 + bounce * 0.055;
+        c.position.y = 0.028 + bounce * 0.04; // bounce from bowl floor
         // Wiggle antennae slightly
         c.rotation.y = Math.sin(this.cricketTime * 2.5 + phase) * 0.3;
       }
