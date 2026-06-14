@@ -56,6 +56,10 @@ export class Gecko {
   private eatBowlId: number | null = null;
   private onEatDone: (() => void) | null = null;
 
+  private drinkPhase = 0;  // 0=off 1=extending 2=retracting
+  private drinkTimer = 0;
+  private drinkCount = 0;
+
   private statusEl: HTMLElement | null = null;
 
   onArrivedAtFoodBowl?: (itemId: number) => void;
@@ -344,6 +348,7 @@ export class Gecko {
   // ── AI update ─────────────────────────────────────────────────────────────
   update(delta: number, items: PlacedItem[], bounds: EnclosureBounds) {
     this.updateTongueAnim(delta);
+    this.updateDrinkAnim(delta);
     switch (this.state) {
 
       case 'IDLE':
@@ -404,7 +409,13 @@ export class Gecko {
             this.hideEntryPhase = 0;
             this.turnAroundAngle = null;
             this.sleepingInHide = false;
-            if (arrivedItem?.type === ItemType.FOOD_BOWL) this.onArrivedAtFoodBowl?.(arrivedItem.id);
+            if (arrivedItem?.type === ItemType.FOOD_BOWL) {
+              this.onArrivedAtFoodBowl?.(arrivedItem.id);
+            } else if (arrivedItem?.type === ItemType.WATER_DISH) {
+              this.startDrinkAnimation();
+            } else {
+              this.showTongue();
+            }
             this.setStatus('🦎 Exploring…');
           }
           break;
@@ -626,6 +637,47 @@ export class Gecko {
         this.onEatDone?.();
         this.eatCricketMesh = null;
         this.onEatDone = null;
+      }
+    }
+  }
+
+  private startDrinkAnimation() {
+    if (!this.tongueMesh) return;
+    this.drinkPhase = 1;
+    this.drinkTimer = 0;
+    this.drinkCount = 0;
+    this.tongueMesh.visible = true;
+  }
+
+  private updateDrinkAnim(delta: number) {
+    if (this.drinkPhase === 0 || !this.tongueMesh) return;
+    const TOTAL_LAPS  = 5;
+    const DRINK_LEN   = 0.10; // short lick distance
+    const EXTEND_T    = 0.09;
+    const RETRACT_T   = 0.09;
+
+    this.drinkTimer += delta;
+
+    if (this.drinkPhase === 1) {
+      // Extending
+      this.tongueMesh.scale.x = Math.min(this.drinkTimer / EXTEND_T, 1) * DRINK_LEN;
+      if (this.drinkTimer >= EXTEND_T) {
+        this.drinkTimer = 0;
+        this.drinkPhase = 2;
+      }
+    } else if (this.drinkPhase === 2) {
+      // Retracting
+      this.tongueMesh.scale.x = Math.max(0, 1 - this.drinkTimer / RETRACT_T) * DRINK_LEN;
+      if (this.drinkTimer >= RETRACT_T) {
+        this.drinkCount++;
+        if (this.drinkCount >= TOTAL_LAPS) {
+          this.drinkPhase = 0;
+          this.tongueMesh.scale.x = 0;
+          this.tongueMesh.visible = false;
+        } else {
+          this.drinkTimer = 0;
+          this.drinkPhase = 1;
+        }
       }
     }
   }
