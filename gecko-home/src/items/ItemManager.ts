@@ -211,14 +211,17 @@ export class ItemManager {
     const count = Math.min(MAX_CRICKETS - existing.length, 4);
     for (let i = 0; i < count; i++) {
       const cricket = createCricketMesh();
-      const angle = (existing.length + i) / MAX_CRICKETS * Math.PI * 2;
-      cricket.position.set(
-        Math.cos(angle) * 0.12,
-        0.028,   // resting on the bowl floor (interior disc at y=0.003, body radius ≈0.025)
-        Math.sin(angle) * 0.12
-      );
+      // Random position inside the bowl
+      const angle = Math.random() * Math.PI * 2;
+      const r = 0.04 + Math.random() * 0.10;
+      cricket.position.set(Math.cos(angle) * r, 0.028, Math.sin(angle) * r);
+      // Random wandering velocity
+      const vAngle = Math.random() * Math.PI * 2;
+      const speed  = 0.06 + Math.random() * 0.08;
+      cricket.userData.velX        = Math.cos(vAngle) * speed;
+      cricket.userData.velZ        = Math.sin(vAngle) * speed;
       cricket.userData.bouncePhase = Math.random() * Math.PI * 2;
-      cricket.userData.bounceSpeed = 4 + Math.random() * 3;
+      cricket.userData.bounceSpeed = 6 + Math.random() * 5;
       item.mesh.add(cricket);
       existing.push(cricket);
     }
@@ -295,12 +298,34 @@ export class ItemManager {
       if (item.type !== ItemType.FOOD_BOWL) continue;
       const crickets: THREE.Group[] = item.mesh.userData.crickets ?? [];
       for (const c of crickets) {
-        const phase: number = c.userData.bouncePhase ?? 0;
-        const speed: number = c.userData.bounceSpeed ?? 5;
-        const bounce = Math.max(0, Math.sin(this.cricketTime * speed + phase));
-        c.position.y = 0.028 + bounce * 0.04; // bounce from bowl floor
-        // Wiggle antennae slightly
-        c.rotation.y = Math.sin(this.cricketTime * 2.5 + phase) * 0.3;
+        const phase: number  = c.userData.bouncePhase ?? 0;
+        const bSpeed: number = c.userData.bounceSpeed ?? 7;
+        let velX: number     = c.userData.velX ?? 0.05;
+        let velZ: number     = c.userData.velZ ?? 0.05;
+
+        // Move cricket in XZ plane
+        const BOWL_R = 0.14; // max wander radius (stays inside bowl bottom)
+        let cx = c.position.x + velX * delta;
+        let cz = c.position.z + velZ * delta;
+        const dr = Math.sqrt(cx * cx + cz * cz);
+        if (dr > BOWL_R) {
+          // Reflect off the circular bowl wall
+          const nx = cx / dr, nz = cz / dr;
+          const dot = velX * nx + velZ * nz;
+          velX -= 2 * dot * nx;
+          velZ -= 2 * dot * nz;
+          cx = nx * BOWL_R;
+          cz = nz * BOWL_R;
+          c.userData.velX = velX;
+          c.userData.velZ = velZ;
+        }
+        c.position.x = cx;
+        c.position.z = cz;
+
+        // Bounce in Y and face movement direction
+        const bounce = Math.max(0, Math.sin(this.cricketTime * bSpeed + phase));
+        c.position.y = 0.028 + bounce * 0.03;
+        c.rotation.y = Math.atan2(velZ, velX);
       }
     }
 
