@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ItemType, createItemMesh, createCricketMesh } from './ItemTypes.js';
+import { ItemType, ITEM_COLLISION, createItemMesh, createCricketMesh } from './ItemTypes.js';
 import type { EnclosureBounds } from '../scene/Enclosure.js';
 
 export interface PlacedItem {
@@ -72,8 +72,10 @@ export class ItemManager {
     }
 
     const pt = hits[0].point;
-    this.ghostValid = pt.x >= bounds.minX && pt.x <= bounds.maxX &&
-                      pt.z >= bounds.minZ && pt.z <= bounds.maxZ;
+    const inBounds = pt.x >= bounds.minX && pt.x <= bounds.maxX &&
+                     pt.z >= bounds.minZ && pt.z <= bounds.maxZ;
+    const ghostPos = new THREE.Vector3(pt.x, 0, pt.z);
+    this.ghostValid = inBounds && !this.overlapsAny(ghostPos, this.selectedType);
 
     if (!this.ghost) {
       this.ghost = createItemMesh(this.selectedType);
@@ -154,6 +156,7 @@ export class ItemManager {
     this.selectedItem = found;
     this.selectionRing.position.set(found.position.x, 0.006, found.position.z);
     this.selectionRing.visible = true;
+    (this.selectionRing.material as THREE.MeshBasicMaterial).color.setHex(0xffcc00);
     this.onSelectionChange?.(found);
     return true;
   }
@@ -162,10 +165,21 @@ export class ItemManager {
   moveSelected(dx: number, dz: number, bounds: EnclosureBounds) {
     if (!this.selectedItem) return;
     const item = this.selectedItem;
-    item.position.x = Math.max(bounds.minX, Math.min(bounds.maxX, item.position.x + dx));
-    item.position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, item.position.z + dz));
-    item.mesh.position.set(item.position.x, 0, item.position.z);
-    this.selectionRing.position.set(item.position.x, 0.006, item.position.z);
+    const nx = Math.max(bounds.minX, Math.min(bounds.maxX, item.position.x + dx));
+    const nz = Math.max(bounds.minZ, Math.min(bounds.maxZ, item.position.z + dz));
+    const newPos = new THREE.Vector3(nx, 0, nz);
+
+    const blocked = this.overlapsAny(newPos, item.type, item.id);
+    const ringMat = this.selectionRing.material as THREE.MeshBasicMaterial;
+    if (blocked) {
+      ringMat.color.setHex(0xff3333); // flash ring red — don't move
+    } else {
+      ringMat.color.setHex(0xffcc00); // restore yellow
+      item.position.x = nx;
+      item.position.z = nz;
+      item.mesh.position.set(nx, 0, nz);
+      this.selectionRing.position.set(nx, 0.006, nz);
+    }
   }
 
   rotateSelected(angle: number) {
@@ -237,6 +251,27 @@ export class ItemManager {
       item.position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, item.position.z));
       item.mesh.position.set(item.position.x, 0, item.position.z);
     }
+  }
+
+  // ── Overlap detection ─────────────────────────────────────────────────────
+  // Visual footprint radius used for placement overlap checks.
+  // Items with tiny collision radii (e.g. SLEEPING_HIDE) get a realistic size.
+  private footprintR(type: ItemType): number {
+    if (type === ItemType.SLEEPING_HIDE) return 0.50;
+    const r = ITEM_COLLISION[type].radius;
+    return r > 0.05 ? r : 0.20; // minimum sensible footprint
+  }
+
+  private overlapsAny(pos: THREE.Vector3, type: ItemType, excludeId?: number): boolean {
+    const r1 = this.footprintR(type);
+    for (const item of this.items) {
+      if (item.id === excludeId) continue;
+      const r2 = this.footprintR(item.type);
+      const dx = pos.x - item.position.x;
+      const dz = pos.z - item.position.z;
+      if (dx * dx + dz * dz < (r1 + r2) * (r1 + r2)) return true;
+    }
+    return false;
   }
 
   private destroyGhost() {
