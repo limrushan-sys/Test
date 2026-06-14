@@ -72,8 +72,9 @@ export class ItemManager {
     }
 
     const pt = hits[0].point;
-    const inBounds = pt.x >= bounds.minX && pt.x <= bounds.maxX &&
-                     pt.z >= bounds.minZ && pt.z <= bounds.maxZ;
+    const r = this.footprintR(this.selectedType);
+    const inBounds = pt.x >= bounds.minX + r && pt.x <= bounds.maxX - r &&
+                     pt.z >= bounds.minZ + r && pt.z <= bounds.maxZ - r;
     const ghostPos = new THREE.Vector3(pt.x, 0, pt.z);
     this.ghostValid = inBounds && !this.overlapsAny(ghostPos, this.selectedType);
 
@@ -165,11 +166,16 @@ export class ItemManager {
   moveSelected(dx: number, dz: number, bounds: EnclosureBounds) {
     if (!this.selectedItem) return;
     const item = this.selectedItem;
-    const nx = Math.max(bounds.minX, Math.min(bounds.maxX, item.position.x + dx));
-    const nz = Math.max(bounds.minZ, Math.min(bounds.maxZ, item.position.z + dz));
+    const r = this.footprintR(item.type);
+    const reqX = item.position.x + dx;
+    const reqZ = item.position.z + dz;
+    const nx = Math.max(bounds.minX + r, Math.min(bounds.maxX - r, reqX));
+    const nz = Math.max(bounds.minZ + r, Math.min(bounds.maxZ - r, reqZ));
     const newPos = new THREE.Vector3(nx, 0, nz);
 
-    const blocked = this.overlapsAny(newPos, item.type, item.id);
+    // Block if the requested move was clipped by a wall, or if new position overlaps another item
+    const hitWall = Math.abs(nx - reqX) > 0.001 || Math.abs(nz - reqZ) > 0.001;
+    const blocked = hitWall || this.overlapsAny(newPos, item.type, item.id);
     const ringMat = this.selectionRing.material as THREE.MeshBasicMaterial;
     if (blocked) {
       ringMat.color.setHex(0xff3333); // flash ring red — don't move
