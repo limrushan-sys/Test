@@ -196,11 +196,10 @@ export function createItemMesh(type: ItemType): THREE.Group {
         INNER_R,            0,         hw,  // 5 flr-right
       ]);
       const idx = new Uint16Array([
-        0,2,1,  1,2,3,   // outer slope (up)
-        2,4,3,  3,4,5,   // inner slope (down)
-        0,1,3,  0,3,2,   // top peak strip (cap between slopes)
-        0,4,2,            // left side wall
-        1,3,5,            // right side wall
+        0,2,1,  1,2,3,   // outer slope (ground → rim)
+        2,4,3,  3,4,5,   // inner slope (rim → basin floor)
+        0,2,4,            // left side wall
+        1,5,3,            // right side wall
       ]);
       const rampGeo = new THREE.BufferGeometry();
       rampGeo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
