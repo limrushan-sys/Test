@@ -399,7 +399,7 @@ export class Gecko {
             this.turnAroundAngle = this.group.rotation.y + Math.PI;
             this.sleepingInHide = true;
             this.idleTimer = 15 + Math.random() * 15; // rest longer in the hide
-            this.setStatus('💤 Sleeping…');
+            // Status set to Sleeping only once eyes actually close (in turn-around handler)
           } else {
             this.hideEntryPhase = 0;
             this.turnAroundAngle = null;
@@ -525,6 +525,7 @@ export class Gecko {
             this.group.rotation.y = this.turnAroundAngle;
             this.turnAroundAngle = null;
             this.eyeMeshes.forEach(e => { e.scale.y = 0.04; }); // eyes shut
+            if (this.sleepingInHide) this.setStatus('💤 Sleeping…');
           }
         }
 
