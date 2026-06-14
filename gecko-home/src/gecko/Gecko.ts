@@ -91,15 +91,15 @@ export class Gecko {
       bcy + ay * Math.sqrt(Math.max(0, 1 - (x/ax)**2 - (z/az)**2)) + 0.003;
     const spotDefs: [number, number, number][] = [
       // x,      z,      radius
-      [-0.17,  0.04,  0.020],
-      [-0.08, -0.05,  0.026],
-      [-0.13,  0.07,  0.018],
-      [ 0.02, -0.06,  0.024],
-      [ 0.09,  0.05,  0.021],
-      [ 0.16, -0.04,  0.016],
-      [ 0.17,  0.05,  0.022],
-      [ 0.05,  0.08,  0.014],
-      [-0.06, -0.07,  0.018],
+      [-0.17,  0.04,  0.030],
+      [-0.08, -0.05,  0.038],
+      [-0.13,  0.07,  0.026],
+      [ 0.02, -0.06,  0.034],
+      [ 0.09,  0.05,  0.030],
+      [ 0.16, -0.04,  0.024],
+      [ 0.17,  0.05,  0.032],
+      [ 0.05,  0.08,  0.022],
+      [-0.06, -0.07,  0.028],
     ];
     for (const [sx, sz, sr] of spotDefs) {
       const spot = new THREE.Mesh(new THREE.SphereGeometry(sr, 6, 5), this.spotMat);
@@ -189,18 +189,6 @@ export class Gecko {
       geo.setIndex(idxArr);
       geo.computeVertexNormals();
       this.group.add(new THREE.Mesh(geo, this.baseMat));
-
-      // Crown spike
-      const spike = new THREE.Mesh(
-        new THREE.ConeGeometry(0.014, 0.055, 6),
-        this.baseMat
-      );
-      // Place at crown of head (slightly toward neck from midpoint)
-      const spikeX = bx + (tx - bx) * 0.30;
-      const spikeY = ytB + (ytF - ytB) * 0.30; // interpolated top surface
-      spike.position.set(spikeX, spikeY + 0.027, 0);
-      spike.rotation.z = -0.25; // tilt back slightly
-      this.group.add(spike);
 
       // Nostrils
       const nostMat = new THREE.MeshLambertMaterial({ color: 0x3a5010 });
