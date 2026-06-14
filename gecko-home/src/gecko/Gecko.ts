@@ -17,6 +17,11 @@ type GeckoState = 'IDLE' | 'WALKING' | 'ARRIVED';
 export class Gecko {
   group = new THREE.Group();
 
+  // Inner group that pitches when eating/drinking (nose down, tail up)
+  private poseGroup = new THREE.Group();
+  private posePitch = 0;
+  private posePitchTarget = 0;
+
   private bodyMesh!: THREE.Mesh;
   private tailGroup = new THREE.Group();
   private legGroups: THREE.Group[] = [];
@@ -110,7 +115,7 @@ export class Gecko {
     this.bodyMesh.scale.set(1.55, 0.52, 0.95);
     this.bodyMesh.position.y = 0.075;
     this.bodyMesh.castShadow = true;
-    this.group.add(this.bodyMesh);
+    this.poseGroup.add(this.bodyMesh);
 
     // Spots along back — irregular positions, flattened to sit on body surface.
     // Body ellipsoid: centre (0, 0.075, 0), semi-axes ax=0.2015, ay=0.0676, az=0.1235.
@@ -135,7 +140,7 @@ export class Gecko {
       const spot = new THREE.Mesh(new THREE.SphereGeometry(sr, 6, 5), this.spotMat);
       spot.position.set(sx, surfY(sx, sz), sz);
       spot.scale.set(1, 0.18, 1); // very flat — sits as a skin patch
-      this.group.add(spot);
+      this.poseGroup.add(spot);
       this.spotMeshes.push(spot);
     }
 
@@ -218,14 +223,14 @@ export class Gecko {
       geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posArr), 3));
       geo.setIndex(idxArr);
       geo.computeVertexNormals();
-      this.group.add(new THREE.Mesh(geo, this.baseMat));
+      this.poseGroup.add(new THREE.Mesh(geo, this.baseMat));
 
       // Nostrils
       const nostMat = new THREE.MeshLambertMaterial({ color: 0x3a5010 });
       for (const side of [-1, 1] as const) {
         const n = new THREE.Mesh(new THREE.SphereGeometry(0.007, 5, 4), nostMat);
         n.position.set(tx + r * 0.65, cy + r * 0.55, side * 0.014);
-        this.group.add(n);
+        this.poseGroup.add(n);
       }
 
       // Eyes at midpoint along the sides, upper portion
@@ -235,7 +240,7 @@ export class Gecko {
         const eyeY = yb + (ytB - (ytB - ytF) * 0.5) * 0.72;
         const eye  = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), eyeMat);
         eye.position.set(ex, eyeY, side * (hw + 0.008));
-        this.group.add(eye);
+        this.poseGroup.add(eye);
         this.eyeMeshes.push(eye);
       }
     }
@@ -247,7 +252,7 @@ export class Gecko {
     this.tongueMesh.position.set(0.408, 0.048, 0); // base at snout tip
     this.tongueMesh.scale.set(0, 1, 1);
     this.tongueMesh.visible = false;
-    this.group.add(this.tongueMesh);
+    this.poseGroup.add(this.tongueMesh);
 
     // ── Legs: hemispheres, dome pointing up, flat bottom on ground ───────────
     const LEG_R = 0.046;
@@ -269,7 +274,7 @@ export class Gecko {
         this.darkMat
       );
       lgGroup.add(leg);
-      this.group.add(lgGroup);
+      this.poseGroup.add(lgGroup);
       this.legGroups.push(lgGroup);
     }
 
@@ -301,7 +306,8 @@ export class Gecko {
       seg.quaternion.setFromUnitVectors(up, p2.clone().sub(p1).normalize());
       this.tailGroup.add(seg);
     }
-    this.group.add(this.tailGroup);
+    this.poseGroup.add(this.tailGroup);
+    this.group.add(this.poseGroup);
   }
 
   // ── Vertex colour gradient: top = body, bottom = belly ────────────────────
@@ -349,12 +355,24 @@ export class Gecko {
   update(delta: number, items: PlacedItem[], bounds: EnclosureBounds) {
     this.updateTongueAnim(delta);
     this.updateDrinkAnim(delta);
+
+    // Smooth bowl/water-dish pose pitch (nose down, tail up)
+    this.posePitch += (this.posePitchTarget - this.posePitch) * Math.min(2.5 * delta, 1);
+    this.poseGroup.rotation.z = this.posePitch;
+    // Compensate group Y so rear legs stay near ground when pitched
+    // Rear leg pivot at local x ≈ -0.08: rises by 0.08*sin(-pitch) with negative pitch
+    const poseY = 0.08 * Math.sin(-this.posePitch);
+    // Only apply during ARRIVED (don't fight the geckoY/bob system while walking)
+    if (this.state === 'ARRIVED') {
+      this.group.position.y = this.geckoY + poseY;
+    }
     switch (this.state) {
 
       case 'IDLE':
         this.idleTimer -= delta;
         this.animateIdle(delta);
         if (this.idleTimer <= 0) {
+          this.posePitchTarget = 0;
           this.pickTarget(items, bounds);
           this.state = 'WALKING';
           this.walkTime = 0;
@@ -410,8 +428,10 @@ export class Gecko {
             this.turnAroundAngle = null;
             this.sleepingInHide = false;
             if (arrivedItem?.type === ItemType.FOOD_BOWL) {
+              this.posePitchTarget = -0.14; // nose down toward bowl
               this.onArrivedAtFoodBowl?.(arrivedItem.id);
             } else if (arrivedItem?.type === ItemType.WATER_DISH) {
+              this.posePitchTarget = -0.14; // nose down toward water
               this.startDrinkAnimation();
             } else {
               this.showTongue();
@@ -518,12 +538,20 @@ export class Gecko {
 
       case 'ARRIVED':
         this.idleTimer -= delta;
-        // Settle legs and body
-        this.legGroups.forEach(lg => { lg.position.y += (0 - lg.position.y) * 0.15; });
+        // Settle legs; when pitched, counteract so rear legs stay on ground
+        // and front legs sit slightly elevated (paws on bowl rim).
+        // legDefs: i=0,1 are front (localX=0.13), i=2,3 are rear (localX=-0.08)
+        this.legGroups.forEach((lg, i) => {
+          const pitch = this.posePitch;
+          const localX = i < 2 ? 0.13 : -0.08;
+          // Offset in poseGroup-local Y to cancel the pitch-induced world-Y shift
+          const compensation = -localX * Math.sin(pitch);
+          lg.position.y += (compensation - lg.position.y) * 0.15;
+        });
         this.group.rotation.z += (0 - this.group.rotation.z) * 0.12;
         this.targetY = 0;
         this.geckoY += (this.targetY - this.geckoY) * Math.min(3 * delta, 1);
-        this.group.position.y = this.geckoY;
+        // group.position.y is already set above (geckoY + poseY) — don't overwrite here
 
         // Smoothly rotate to face outward if in hide
         if (this.turnAroundAngle !== null) {
@@ -542,6 +570,7 @@ export class Gecko {
 
         if (this.idleTimer <= 0) {
           this.hideEntryPhase = 0;
+          this.posePitchTarget = 0; // reset bowl/water pose
           if (this.sleepingInHide) {
             this.sleepingInHide = false;
             this.justLeftHide = true;          // don't go straight back in
