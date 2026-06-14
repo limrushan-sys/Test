@@ -42,7 +42,7 @@ export class Gecko {
   private walkTime = 0;
   private justLeftHide = false; // skip hide on next target pick after waking
   private sleepingInHide = false;
-  private hideEntryPhase = 0; // 0=none, 1=approaching mouth, 2=walking inside
+  private hideEntryPhase = 0; // 0=none 1=side waypoint 2=staging point 3=walking inside
   private turnAroundAngle: number | null = null; // target Y rotation after arriving at hide
   private geckoY = 0;        // current Y (for climbing)
   private targetY = 0;
@@ -340,18 +340,32 @@ export class Gecko {
           const arrivedItem = this.targetItemId !== null
             ? items.find(i => i.id === this.targetItemId) : null;
 
-          if (this.hideEntryPhase === 1 && arrivedItem?.type === ItemType.SLEEPING_HIDE) {
-            // Phase 1 done: now walk straight into the centre of the hide
-            this.target.set(arrivedItem.position.x, 0, arrivedItem.position.z);
-            this.hideEntryPhase = 2;
-            // stay in WALKING so the gecko continues forward through the mouth
-            break;
+          if (arrivedItem?.type === ItemType.SLEEPING_HIDE) {
+            if (this.hideEntryPhase === 1) {
+              // Arrived at side waypoint → now head to staging point in front of mouth
+              const rotY = arrivedItem.mesh.rotation.y;
+              const mDX  = Math.cos(rotY);
+              const mDZ  = -Math.sin(rotY);
+              this.target.set(
+                arrivedItem.position.x + mDX * (0.475 + 0.35),
+                0,
+                arrivedItem.position.z + mDZ * (0.475 + 0.35)
+              );
+              this.hideEntryPhase = 2;
+              break; // keep WALKING
+            }
+            if (this.hideEntryPhase === 2) {
+              // Arrived at staging point → walk inside (collision off)
+              this.target.set(arrivedItem.position.x, 0, arrivedItem.position.z);
+              this.hideEntryPhase = 3;
+              break; // keep WALKING
+            }
           }
 
           this.state = 'ARRIVED';
           this.idleTimer = IDLE_WAIT_MIN + Math.random() * (IDLE_WAIT_MAX - IDLE_WAIT_MIN);
 
-          if (this.hideEntryPhase === 2 && arrivedItem?.type === ItemType.SLEEPING_HIDE) {
+          if (this.hideEntryPhase === 3 && arrivedItem?.type === ItemType.SLEEPING_HIDE) {
             this.hideEntryPhase = 0;
             // Turn around to face the opening (add PI to face back out through mouth)
             this.turnAroundAngle = this.group.rotation.y + Math.PI;
@@ -397,10 +411,9 @@ export class Gecko {
         this.targetY = 0;
         for (const item of items) {
           const col  = ITEM_COLLISION[item.type];
-          // While navigating to the hide mouth (phase 1) the hide walls act as a solid
-          // obstacle so the gecko walks around them. Once inside (phase 2+) radius drops
-          // to near-zero so the gecko can move freely to the centre.
-          const colR = (item.type === ItemType.SLEEPING_HIDE && this.hideEntryPhase === 1)
+          // Phases 1 & 2: hide is a solid obstacle (gecko walks around outside).
+          // Phase 3: radius drops to near-zero so gecko can enter freely.
+          const colR = (item.type === ItemType.SLEEPING_HIDE && this.hideEntryPhase <= 2 && this.hideEntryPhase >= 1)
             ? 0.52
             : col.radius;
           const r2   = colR * colR;
@@ -553,18 +566,26 @@ export class Gecko {
       const col = ITEM_COLLISION[item.type];
       const HEAD_REACH = 0.42;
       if (item.type === ItemType.SLEEPING_HIDE) {
-        // Phase 1: walk to a staging point just outside the mouth opening.
-        // The hide's open front is at local +X (len/2 = 0.475 along X axis).
-        // item.mesh.rotation.y gives the user-set rotation; local +X → world (cos θ, 0, -sin θ).
-        const rotY = item.mesh.rotation.y;
-        const mDX = Math.cos(rotY);
-        const mDZ = -Math.sin(rotY);
-        const HIDE_HALF_LEN = 0.475;
-        const STAGE_OFFSET  = 0.35; // how far outside the mouth to stage
+        // Three-phase entry so the gecko walks AROUND the hide to the mouth:
+        //   Phase 1 → side waypoint (clear of hide walls)
+        //   Phase 2 → staging point in front of mouth
+        //   Phase 3 → centre of hide (gecko enters freely, no wall collision)
+        // The hide's open front is at local +X (len/2 = 0.475).
+        // item.mesh.rotation.y gives the user rotation; local +X → world (cos θ, 0, −sin θ).
+        const rotY  = item.mesh.rotation.y;
+        const mDX   = Math.cos(rotY);       // mouth direction
+        const mDZ   = -Math.sin(rotY);
+        const pDX   = -mDZ;                 // perpendicular (left side)
+        const pDZ   =  mDX;
+        // Which side is the gecko on?
+        const relX  = this.group.position.x - item.position.x;
+        const relZ  = this.group.position.z - item.position.z;
+        const side  = (relX * pDX + relZ * pDZ) >= 0 ? 1 : -1;
+        // Side waypoint: beside the hide, clear of the walls
         this.target.set(
-          item.position.x + mDX * (HIDE_HALF_LEN + STAGE_OFFSET),
+          item.position.x + pDX * side * 0.65,
           0,
-          item.position.z + mDZ * (HIDE_HALF_LEN + STAGE_OFFSET)
+          item.position.z + pDZ * side * 0.65,
         );
         this.hideEntryPhase = 1;
       } else {
