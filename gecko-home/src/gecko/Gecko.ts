@@ -681,7 +681,7 @@ export class Gecko {
         this.hideEntryPhase = 1;
       } else {
         this.hideEntryPhase = 0;
-        const approachR = col.climbable ? col.radius * 0.3 : col.radius + 0.30;
+        const approachR = col.climbable ? col.radius * 0.3 : col.radius + HEAD_REACH + 0.05;
         // Angle from current gecko pos toward item
         const adx = this.group.position.x - item.position.x;
         const adz = this.group.position.z - item.position.z;
