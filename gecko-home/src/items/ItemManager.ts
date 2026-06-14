@@ -278,6 +278,7 @@ export class ItemManager {
   // Items with tiny collision radii (e.g. SLEEPING_HIDE) get a realistic size.
   private footprintR(type: ItemType): number {
     if (type === ItemType.SLEEPING_HIDE) return 0.50;
+    if (type === ItemType.WATER_DISH)    return 0.72; // large soaking basin
     const r = ITEM_COLLISION[type].radius;
     return r > 0.05 ? r : 0.20; // minimum sensible footprint
   }

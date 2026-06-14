@@ -32,7 +32,7 @@ export interface ItemCollisionData {
 
 export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
   [ItemType.SLEEPING_HIDE]:   { radius: 0.01, height: 0,    climbable: false },
-  [ItemType.WATER_DISH]:      { radius: 0.15, height: 0,    climbable: false },
+  [ItemType.WATER_DISH]:      { radius: 0.65, height: 0,    climbable: false },
   [ItemType.FOOD_BOWL]:       { radius: 0.28, height: 0,    climbable: false },
   [ItemType.CLIMBING_BRANCH]: { radius: 0.20, height: 0.18, climbable: true  },
   [ItemType.CORK_BARK]:       { radius: 0.38, height: 0.12, climbable: true  },
@@ -136,21 +136,79 @@ export function createItemMesh(type: ItemType): THREE.Group {
       break;
     }
 
-    // ── Water Dish ──────────────────────────────────────────────────────────
+    // ── Water Dish: large soaking basin with entry ramp on one side ────────
     case ItemType.WATER_DISH: {
-      const dish = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.28, 0.22, 0.09, 16),
-        new THREE.MeshLambertMaterial({ color: 0x78909c })
+      const OUTER_R  = 0.68;
+      const INNER_R  = 0.60;
+      const WALL_H   = 0.07;
+      const ENTRY_A  = Math.PI / 3;   // 60° entry gap centred on +X
+      const RAMP_EXT = 0.22;          // ramp extends beyond outer wall
+
+      const dishMat  = new THREE.MeshLambertMaterial({ color: 0x78909c, side: THREE.DoubleSide });
+      const innerMat = new THREE.MeshLambertMaterial({ color: 0x546e7a, side: THREE.BackSide });
+      const floorMat = new THREE.MeshLambertMaterial({ color: 0x607d8b });
+      const waterMat = new THREE.MeshLambertMaterial({ color: 0x4dd0e1, transparent: true, opacity: 0.85 });
+
+      // Outer & inner wall arcs — leave a 60° gap on the +X side for the ramp
+      const wallStart = ENTRY_A / 2;
+      const wallArc   = Math.PI * 2 - ENTRY_A;
+      const outerWall = new THREE.Mesh(
+        new THREE.CylinderGeometry(OUTER_R, OUTER_R, WALL_H, 28, 1, true, wallStart, wallArc),
+        dishMat
       );
-      dish.position.y = 0.045;
-      // Flat circle so there's no geometry to z-fight with the dish top
-      const water = new THREE.Mesh(
-        new THREE.CircleGeometry(0.24, 24),
-        new THREE.MeshLambertMaterial({ color: 0x4dd0e1, transparent: true, opacity: 0.85 })
+      outerWall.position.y = WALL_H / 2;
+      const innerWall = new THREE.Mesh(
+        new THREE.CylinderGeometry(INNER_R, INNER_R, WALL_H, 28, 1, true, wallStart, wallArc),
+        innerMat
       );
+      innerWall.position.y = WALL_H / 2;
+
+      // Top rim annulus (ring lying flat on top of the wall)
+      const rimRing = new THREE.Mesh(
+        new THREE.RingGeometry(INNER_R, OUTER_R, 28, 1, wallStart, wallArc),
+        floorMat
+      );
+      rimRing.rotation.x = -Math.PI / 2;
+      rimRing.position.y = WALL_H + 0.001;
+
+      // Basin floor & water
+      const floor = new THREE.Mesh(new THREE.CircleGeometry(OUTER_R, 28), floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = 0.002;
+
+      const water = new THREE.Mesh(new THREE.CircleGeometry(INNER_R - 0.04, 28), waterMat);
       water.rotation.x = -Math.PI / 2;
-      water.position.y = 0.091; // just above the dish rim (rim top = 0.090)
-      group.add(dish, water);
+      water.position.y = 0.038;
+
+      // Entry ramp — custom BufferGeometry that peaks at the wall rim
+      // The entry faces +X; chord half-width at outer wall radius:
+      const hw = OUTER_R * Math.sin(ENTRY_A / 2);   // ≈ 0.34
+      // 6 key points (z runs left-to-right, x runs outward-to-inward):
+      //  ext: outer ground edge (x = OUTER_R + RAMP_EXT, y = 0)
+      //  rim: top of wall     (x = OUTER_R,              y = WALL_H)
+      //  flr: basin floor     (x = INNER_R,              y = 0)
+      const verts = new Float32Array([
+        OUTER_R + RAMP_EXT, 0,       -hw,  // 0 ext-left
+        OUTER_R + RAMP_EXT, 0,        hw,  // 1 ext-right
+        OUTER_R,            WALL_H,  -hw,  // 2 rim-left
+        OUTER_R,            WALL_H,   hw,  // 3 rim-right
+        INNER_R,            0,        -hw,  // 4 flr-left
+        INNER_R,            0,         hw,  // 5 flr-right
+      ]);
+      const idx = new Uint16Array([
+        0,2,1,  1,2,3,   // outer slope (up)
+        2,4,3,  3,4,5,   // inner slope (down)
+        0,1,3,  0,3,2,   // top peak strip (cap between slopes)
+        0,4,2,            // left side wall
+        1,3,5,            // right side wall
+      ]);
+      const rampGeo = new THREE.BufferGeometry();
+      rampGeo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+      rampGeo.setIndex(new THREE.BufferAttribute(idx, 1));
+      rampGeo.computeVertexNormals();
+      const ramp = new THREE.Mesh(rampGeo, dishMat);
+
+      group.add(outerWall, innerWall, rimRing, floor, water, ramp);
       break;
     }
 

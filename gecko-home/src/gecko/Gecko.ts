@@ -473,6 +473,8 @@ export class Gecko {
           // Phase 3: radius drops to near-zero so gecko can enter freely.
           const colR = (item.type === ItemType.SLEEPING_HIDE && this.hideEntryPhase <= 2 && this.hideEntryPhase >= 1)
             ? 0.68  // covers hide corners (max extent ≈ 0.61 from centre)
+            : item.type === ItemType.WATER_DISH
+            ? 0     // gecko walks inside the soaking basin — no push
             : col.radius;
           const r2   = colR * colR;
 
@@ -543,25 +545,17 @@ export class Gecko {
         // Settle legs; when pitched, place front legs on the bowl rim sides,
         // keep rear legs on the ground.
         // legDefs: i=0,1 front (localX=0.13, localZ=±0.11), i=2,3 rear (localX=-0.08)
-        {
-          const pitch = this.posePitch;
-          const inBowlPose = this.posePitchTarget < -0.05;
-          // Bowl rim height ≈ 0.042. Front legs target that Y when in pose; rear legs target ground (0).
-          const RIM_H = 0.042;
-          this.legGroups.forEach((lg, i) => {
-            const localX = i < 2 ? 0.13 : -0.08;
-            // Target world Y: front on rim, rear on ground
-            const targetWorldY = (i < 2 && inBowlPose) ? RIM_H : 0;
-            // Convert to poseGroup-local Y: groupY + localX*sin(pitch) + localY*cos(pitch) = targetWorldY
-            const groupY = this.geckoY + 0.08 * Math.sin(-pitch);
-            const localY = (targetWorldY - groupY - localX * Math.sin(pitch)) / (Math.cos(pitch) || 1);
-            lg.position.y += (localY - lg.position.y) * 0.15;
-            // Spread front legs wider (Z) to grip bowl sides; rear legs return to default
-            const defaultZ = [0.11, -0.11, 0.11, -0.11][i];
-            const targetZ = (i < 2 && inBowlPose) ? (i === 0 ? 0.17 : -0.17) : defaultZ;
-            lg.position.z += (targetZ - lg.position.z) * 0.10;
-          });
-        }
+        this.legGroups.forEach((lg, i) => {
+          const pitch  = this.posePitch;
+          const localX = i < 2 ? 0.13 : -0.08;
+          // Keep all legs at ground level despite pitch
+          const groupY = this.geckoY + 0.08 * Math.sin(-pitch);
+          const localY = (0 - groupY - localX * Math.sin(pitch)) / (Math.cos(pitch) || 1);
+          lg.position.y += (localY - lg.position.y) * 0.15;
+          // Return legs to default Z
+          const defaultZ = [0.11, -0.11, 0.11, -0.11][i];
+          lg.position.z += (defaultZ - lg.position.z) * 0.10;
+        });
         this.group.rotation.z += (0 - this.group.rotation.z) * 0.12;
         this.targetY = 0;
         this.geckoY += (this.targetY - this.geckoY) * Math.min(3 * delta, 1);
@@ -782,7 +776,7 @@ export class Gecko {
         const approachR = col.climbable
           ? col.radius * 0.3
           : item.type === ItemType.WATER_DISH
-            ? col.radius + 0.30
+            ? col.radius * 0.45  // walk INTO the basin (target is inside the water area)
             : col.radius + HEAD_REACH + 0.05;
         // Angle from current gecko pos toward item
         const adx = this.group.position.x - item.position.x;
