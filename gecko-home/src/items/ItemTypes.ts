@@ -214,47 +214,36 @@ export function createItemMesh(type: ItemType): THREE.Group {
     // ── Food Bowl: hollow red dish with visible interior ────────────────────
     case ItemType.FOOD_BOWL: {
       const SEG  = 20;
-      const H    = 0.072;  // bowl height
-      const RO_T = 0.30;   // outer radius top
-      const RO_B = 0.24;   // outer radius bottom
-      const WALL = 0.024;  // wall thickness
-      const RI_T = RO_T - WALL; // inner radius top  (0.276)
-      const RI_B = RO_B - WALL; // inner radius bottom (0.216)
+      const H    = 0.072;
+      const RO_T = 0.30;
+      const RO_B = 0.24;
 
-      const redMat   = new THREE.MeshLambertMaterial({ color: 0xc0392b });
-      const rimMat   = new THREE.MeshLambertMaterial({ color: 0xa93226 });
-      const innerMat = new THREE.MeshLambertMaterial({ color: 0xd4c4a0 }); // cream interior
+      // DoubleSide outer wall: outside visible from outside, inside visible from above
+      const wallMat = new THREE.MeshLambertMaterial({ color: 0xc0392b, side: THREE.DoubleSide });
+      const rimMat  = new THREE.MeshLambertMaterial({ color: 0xa93226 });
 
-      // Outer wall — open-ended so the hollow inside is visible from above
       const outer = new THREE.Mesh(
         new THREE.CylinderGeometry(RO_T, RO_B, H, SEG, 1, true),
-        redMat
+        wallMat
       );
       outer.position.y = H / 2;
 
-      // Inner wall — BackSide so faces render toward the viewer looking in
-      const inner = new THREE.Mesh(
-        new THREE.CylinderGeometry(RI_T, RI_B, H, SEG, 1, true),
-        new THREE.MeshLambertMaterial({ color: 0xc0392b, side: THREE.BackSide })
-      );
-      inner.position.y = H / 2;
-
-      // Flat base disc (outside bottom)
-      const base = new THREE.Mesh(new THREE.CircleGeometry(RO_B, SEG), redMat);
+      // Base disc (exterior bottom)
+      const base = new THREE.Mesh(new THREE.CircleGeometry(RO_B, SEG), wallMat);
       base.rotation.x = -Math.PI / 2;
       base.position.y = 0.001;
 
-      // Interior floor — same red as the bowl
-      const floor = new THREE.Mesh(new THREE.CircleGeometry(RI_B, SEG), redMat);
+      // Interior floor — slightly inside the wall so no z-fighting with base
+      const floor = new THREE.Mesh(new THREE.CircleGeometry(RO_B - 0.01, SEG), wallMat);
       floor.rotation.x = -Math.PI / 2;
-      floor.position.y = 0.003;
+      floor.position.y = 0.004;
 
-      // Rim annulus visible from above
-      const rim = new THREE.Mesh(new THREE.RingGeometry(RI_T, RO_T, SEG), rimMat);
+      // Rim annulus on top
+      const rim = new THREE.Mesh(new THREE.RingGeometry(RO_B, RO_T, SEG), rimMat);
       rim.rotation.x = -Math.PI / 2;
       rim.position.y = H + 0.001;
 
-      group.add(outer, inner, base, floor, rim);
+      group.add(outer, base, floor, rim);
       // userData for cricket system
       group.userData.crickets = [] as THREE.Group[];
       group.userData.hasCrickets = false;
