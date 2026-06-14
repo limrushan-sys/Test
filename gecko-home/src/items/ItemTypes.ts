@@ -143,11 +143,13 @@ export function createItemMesh(type: ItemType): THREE.Group {
         new THREE.MeshLambertMaterial({ color: 0x78909c })
       );
       dish.position.y = 0.045;
+      // Flat circle so there's no geometry to z-fight with the dish top
       const water = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.24, 0.24, 0.01, 16),
+        new THREE.CircleGeometry(0.24, 24),
         new THREE.MeshLambertMaterial({ color: 0x4dd0e1, transparent: true, opacity: 0.85 })
       );
-      water.position.y = 0.085;
+      water.rotation.x = -Math.PI / 2;
+      water.position.y = 0.091; // just above the dish rim (rim top = 0.090)
       group.add(dish, water);
       break;
     }
