@@ -399,7 +399,7 @@ export class Gecko {
             this.turnAroundAngle = this.group.rotation.y + Math.PI;
             this.sleepingInHide = true;
             this.idleTimer = 15 + Math.random() * 15; // rest longer in the hide
-            this.setStatus('💤 Resting…');
+            this.setStatus('💤 Sleeping…');
           } else {
             this.hideEntryPhase = 0;
             this.turnAroundAngle = null;
