@@ -29,10 +29,17 @@ class GeckoHomeApp {
 
     this.itemManager = new ItemManager(this.sceneSetup.scene, this.enclosure.floorMesh);
 
-    // When gecko reaches a food bowl, eat one cricket
+    // When gecko reaches a food bowl, play tongue-shoot eating animation
     this.gecko.onArrivedAtFoodBowl = (id) => {
-      if (this.itemManager.hasCrickets(id)) {
-        setTimeout(() => this.itemManager.eatCricket(id), 400);
+      const item = this.itemManager.getItem(id);
+      const cricket = this.itemManager.peekTopCricket(id);
+      if (item && cricket) {
+        this.gecko.startEatAnimation(
+          id,
+          cricket,
+          item.position,
+          () => this.itemManager.eatCricket(id)
+        );
       }
     };
 

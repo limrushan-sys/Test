@@ -254,6 +254,17 @@ export class ItemManager {
 
   getItems(): PlacedItem[] { return this.items; }
 
+  getItem(itemId: number): PlacedItem | undefined {
+    return this.items.find(i => i.id === itemId);
+  }
+
+  peekTopCricket(itemId: number): THREE.Group | null {
+    const item = this.items.find(i => i.id === itemId);
+    if (!item) return null;
+    const crickets: THREE.Group[] = item.mesh.userData.crickets ?? [];
+    return crickets.length > 0 ? crickets[crickets.length - 1] : null;
+  }
+
   clampAllToBounds(bounds: EnclosureBounds) {
     for (const item of this.items) {
       item.position.x = Math.max(bounds.minX, Math.min(bounds.maxX, item.position.x));

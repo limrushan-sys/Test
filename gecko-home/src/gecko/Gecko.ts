@@ -47,9 +47,35 @@ export class Gecko {
   private geckoY = 0;        // current Y (for climbing)
   private targetY = 0;
 
+  private tongueMesh: THREE.Mesh | null = null;
+  private tongueAnim  = 0;   // 0=off 1=extending 2=stuck 3=retracting
+  private tongueTimer = 0;
+  private tongueMaxLen = 0.1; // world-units to extend
+  private eatCricketMesh: THREE.Group | null = null;
+  private eatBowlPos = new THREE.Vector3();
+  private eatBowlId: number | null = null;
+  private onEatDone: (() => void) | null = null;
+
   private statusEl: HTMLElement | null = null;
 
   onArrivedAtFoodBowl?: (itemId: number) => void;
+  startEatAnimation(itemId: number, cricket: THREE.Group, bowlPos: THREE.Vector3, onDone: () => void) {
+    this.eatCricketMesh = cricket;
+    this.eatBowlPos.copy(bowlPos);
+    this.eatBowlId = itemId;
+    this.onEatDone = onDone;
+
+    // Tongue target length = distance from snout to cricket along gecko facing direction
+    const rotY = this.group.rotation.y;
+    const fx = Math.cos(rotY), fz = -Math.sin(rotY);
+    const cx = bowlPos.x + cricket.position.x - this.group.position.x;
+    const cz = bowlPos.z + cricket.position.z - this.group.position.z;
+    this.tongueMaxLen = Math.max(0.05, cx * fx + cz * fz) - 0.415; // subtract snout offset
+
+    this.tongueAnim  = 1;
+    this.tongueTimer = 0;
+    if (this.tongueMesh) this.tongueMesh.visible = true;
+  }
 
   constructor(scene: THREE.Scene) {
     this.buildMesh();
@@ -210,13 +236,14 @@ export class Gecko {
       }
     }
 
-    // Tongue (hidden by default, shown on arrive)
-    const tongue = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.004, 0.045, 5), tongueMat);
-    tongue.rotation.z = Math.PI / 2;
-    tongue.position.set(0.415, 0.048, 0);
-    tongue.name = 'tongue';
-    tongue.visible = false;
-    this.group.add(tongue);
+    // Tongue — BoxGeometry translated so base is at x=0, tip at x=1; scale.x = length
+    const tongueGeo = new THREE.BoxGeometry(1, 0.009, 0.010);
+    tongueGeo.translate(0.5, 0, 0);  // shift base to x=0 (not centered)
+    this.tongueMesh = new THREE.Mesh(tongueGeo, tongueMat);
+    this.tongueMesh.position.set(0.408, 0.048, 0); // base at snout tip
+    this.tongueMesh.scale.set(0, 1, 1);
+    this.tongueMesh.visible = false;
+    this.group.add(this.tongueMesh);
 
     // ── Legs: hemispheres, dome pointing up, flat bottom on ground ───────────
     const LEG_R = 0.046;
@@ -316,6 +343,7 @@ export class Gecko {
 
   // ── AI update ─────────────────────────────────────────────────────────────
   update(delta: number, items: PlacedItem[], bounds: EnclosureBounds) {
+    this.updateTongueAnim(delta);
     switch (this.state) {
 
       case 'IDLE':
@@ -376,8 +404,7 @@ export class Gecko {
             this.hideEntryPhase = 0;
             this.turnAroundAngle = null;
             this.sleepingInHide = false;
-            this.showTongue();
-            if (arrivedItem?.type === 'Food Bowl') this.onArrivedAtFoodBowl?.(arrivedItem.id);
+            if (arrivedItem?.type === ItemType.FOOD_BOWL) this.onArrivedAtFoodBowl?.(arrivedItem.id);
             this.setStatus('🦎 Exploring…');
           }
           break;
@@ -538,6 +565,66 @@ export class Gecko {
       if (t >= 1) {
         this.blinkTime = -1;
         this.eyeMeshes.forEach(e => { e.scale.y = 1; });
+      }
+    }
+  }
+
+  private updateTongueAnim(delta: number) {
+    if (this.tongueAnim === 0 || !this.tongueMesh || !this.eatCricketMesh) return;
+
+    const EXTEND_T  = 0.28;
+    const STUCK_T   = 0.12;
+    const RETRACT_T = 0.30;
+
+    this.tongueTimer += delta;
+
+    // Compute tongue tip world position from current scale
+    const currentLen = this.tongueMesh.scale.x;
+    const rotY = this.group.rotation.y;
+    const cosR = Math.cos(rotY), sinR = Math.sin(rotY);
+    const tipLocalX = 0.408 + currentLen;
+    const tipLocalY = 0.048;
+    // Apply group transform (Y-rotation matrix)
+    const tipWX = this.group.position.x + cosR * tipLocalX;
+    const tipWY = this.group.position.y + tipLocalY;
+    const tipWZ = this.group.position.z - sinR * tipLocalX;
+
+    if (this.tongueAnim === 1) {
+      // Extending
+      const t = Math.min(this.tongueTimer / EXTEND_T, 1);
+      this.tongueMesh.scale.x = t * this.tongueMaxLen;
+      if (this.tongueTimer >= EXTEND_T) {
+        this.tongueTimer = 0;
+        this.tongueAnim  = 2;
+      }
+    } else if (this.tongueAnim === 2) {
+      // Stuck — cricket teleports to tongue tip
+      this.eatCricketMesh.position.set(
+        tipWX - this.eatBowlPos.x,
+        tipWY,
+        tipWZ - this.eatBowlPos.z
+      );
+      if (this.tongueTimer >= STUCK_T) {
+        this.tongueTimer = 0;
+        this.tongueAnim  = 3;
+      }
+    } else if (this.tongueAnim === 3) {
+      // Retracting — cricket follows tongue tip
+      const t = Math.max(0, 1 - this.tongueTimer / RETRACT_T);
+      this.tongueMesh.scale.x = t * this.tongueMaxLen;
+      this.eatCricketMesh.position.set(
+        tipWX - this.eatBowlPos.x,
+        tipWY,
+        tipWZ - this.eatBowlPos.z
+      );
+      if (this.tongueTimer >= RETRACT_T) {
+        // Done — delete cricket
+        this.tongueMesh.scale.x = 0;
+        this.tongueMesh.visible  = false;
+        this.tongueAnim = 0;
+        this.onEatDone?.();
+        this.eatCricketMesh = null;
+        this.onEatDone = null;
       }
     }
   }
