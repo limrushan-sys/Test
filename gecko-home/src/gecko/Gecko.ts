@@ -733,7 +733,14 @@ export class Gecko {
         this.hideEntryPhase = 1;
       } else {
         this.hideEntryPhase = 0;
-        const approachR = col.climbable ? col.radius * 0.3 : col.radius + HEAD_REACH + 0.05;
+        // Water dish: walk close enough for the tongue to reach the water.
+        // col.radius + 0.30 puts the target slightly inside the collision zone so the
+        // push settles the gecko with its nose just at the rim (push ≈ 0.14 < ARRIVE_DIST).
+        const approachR = col.climbable
+          ? col.radius * 0.3
+          : item.type === ItemType.WATER_DISH
+            ? col.radius + 0.30
+            : col.radius + HEAD_REACH + 0.05;
         // Angle from current gecko pos toward item
         const adx = this.group.position.x - item.position.x;
         const adz = this.group.position.z - item.position.z;
