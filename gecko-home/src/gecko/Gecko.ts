@@ -527,9 +527,11 @@ export class Gecko {
         // Leg animation — trot gait, diagonal pairs lift together
         // Subtract bob so feet stay grounded as the body rises
         const phases = [0, Math.PI, Math.PI, 0];
+        const defaultLegZ = [0.11, -0.11, 0.11, -0.11];
         this.legGroups.forEach((lg, i) => {
           const lift = Math.max(0, Math.sin(this.walkTime * LEG_SWING_SPEED + phases[i])) * 0.04;
           lg.position.y = lift - bob;
+          lg.position.z += (defaultLegZ[i] - lg.position.z) * 0.10; // return to default Z
         });
 
         this.setStatus('🦎 Exploring…');
@@ -538,16 +540,28 @@ export class Gecko {
 
       case 'ARRIVED':
         this.idleTimer -= delta;
-        // Settle legs; when pitched, counteract so rear legs stay on ground
-        // and front legs sit slightly elevated (paws on bowl rim).
-        // legDefs: i=0,1 are front (localX=0.13), i=2,3 are rear (localX=-0.08)
-        this.legGroups.forEach((lg, i) => {
+        // Settle legs; when pitched, place front legs on the bowl rim sides,
+        // keep rear legs on the ground.
+        // legDefs: i=0,1 front (localX=0.13, localZ=±0.11), i=2,3 rear (localX=-0.08)
+        {
           const pitch = this.posePitch;
-          const localX = i < 2 ? 0.13 : -0.08;
-          // Offset in poseGroup-local Y to cancel the pitch-induced world-Y shift
-          const compensation = -localX * Math.sin(pitch);
-          lg.position.y += (compensation - lg.position.y) * 0.15;
-        });
+          const inBowlPose = this.posePitchTarget < -0.05;
+          // Bowl rim height ≈ 0.042. Front legs target that Y when in pose; rear legs target ground (0).
+          const RIM_H = 0.042;
+          this.legGroups.forEach((lg, i) => {
+            const localX = i < 2 ? 0.13 : -0.08;
+            // Target world Y: front on rim, rear on ground
+            const targetWorldY = (i < 2 && inBowlPose) ? RIM_H : 0;
+            // Convert to poseGroup-local Y: groupY + localX*sin(pitch) + localY*cos(pitch) = targetWorldY
+            const groupY = this.geckoY + 0.08 * Math.sin(-pitch);
+            const localY = (targetWorldY - groupY - localX * Math.sin(pitch)) / (Math.cos(pitch) || 1);
+            lg.position.y += (localY - lg.position.y) * 0.15;
+            // Spread front legs wider (Z) to grip bowl sides; rear legs return to default
+            const defaultZ = [0.11, -0.11, 0.11, -0.11][i];
+            const targetZ = (i < 2 && inBowlPose) ? (i === 0 ? 0.17 : -0.17) : defaultZ;
+            lg.position.z += (targetZ - lg.position.z) * 0.10;
+          });
+        }
         this.group.rotation.z += (0 - this.group.rotation.z) * 0.12;
         this.targetY = 0;
         this.geckoY += (this.targetY - this.geckoY) * Math.min(3 * delta, 1);
