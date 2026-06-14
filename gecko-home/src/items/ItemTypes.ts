@@ -187,8 +187,8 @@ export function createItemMesh(type: ItemType): THREE.Group {
       base.rotation.x = -Math.PI / 2;
       base.position.y = 0.001;
 
-      // Interior floor (cream) — sits just above the base
-      const floor = new THREE.Mesh(new THREE.CircleGeometry(RI_B, SEG), innerMat);
+      // Interior floor — same red as the bowl
+      const floor = new THREE.Mesh(new THREE.CircleGeometry(RI_B, SEG), redMat);
       floor.rotation.x = -Math.PI / 2;
       floor.position.y = 0.003;
 
