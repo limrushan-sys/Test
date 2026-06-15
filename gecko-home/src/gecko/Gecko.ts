@@ -49,6 +49,10 @@ export class Gecko {
   private sleepingInHide = false;
   private hideEntryPhase = 0; // 0=none 1=side waypoint 2=staging point 3=walking inside
   private turnAroundAngle: number | null = null; // target Y rotation after arriving at hide
+  // Water dish: multi-phase entry/exit so gecko uses the ramp and can't phase through walls
+  // 0=normal (solid walls), 1=approaching ramp, 2=inside basin, 3=exiting through ramp
+  private waterDishPhase  = 0;
+  private waterDishItemId: number | null = null;
   private geckoY = 0;        // current Y (for climbing)
   private targetY = 0;
 
@@ -413,6 +417,28 @@ export class Gecko {
             }
           }
 
+          // ── Water dish multi-phase entry/exit ──────────────────────────────
+          if (arrivedItem?.type === ItemType.WATER_DISH) {
+            if (this.waterDishPhase === 1) {
+              // Arrived at ramp-entry waypoint → walk into the basin (walls now off)
+              const rotY = arrivedItem.mesh.rotation.y;
+              const edx = Math.cos(rotY), edz = -Math.sin(rotY);
+              this.target.set(
+                arrivedItem.position.x + edx * 0.25,
+                0,
+                arrivedItem.position.z + edz * 0.25
+              );
+              this.waterDishPhase = 2;
+              break; // keep WALKING
+            }
+            if (this.waterDishPhase === 3) {
+              // Arrived at ramp exit → fully reset, proceed to generic ARRIVED/IDLE
+              this.waterDishPhase = 0;
+              this.waterDishItemId = null;
+              this.targetItemId = null; // so arrivedItem is null below → no animation
+            }
+          }
+
           this.state = 'ARRIVED';
           this.idleTimer = IDLE_WAIT_MIN + Math.random() * (IDLE_WAIT_MAX - IDLE_WAIT_MIN);
 
@@ -427,11 +453,14 @@ export class Gecko {
             this.hideEntryPhase = 0;
             this.turnAroundAngle = null;
             this.sleepingInHide = false;
-            if (arrivedItem?.type === ItemType.FOOD_BOWL) {
-              this.posePitchTarget = -0.14; // nose down toward bowl
-              this.onArrivedAtFoodBowl?.(arrivedItem.id);
-            } else if (arrivedItem?.type === ItemType.WATER_DISH) {
-              this.posePitchTarget = -0.14; // nose down toward water
+            // re-read arrivedItem in case targetItemId was cleared above
+            const finalItem = this.targetItemId !== null
+              ? items.find(i => i.id === this.targetItemId) : null;
+            if (finalItem?.type === ItemType.FOOD_BOWL) {
+              this.posePitchTarget = -0.14;
+              this.onArrivedAtFoodBowl?.(finalItem.id);
+            } else if (finalItem?.type === ItemType.WATER_DISH) {
+              this.posePitchTarget = -0.14;
               this.startDrinkAnimation();
             } else {
               this.showTongue();
@@ -474,7 +503,9 @@ export class Gecko {
           const colR = (item.type === ItemType.SLEEPING_HIDE && this.hideEntryPhase <= 2 && this.hideEntryPhase >= 1)
             ? 0.68  // covers hide corners (max extent ≈ 0.61 from centre)
             : item.type === ItemType.WATER_DISH
-            ? 0     // gecko walks inside the soaking basin — no push
+            // phases 2 & 3: gecko is inside/exiting — walls transparent
+            // phase 0 & 1: full collision so gecko navigates around to the ramp
+            ? (this.waterDishPhase >= 2 ? 0 : 0.72)
             : col.radius;
           const r2   = colR * colR;
 
@@ -579,6 +610,29 @@ export class Gecko {
         if (this.idleTimer <= 0) {
           this.hideEntryPhase = 0;
           this.posePitchTarget = 0; // reset bowl/water pose
+
+          // Water dish exit: walk gecko back out through the ramp before idling
+          if (this.waterDishPhase === 2) {
+            const dish = items.find(i => i.id === this.waterDishItemId);
+            if (dish) {
+              const rotY = dish.mesh.rotation.y;
+              this.target.set(
+                dish.position.x + Math.cos(rotY) * 1.15,
+                0,
+                dish.position.z - Math.sin(rotY) * 1.15,
+              );
+              this.waterDishPhase = 3;
+              this.targetItemId   = this.waterDishItemId;
+              this.state = 'WALKING';
+              this.walkTime = 0;
+              this.setStatus('🦎 Exploring…');
+              break;
+            }
+            // dish removed — just reset
+            this.waterDishPhase  = 0;
+            this.waterDishItemId = null;
+          }
+
           if (this.sleepingInHide) {
             this.sleepingInHide = false;
             this.justLeftHide = true;          // don't go straight back in
@@ -768,16 +822,26 @@ export class Gecko {
           item.position.z + pDZ * side * 0.80 + mDZ * 0.40,
         );
         this.hideEntryPhase = 1;
+      } else if (item.type === ItemType.WATER_DISH) {
+        // Three-phase entry like the hide: gecko navigates around the solid bowl walls
+        // to the ramp (at local +X of the dish mesh), walks in, drinks, walks back out.
+        this.hideEntryPhase = 0;
+        const rotY = item.mesh.rotation.y;
+        const edx = Math.cos(rotY);   // ramp direction (local +X in world space)
+        const edz = -Math.sin(rotY);
+        // Phase 1 waypoint: stand in front of the ramp opening
+        this.target.set(
+          item.position.x + edx * 1.15,
+          0,
+          item.position.z + edz * 1.15,
+        );
+        this.waterDishPhase  = 1;
+        this.waterDishItemId = item.id;
       } else {
         this.hideEntryPhase = 0;
-        // Water dish: walk close enough for the tongue to reach the water.
-        // col.radius + 0.30 puts the target slightly inside the collision zone so the
-        // push settles the gecko with its nose just at the rim (push ≈ 0.14 < ARRIVE_DIST).
         const approachR = col.climbable
           ? col.radius * 0.3
-          : item.type === ItemType.WATER_DISH
-            ? col.radius * 0.45  // walk INTO the basin (target is inside the water area)
-            : col.radius + HEAD_REACH + 0.05;
+          : col.radius + HEAD_REACH + 0.05;
         // Angle from current gecko pos toward item
         const adx = this.group.position.x - item.position.x;
         const adz = this.group.position.z - item.position.z;
