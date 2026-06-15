@@ -78,11 +78,11 @@ export class ItemManager {
     }
 
     const pt = hits[0].point;
-    // bounds already accounts for wall thickness — no extra margin needed
-    const inBounds = pt.x >= bounds.minX && pt.x <= bounds.maxX &&
-                     pt.z >= bounds.minZ && pt.z <= bounds.maxZ;
-    const ghostPos = new THREE.Vector3(pt.x, 0, pt.z);
-    this.ghostValid = inBounds && !this.overlapsAny(ghostPos, this.selectedType);
+    // Clamp to bounds so the ghost snaps flush to the wall instead of going red
+    const cx = Math.max(bounds.minX, Math.min(bounds.maxX, pt.x));
+    const cz = Math.max(bounds.minZ, Math.min(bounds.maxZ, pt.z));
+    const ghostPos = new THREE.Vector3(cx, 0, cz);
+    this.ghostValid = !this.overlapsAny(ghostPos, this.selectedType);
 
     if (!this.ghost) {
       this.ghost = createItemMesh(this.selectedType);
@@ -102,7 +102,7 @@ export class ItemManager {
     }
 
     this.ghost.visible = true;
-    this.ghost.position.set(pt.x, 0, pt.z);
+    this.ghost.position.set(cx, 0, cz);
 
     const tintHex = this.ghostValid ? 0xffffff : 0xff4444;
     this.ghost.traverse(child => {
@@ -125,8 +125,10 @@ export class ItemManager {
     if (!hits.length) return false;
 
     const pt = hits[0].point;
+    const cx = Math.max(bounds.minX, Math.min(bounds.maxX, pt.x));
+    const cz = Math.max(bounds.minZ, Math.min(bounds.maxZ, pt.z));
     const mesh = createItemMesh(this.selectedType);
-    mesh.position.set(pt.x, 0, pt.z);
+    mesh.position.set(cx, 0, cz);
     mesh.traverse(c => { if ((c as THREE.Mesh).isMesh) (c as THREE.Mesh).castShadow = true; });
     this.scene.add(mesh);
 
@@ -134,7 +136,7 @@ export class ItemManager {
       id: this.nextId++,
       type: this.selectedType,
       mesh,
-      position: new THREE.Vector3(pt.x, 0, pt.z),
+      position: new THREE.Vector3(cx, 0, cz),
     });
     return true;
   }
