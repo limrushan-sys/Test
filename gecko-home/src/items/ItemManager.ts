@@ -78,9 +78,9 @@ export class ItemManager {
     }
 
     const pt = hits[0].point;
-    const r = this.wallMarginR(this.selectedType);
-    const inBounds = pt.x >= bounds.minX + r && pt.x <= bounds.maxX - r &&
-                     pt.z >= bounds.minZ + r && pt.z <= bounds.maxZ - r;
+    // bounds already accounts for wall thickness — no extra margin needed
+    const inBounds = pt.x >= bounds.minX && pt.x <= bounds.maxX &&
+                     pt.z >= bounds.minZ && pt.z <= bounds.maxZ;
     const ghostPos = new THREE.Vector3(pt.x, 0, pt.z);
     this.ghostValid = inBounds && !this.overlapsAny(ghostPos, this.selectedType);
 
@@ -280,13 +280,6 @@ export class ItemManager {
   }
 
   // ── Overlap detection ─────────────────────────────────────────────────────
-  // How close the item centre may be to an enclosure wall (actual visual size).
-  private wallMarginR(type: ItemType): number {
-    if (type === ItemType.SLEEPING_HIDE) return 0.35; // half-width of the hide shell
-    const r = ITEM_COLLISION[type].radius;
-    return r > 0.05 ? r : 0.12;
-  }
-
   // Radius used for item-to-item overlap (adds a small gap between items).
   private footprintR(type: ItemType): number {
     if (type === ItemType.SLEEPING_HIDE) return 0.40;
