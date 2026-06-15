@@ -142,30 +142,32 @@ export function createItemMesh(type: ItemType): THREE.Group {
       const INNER_R  = 0.60;
       const WALL_H   = 0.07;
       const ENTRY_A  = Math.PI / 3;   // 60° entry gap centred on +X
-      const RAMP_EXT = 0.22;          // ramp extends beyond outer wall
+      const RAMP_EXT = 0.22;
 
       const dishMat  = new THREE.MeshLambertMaterial({ color: 0x78909c, side: THREE.DoubleSide });
-      const innerMat = new THREE.MeshLambertMaterial({ color: 0x546e7a, side: THREE.BackSide });
       const floorMat = new THREE.MeshLambertMaterial({ color: 0x607d8b });
       const waterMat = new THREE.MeshLambertMaterial({ color: 0x4dd0e1, transparent: true, opacity: 0.85 });
 
-      // Outer & inner wall arcs — leave a 60° gap on the +X side for the ramp
-      const wallStart = ENTRY_A / 2;
+      // CylinderGeometry uses x=R·sin(θ), z=R·cos(θ) so +X is at θ=π/2.
+      // To centre the gap on +X, the arc must start at π/2 + ENTRY_A/2.
+      const cylStart  = Math.PI / 2 + ENTRY_A / 2;
       const wallArc   = Math.PI * 2 - ENTRY_A;
+
       const outerWall = new THREE.Mesh(
-        new THREE.CylinderGeometry(OUTER_R, OUTER_R, WALL_H, 28, 1, true, wallStart, wallArc),
+        new THREE.CylinderGeometry(OUTER_R, OUTER_R, WALL_H, 28, 1, true, cylStart, wallArc),
         dishMat
       );
       outerWall.position.y = WALL_H / 2;
       const innerWall = new THREE.Mesh(
-        new THREE.CylinderGeometry(INNER_R, INNER_R, WALL_H, 28, 1, true, wallStart, wallArc),
-        innerMat
+        new THREE.CylinderGeometry(INNER_R, INNER_R, WALL_H, 28, 1, true, cylStart, wallArc),
+        dishMat
       );
       innerWall.position.y = WALL_H / 2;
 
-      // Top rim annulus (ring lying flat on top of the wall)
+      // RingGeometry maps θ=0 → +X (after rotation.x=-π/2), so gap is at ringStart=ENTRY_A/2.
+      const ringStart = ENTRY_A / 2;
       const rimRing = new THREE.Mesh(
-        new THREE.RingGeometry(INNER_R, OUTER_R, 28, 1, wallStart, wallArc),
+        new THREE.RingGeometry(INNER_R, OUTER_R, 28, 1, ringStart, wallArc),
         floorMat
       );
       rimRing.rotation.x = -Math.PI / 2;
@@ -180,20 +182,26 @@ export function createItemMesh(type: ItemType): THREE.Group {
       water.rotation.x = -Math.PI / 2;
       water.position.y = 0.038;
 
-      // Entry ramp — custom BufferGeometry that peaks at the wall rim
-      // The entry faces +X; chord half-width at outer wall radius:
-      const hw = OUTER_R * Math.sin(ENTRY_A / 2);   // ≈ 0.34
-      // 6 key points (z runs left-to-right, x runs outward-to-inward):
-      //  ext: outer ground edge (x = OUTER_R + RAMP_EXT, y = 0)
-      //  rim: top of wall     (x = OUTER_R,              y = WALL_H)
-      //  flr: basin floor     (x = INNER_R,              y = 0)
+      // Entry ramp — vertices computed from actual cylinder arc endpoints so the
+      // ramp connects seamlessly where the wall gaps end.
+      // At cylStart = π/2 + ENTRY_A/2 the arc endpoint in XZ is:
+      //   x = OUTER_R · sin(cylStart) = OUTER_R · cos(ENTRY_A/2)
+      //   z = OUTER_R · cos(cylStart) = -OUTER_R · sin(ENTRY_A/2)  (left edge, -Z side)
+      // and at cylEnd = π/2 - ENTRY_A/2:
+      //   x = OUTER_R · cos(ENTRY_A/2),  z = +OUTER_R · sin(ENTRY_A/2)  (right edge, +Z side)
+      const theta = ENTRY_A / 2;
+      const rimX  = OUTER_R * Math.cos(theta);   // ≈ 0.589
+      const rimZ  = OUTER_R * Math.sin(theta);   // = 0.34
+      const flrX  = INNER_R * Math.cos(theta);   // ≈ 0.520
+      const flrZ  = INNER_R * Math.sin(theta);   // = 0.30
+
       const verts = new Float32Array([
-        OUTER_R + RAMP_EXT, 0,       -hw,  // 0 ext-left
-        OUTER_R + RAMP_EXT, 0,        hw,  // 1 ext-right
-        OUTER_R,            WALL_H,  -hw,  // 2 rim-left
-        OUTER_R,            WALL_H,   hw,  // 3 rim-right
-        INNER_R,            0,        -hw,  // 4 flr-left
-        INNER_R,            0,         hw,  // 5 flr-right
+        rimX + RAMP_EXT, 0,       -rimZ,  // 0 ext-left
+        rimX + RAMP_EXT, 0,        rimZ,  // 1 ext-right
+        rimX,            WALL_H,  -rimZ,  // 2 rim-left  ← matches wall arc endpoint
+        rimX,            WALL_H,   rimZ,  // 3 rim-right ← matches wall arc endpoint
+        flrX,            0,        -flrZ,  // 4 flr-left  ← matches inner wall endpoint
+        flrX,            0,         flrZ,  // 5 flr-right ← matches inner wall endpoint
       ]);
       const idx = new Uint16Array([
         0,2,1,  1,2,3,   // outer slope (ground → rim)
