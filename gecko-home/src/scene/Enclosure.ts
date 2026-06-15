@@ -29,6 +29,13 @@ export class Enclosure {
     return { minX: -hw, maxX: hw, minZ: -hd, maxZ: hd, maxY: this.height };
   }
 
+  // Full floor extents — used for item placement so items can sit flush against walls
+  get placementBounds(): EnclosureBounds {
+    const hw = this.width / 2;
+    const hd = this.depth / 2;
+    return { minX: -hw, maxX: hw, minZ: -hd, maxZ: hd, maxY: this.height };
+  }
+
   clampToBounds(pos: THREE.Vector3): THREE.Vector3 {
     const b = this.bounds;
     pos.x = Math.max(b.minX, Math.min(b.maxX, pos.x));
