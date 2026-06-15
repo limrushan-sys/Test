@@ -175,14 +175,12 @@ export class ItemManager {
     const nz = Math.max(bounds.minZ, Math.min(bounds.maxZ, reqZ));
     const newPos = new THREE.Vector3(nx, 0, nz);
 
-    // Block if the requested move was clipped by a wall, or if new position overlaps another item
-    const hitWall = Math.abs(nx - reqX) > 0.001 || Math.abs(nz - reqZ) > 0.001;
-    const blocked = hitWall || this.overlapsAny(newPos, item.type, item.id);
+    const blocked = this.overlapsAny(newPos, item.type, item.id);
     const ringMat = this.selectionRing.material as THREE.MeshBasicMaterial;
     if (blocked) {
-      ringMat.color.setHex(0xff3333); // flash ring red — don't move
+      ringMat.color.setHex(0xff3333);
     } else {
-      ringMat.color.setHex(0xffcc00); // restore yellow
+      ringMat.color.setHex(0xffcc00);
       item.position.x = nx;
       item.position.z = nz;
       item.mesh.position.set(nx, 0, nz);
