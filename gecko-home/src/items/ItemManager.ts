@@ -169,11 +169,10 @@ export class ItemManager {
   moveSelected(dx: number, dz: number, bounds: EnclosureBounds) {
     if (!this.selectedItem) return;
     const item = this.selectedItem;
-    const r = this.footprintR(item.type);
     const reqX = item.position.x + dx;
     const reqZ = item.position.z + dz;
-    const nx = Math.max(bounds.minX + r, Math.min(bounds.maxX - r, reqX));
-    const nz = Math.max(bounds.minZ + r, Math.min(bounds.maxZ - r, reqZ));
+    const nx = Math.max(bounds.minX, Math.min(bounds.maxX, reqX));
+    const nz = Math.max(bounds.minZ, Math.min(bounds.maxZ, reqZ));
     const newPos = new THREE.Vector3(nx, 0, nz);
 
     // Block if the requested move was clipped by a wall, or if new position overlaps another item
