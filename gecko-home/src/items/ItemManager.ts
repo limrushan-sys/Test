@@ -78,7 +78,7 @@ export class ItemManager {
     }
 
     const pt = hits[0].point;
-    const r = this.footprintR(this.selectedType);
+    const r = this.wallMarginR(this.selectedType);
     const inBounds = pt.x >= bounds.minX + r && pt.x <= bounds.maxX - r &&
                      pt.z >= bounds.minZ + r && pt.z <= bounds.maxZ - r;
     const ghostPos = new THREE.Vector3(pt.x, 0, pt.z);
@@ -280,13 +280,19 @@ export class ItemManager {
   }
 
   // ── Overlap detection ─────────────────────────────────────────────────────
-  // Visual footprint radius used for placement overlap checks.
-  // Items with tiny collision radii (e.g. SLEEPING_HIDE) get a realistic size.
-  private footprintR(type: ItemType): number {
-    if (type === ItemType.SLEEPING_HIDE) return 0.38;
-    if (type === ItemType.WATER_DISH)    return 0.55;
+  // How close the item centre may be to an enclosure wall (actual visual size).
+  private wallMarginR(type: ItemType): number {
+    if (type === ItemType.SLEEPING_HIDE) return 0.35; // half-width of the hide shell
     const r = ITEM_COLLISION[type].radius;
-    return r > 0.05 ? r : 0.18;
+    return r > 0.05 ? r : 0.12;
+  }
+
+  // Radius used for item-to-item overlap (adds a small gap between items).
+  private footprintR(type: ItemType): number {
+    if (type === ItemType.SLEEPING_HIDE) return 0.40;
+    if (type === ItemType.WATER_DISH)    return 0.70;
+    const r = ITEM_COLLISION[type].radius;
+    return r > 0.05 ? r + 0.04 : 0.18;
   }
 
   private overlapsAny(pos: THREE.Vector3, type: ItemType, excludeId?: number): boolean {
