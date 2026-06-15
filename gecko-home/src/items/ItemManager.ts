@@ -67,7 +67,7 @@ export class ItemManager {
   }
 
   // ── Ghost preview ─────────────────────────────────────────────────────────
-  private updateGhost(mouseVec: THREE.Vector2, camera: THREE.PerspectiveCamera, bounds: EnclosureBounds) {
+  private updateGhost(mouseVec: THREE.Vector2, camera: THREE.PerspectiveCamera, _bounds: EnclosureBounds) {
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouseVec, camera);
     const hits = raycaster.intersectObject(this.floorMesh, false);
@@ -78,10 +78,7 @@ export class ItemManager {
     }
 
     const pt = hits[0].point;
-    // Clamp to bounds so the ghost snaps flush to the wall instead of going red
-    const cx = Math.max(bounds.minX, Math.min(bounds.maxX, pt.x));
-    const cz = Math.max(bounds.minZ, Math.min(bounds.maxZ, pt.z));
-    const ghostPos = new THREE.Vector3(cx, 0, cz);
+    const ghostPos = new THREE.Vector3(pt.x, 0, pt.z);
     this.ghostValid = !this.overlapsAny(ghostPos, this.selectedType);
 
     if (!this.ghost) {
@@ -102,7 +99,7 @@ export class ItemManager {
     }
 
     this.ghost.visible = true;
-    this.ghost.position.set(cx, 0, cz);
+    this.ghost.position.set(pt.x, 0, pt.z);
 
     const tintHex = this.ghostValid ? 0xffffff : 0xff4444;
     this.ghost.traverse(child => {
@@ -116,7 +113,7 @@ export class ItemManager {
   }
 
   // ── Place item ────────────────────────────────────────────────────────────
-  tryPlace(mouseVec: THREE.Vector2, camera: THREE.PerspectiveCamera, bounds: EnclosureBounds): boolean {
+  tryPlace(mouseVec: THREE.Vector2, camera: THREE.PerspectiveCamera, _bounds: EnclosureBounds): boolean {
     if (!this.placeModeActive || !this.ghostValid) return false;
 
     const raycaster = new THREE.Raycaster();
@@ -125,10 +122,8 @@ export class ItemManager {
     if (!hits.length) return false;
 
     const pt = hits[0].point;
-    const cx = Math.max(bounds.minX, Math.min(bounds.maxX, pt.x));
-    const cz = Math.max(bounds.minZ, Math.min(bounds.maxZ, pt.z));
     const mesh = createItemMesh(this.selectedType);
-    mesh.position.set(cx, 0, cz);
+    mesh.position.set(pt.x, 0, pt.z);
     mesh.traverse(c => { if ((c as THREE.Mesh).isMesh) (c as THREE.Mesh).castShadow = true; });
     this.scene.add(mesh);
 
@@ -136,7 +131,7 @@ export class ItemManager {
       id: this.nextId++,
       type: this.selectedType,
       mesh,
-      position: new THREE.Vector3(cx, 0, cz),
+      position: new THREE.Vector3(pt.x, 0, pt.z),
     });
     return true;
   }
