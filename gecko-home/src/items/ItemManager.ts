@@ -28,7 +28,7 @@ export class ItemManager {
 
   // Gecko collision barrier — set from main so placement can avoid the gecko
   private geckoPositionGetter: (() => THREE.Vector3) | null = null;
-  private static readonly GECKO_BARRIER_R = 0.38; // radius that covers the gecko body
+  private static readonly GECKO_BARRIER_R = 0.22; // gecko body half-width
 
   private selectionRing: THREE.Mesh;
   private cricketTime = 0;
@@ -283,10 +283,10 @@ export class ItemManager {
   // Visual footprint radius used for placement overlap checks.
   // Items with tiny collision radii (e.g. SLEEPING_HIDE) get a realistic size.
   private footprintR(type: ItemType): number {
-    if (type === ItemType.SLEEPING_HIDE) return 0.50;
-    if (type === ItemType.WATER_DISH)    return 0.72; // large soaking basin
+    if (type === ItemType.SLEEPING_HIDE) return 0.38;
+    if (type === ItemType.WATER_DISH)    return 0.55;
     const r = ITEM_COLLISION[type].radius;
-    return r > 0.05 ? r : 0.20; // minimum sensible footprint
+    return r > 0.05 ? r : 0.18;
   }
 
   private overlapsAny(pos: THREE.Vector3, type: ItemType, excludeId?: number): boolean {
@@ -298,10 +298,10 @@ export class ItemManager {
       const dz = pos.z - item.position.z;
       if (dx * dx + dz * dz < (r1 + r2) * (r1 + r2)) return true;
     }
-    // Check against gecko barrier
+    // Check against gecko barrier — fixed radius around gecko centre, independent of item size
     if (this.geckoPositionGetter) {
       const gp = this.geckoPositionGetter();
-      const gr = r1 + ItemManager.GECKO_BARRIER_R;
+      const gr = ItemManager.GECKO_BARRIER_R;
       const dx = pos.x - gp.x;
       const dz = pos.z - gp.z;
       if (dx * dx + dz * dz < gr * gr) return true;
