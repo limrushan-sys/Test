@@ -28,6 +28,7 @@ class GeckoHomeApp {
     this.gecko = new Gecko(this.sceneSetup.scene);
 
     this.itemManager = new ItemManager(this.sceneSetup.scene, this.enclosure.floorMesh);
+    this.itemManager.setGeckoPositionGetter(() => this.gecko.group.position);
 
     // When gecko reaches a food bowl, play tongue-shoot eating animation
     this.gecko.onArrivedAtFoodBowl = (id) => {

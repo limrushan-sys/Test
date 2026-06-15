@@ -26,6 +26,10 @@ export class ItemManager {
 
   private floorMesh: THREE.Mesh;
 
+  // Gecko collision barrier — set from main so placement can avoid the gecko
+  private geckoPositionGetter: (() => THREE.Vector3) | null = null;
+  private static readonly GECKO_BARRIER_R = 0.38; // radius that covers the gecko body
+
   private selectionRing: THREE.Mesh;
   private cricketTime = 0;
 
@@ -46,6 +50,8 @@ export class ItemManager {
   }
 
   setFloor(mesh: THREE.Mesh) { this.floorMesh = mesh; }
+
+  setGeckoPositionGetter(fn: () => THREE.Vector3) { this.geckoPositionGetter = fn; }
 
   togglePlaceMode(active?: boolean) {
     this.placeModeActive = active !== undefined ? active : !this.placeModeActive;
@@ -291,6 +297,14 @@ export class ItemManager {
       const dx = pos.x - item.position.x;
       const dz = pos.z - item.position.z;
       if (dx * dx + dz * dz < (r1 + r2) * (r1 + r2)) return true;
+    }
+    // Check against gecko barrier
+    if (this.geckoPositionGetter) {
+      const gp = this.geckoPositionGetter();
+      const gr = r1 + ItemManager.GECKO_BARRIER_R;
+      const dx = pos.x - gp.x;
+      const dz = pos.z - gp.z;
+      if (dx * dx + dz * dz < gr * gr) return true;
     }
     return false;
   }
