@@ -501,11 +501,11 @@ export class Gecko {
           let colR: number;
           if (item.type === ItemType.SLEEPING_HIDE) {
             if (this.hideEntryPhase === 3 && this.targetItemId === item.id) {
-              colR = 0;    // gecko is walking inside this hide
+              colR = 0;
             } else if (this.hideEntryPhase >= 1 && this.targetItemId === item.id) {
-              colR = 0.68; // navigating around this hide's exterior
+              colR = 0.68;
             } else {
-              colR = 0.45; // solid obstacle — gecko can't phase through it
+              colR = 0.45;
             }
           } else if (item.type === ItemType.WATER_DISH) {
             const inside = this.waterDishPhase >= 2 && this.waterDishItemId === item.id;
@@ -513,14 +513,13 @@ export class Gecko {
           } else {
             colR = col.radius;
           }
-          const r2   = colR * colR;
+          if (colR <= 0) continue;
+          const r2 = colR * colR;
 
-          // Test both probe points; use whichever is deeper inside the item
-          let worstPush = 0;
-          let pushDx = 0, pushDz = 0;
-
+          // Test body centre and head-tip probe; accumulate the deepest penetration
+          let worstPush = 0, pushDx = 0, pushDz = 0;
           for (const [px, pz] of [
-            [nx,                    nz],
+            [nx,                        nz                       ],
             [nx + facingX * HEAD_REACH, nz + facingZ * HEAD_REACH],
           ] as [number, number][]) {
             const cdx = px - item.position.x;
@@ -535,17 +534,31 @@ export class Gecko {
                 const d = Math.sqrt(d2) || 0.001;
                 const push = colR - d + 0.02;
                 if (push > worstPush) {
-                  worstPush = push;
-                  pushDx = (cdx / d) * push;
-                  pushDz = (cdz / d) * push;
+                  worstPush = push; pushDx = (cdx / d) * push; pushDz = (cdz / d) * push;
                 }
               }
             }
           }
 
           if (worstPush > 0) {
-            nx += pushDx;
-            nz += pushDz;
+            // Push gecko out of the obstacle
+            nx += pushDx; nz += pushDz;
+
+            // Steering: add a tangential component pointing around the obstacle
+            // toward the target, so gecko naturally navigates around rather than bouncing
+            const normPx = pushDx / worstPush, normPz = pushDz / worstPush;
+            // Two perpendicular candidates: left and right of the push normal
+            const tanLx = -normPz, tanLz =  normPx;
+            const tanRx =  normPz, tanRz = -normPx;
+            // Pick the one that has a positive dot product with the goal direction
+            const goalDx = this.target.x - nx, goalDz = this.target.z - nz;
+            const dotL = goalDx * tanLx + goalDz * tanLz;
+            const dotR = goalDx * tanRx + goalDz * tanRz;
+            const steerX = dotL >= dotR ? tanLx : tanRx;
+            const steerZ = dotL >= dotR ? tanLz : tanRz;
+            // Apply steering as a fraction of the step so it blends with normal movement
+            const steerStr = Math.min(worstPush * 1.5, step * 0.8);
+            nx += steerX * steerStr; nz += steerZ * steerStr;
           }
         }
 
