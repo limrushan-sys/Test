@@ -498,15 +498,21 @@ export class Gecko {
         this.targetY = 0;
         for (const item of items) {
           const col  = ITEM_COLLISION[item.type];
-          // Phases 1 & 2: hide is a solid obstacle (gecko walks around outside).
-          // Phase 3: radius drops to near-zero so gecko can enter freely.
-          const colR = (item.type === ItemType.SLEEPING_HIDE && this.hideEntryPhase <= 2 && this.hideEntryPhase >= 1)
-            ? 0.68  // covers hide corners (max extent ≈ 0.61 from centre)
-            : item.type === ItemType.WATER_DISH
-            // phases 2 & 3: gecko is inside/exiting — walls transparent
-            // phase 0 & 1: full collision so gecko navigates around to the ramp
-            ? (this.waterDishPhase >= 2 ? 0 : 0.72)
-            : col.radius;
+          let colR: number;
+          if (item.type === ItemType.SLEEPING_HIDE) {
+            if (this.hideEntryPhase === 3 && this.targetItemId === item.id) {
+              colR = 0;    // gecko is walking inside this hide
+            } else if (this.hideEntryPhase >= 1 && this.targetItemId === item.id) {
+              colR = 0.68; // navigating around this hide's exterior
+            } else {
+              colR = 0.45; // solid obstacle — gecko can't phase through it
+            }
+          } else if (item.type === ItemType.WATER_DISH) {
+            const inside = this.waterDishPhase >= 2 && this.waterDishItemId === item.id;
+            colR = inside ? 0 : 0.72;
+          } else {
+            colR = col.radius;
+          }
           const r2   = colR * colR;
 
           // Test both probe points; use whichever is deeper inside the item
