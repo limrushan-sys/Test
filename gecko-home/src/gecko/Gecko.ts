@@ -49,10 +49,6 @@ export class Gecko {
   private sleepingInHide = false;
   private hideEntryPhase = 0; // 0=none 1=side waypoint 2=staging point 3=walking inside
   private turnAroundAngle: number | null = null; // target Y rotation after arriving at hide
-  // Water dish: multi-phase entry/exit so gecko uses the ramp and can't phase through walls
-  // 0=normal (solid walls), 1=approaching ramp, 2=inside basin, 3=exiting through ramp
-  private waterDishPhase  = 0;
-  private waterDishItemId: number | null = null;
   private geckoY = 0;        // current Y (for climbing)
   private targetY = 0;
 
@@ -417,40 +413,6 @@ export class Gecko {
             }
           }
 
-          // ── Water dish multi-phase entry/exit ──────────────────────────────
-          if (arrivedItem?.type === ItemType.WATER_DISH) {
-            if (this.waterDishPhase === 1) {
-              const rotY = arrivedItem.mesh.rotation.y;
-              const edx = Math.cos(rotY), edz = -Math.sin(rotY);
-              // Only enter when gecko is actually aligned with the ramp sector.
-              // If not yet aligned, keep the waypoint and let the orbit steering
-              // walk the gecko around to the correct side.
-              const gx = this.group.position.x - arrivedItem.position.x;
-              const gz = this.group.position.z - arrivedItem.position.z;
-              const gd = Math.sqrt(gx*gx + gz*gz) || 1;
-              const alignDot = (gx/gd)*edx + (gz/gd)*edz;
-              if (alignDot <= 0.82) {
-                // Not in the ramp sector yet — orbit to it
-                this.target.set(
-                  arrivedItem.position.x + edx * 1.40,
-                  0,
-                  arrivedItem.position.z + edz * 1.40,
-                );
-                break; // keep WALKING
-              }
-              // In the ramp sector — walk straight into the basin
-              this.target.set(arrivedItem.position.x, 0, arrivedItem.position.z);
-              this.waterDishPhase = 2;
-              break;
-            }
-            if (this.waterDishPhase === 3) {
-              // Arrived at ramp exit → fully reset, proceed to generic ARRIVED/IDLE
-              this.waterDishPhase = 0;
-              this.waterDishItemId = null;
-              this.targetItemId = null; // so arrivedItem is null below → no animation
-            }
-          }
-
           this.state = 'ARRIVED';
           this.idleTimer = IDLE_WAIT_MIN + Math.random() * (IDLE_WAIT_MAX - IDLE_WAIT_MIN);
 
@@ -510,59 +472,6 @@ export class Gecko {
         this.targetY = 0;
         for (const item of items) {
           const col = ITEM_COLLISION[item.type];
-
-          // ── Water dish: geometric sector collision ──────────────────────────
-          // The bowl is solid everywhere EXCEPT inside the ±30° ramp gap on
-          // the dish's local +X axis. Check per probe so the exact contact
-          // point determines whether it can pass through.
-          if (item.type === ItemType.WATER_DISH) {
-            const rotY    = item.mesh.rotation.y;
-            const entryDX = Math.cos(rotY), entryDZ = -Math.sin(rotY);
-            const BOWL_R    = 0.90;
-            const INNER_R   = 0.58;
-            const ENTRY_COS = 0.82;
-            // Only open the ramp gap and basin interior when the gecko is
-            // deliberately inside this dish via the multi-phase system.
-            // Phases 0 & 1: fully solid — gecko orbits the exterior.
-            // Phases 2 & 3: sector gap + basin interior passable.
-            const insideDish = this.waterDishItemId === item.id && this.waterDishPhase >= 2;
-
-            let worstPush = 0, pushDx = 0, pushDz = 0;
-            for (const [px, pz] of [
-              [nx,                        nz                       ],
-              [nx + facingX * HEAD_REACH, nz + facingZ * HEAD_REACH],
-            ] as [number, number][]) {
-              const cdx = px - item.position.x;
-              const cdz = pz - item.position.z;
-              const d2  = cdx * cdx + cdz * cdz;
-              if (d2 >= BOWL_R * BOWL_R) continue;
-              const d = Math.sqrt(d2) || 0.001;
-              if (insideDish) {
-                if (d < INNER_R) continue;
-                const dot = (cdx / d) * entryDX + (cdz / d) * entryDZ;
-                if (dot > ENTRY_COS) continue;
-              }
-              const push = BOWL_R - d + 0.02;
-              if (push > worstPush) {
-                worstPush = push;
-                pushDx = (cdx / d) * push;
-                pushDz = (cdz / d) * push;
-              }
-            }
-            if (worstPush > 0) {
-              nx += pushDx; nz += pushDz;
-              // Orbit steering: steer toward ramp gap by computing which
-              // side of the gecko-to-dish axis the ramp is on.
-              const bx = nx - item.position.x, bz = nz - item.position.z;
-              const bd = Math.sqrt(bx*bx + bz*bz) || 1;
-              const cross = (bx/bd) * entryDZ - (bz/bd) * entryDX;
-              const steerX = cross > 0 ? -bz/bd :  bz/bd;
-              const steerZ = cross > 0 ?  bx/bd : -bx/bd;
-              nx += steerX * Math.min(worstPush * 2.0, step);
-              nz += steerZ * Math.min(worstPush * 2.0, step);
-            }
-            continue;
-          }
 
           // ── Generic collision ───────────────────────────────────────────────
           let colR: number;
@@ -693,28 +602,6 @@ export class Gecko {
         if (this.idleTimer <= 0) {
           this.hideEntryPhase = 0;
           this.posePitchTarget = 0; // reset bowl/water pose
-
-          // Water dish exit: walk gecko back out through the ramp before idling
-          if (this.waterDishPhase === 2) {
-            const dish = items.find(i => i.id === this.waterDishItemId);
-            if (dish) {
-              const rotY = dish.mesh.rotation.y;
-              this.target.set(
-                dish.position.x + Math.cos(rotY) * 1.40,
-                0,
-                dish.position.z - Math.sin(rotY) * 1.40,
-              );
-              this.waterDishPhase = 3;
-              this.targetItemId   = this.waterDishItemId;
-              this.state = 'WALKING';
-              this.walkTime = 0;
-              this.setStatus('🦎 Exploring…');
-              break;
-            }
-            // dish removed — just reset
-            this.waterDishPhase  = 0;
-            this.waterDishItemId = null;
-          }
 
           if (this.sleepingInHide) {
             this.sleepingInHide = false;
@@ -905,21 +792,6 @@ export class Gecko {
           item.position.z + pDZ * side * 0.80 + mDZ * 0.40,
         );
         this.hideEntryPhase = 1;
-      } else if (item.type === ItemType.WATER_DISH) {
-        // Three-phase entry like the hide: gecko navigates around the solid bowl walls
-        // to the ramp (at local +X of the dish mesh), walks in, drinks, walks back out.
-        this.hideEntryPhase = 0;
-        const rotY = item.mesh.rotation.y;
-        const edx = Math.cos(rotY);   // ramp direction (local +X in world space)
-        const edz = -Math.sin(rotY);
-        // Phase 1 waypoint: stand in front of the ramp opening
-        this.target.set(
-          item.position.x + edx * 1.40,
-          0,
-          item.position.z + edz * 1.40,
-        );
-        this.waterDishPhase  = 1;
-        this.waterDishItemId = item.id;
       } else {
         this.hideEntryPhase = 0;
         const approachR = col.climbable
