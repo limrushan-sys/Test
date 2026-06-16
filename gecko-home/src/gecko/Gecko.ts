@@ -56,6 +56,7 @@ export class Gecko {
   private waterDishItemId: number | null = null;
   private geckoY = 0;        // current Y (for climbing)
   private targetY = 0;
+  private perchHeight = 0;   // held Y while resting at a climbable item
   // Stuck detection
   private stuckTimer = 0;
   private lastStuckCheckPos = new THREE.Vector3();
@@ -486,6 +487,13 @@ export class Gecko {
           this.state = 'ARRIVED';
           this.idleTimer = IDLE_WAIT_MIN + Math.random() * (IDLE_WAIT_MAX - IDLE_WAIT_MIN);
 
+          // Remember climb height so ARRIVED state can hold the gecko up
+          if (arrivedItem && ITEM_COLLISION[arrivedItem.type].climbable) {
+            this.perchHeight = ITEM_COLLISION[arrivedItem.type].height;
+          } else {
+            this.perchHeight = 0;
+          }
+
           if (this.hideEntryPhase === 3 && arrivedItem?.type === ItemType.SLEEPING_HIDE) {
             this.hideEntryPhase = 0;
             // Turn around to face the opening (add PI to face back out through mouth)
@@ -669,7 +677,7 @@ export class Gecko {
           lg.position.z += (defaultZ - lg.position.z) * 0.10;
         });
         this.group.rotation.z += (0 - this.group.rotation.z) * 0.12;
-        this.targetY = 0;
+        this.targetY = this.perchHeight;
         this.geckoY += (this.targetY - this.geckoY) * Math.min(3 * delta, 1);
         // group.position.y is already set above (geckoY + poseY) — don't overwrite here
 
@@ -715,6 +723,7 @@ export class Gecko {
             this.waterDishItemId = null;
           }
 
+          this.perchHeight = 0; // gecko descends as it walks away
           if (this.sleepingInHide) {
             this.sleepingInHide = false;
             this.justLeftHide = true;          // don't go straight back in
@@ -915,11 +924,13 @@ export class Gecko {
         this.target.set(item.position.x, 0, item.position.z);
         this.waterDishPhase  = 1;
         this.waterDishItemId = item.id;
+      } else if (col.climbable) {
+        // Walk straight to the base of the climbable — gecko will rise as it arrives
+        this.hideEntryPhase = 0;
+        this.target.set(item.position.x, 0, item.position.z);
       } else {
         this.hideEntryPhase = 0;
-        const approachR = col.climbable
-          ? col.radius * 0.3
-          : col.radius + HEAD_REACH + 0.05;
+        const approachR = col.radius + HEAD_REACH + 0.05;
         // Angle from current gecko pos toward item
         const adx = this.group.position.x - item.position.x;
         const adz = this.group.position.z - item.position.z;
