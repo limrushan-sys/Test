@@ -490,6 +490,15 @@ export class Gecko {
           // Remember climb height so ARRIVED state can hold the gecko up
           if (arrivedItem && ITEM_COLLISION[arrivedItem.type].climbable) {
             this.perchHeight = ITEM_COLLISION[arrivedItem.type].height;
+            // Face gecko toward branch 0 (+Z of the tree item in world space)
+            // gecko local +X faces world (cos θ, 0, -sin θ), want it to face item's +Z = (sin r, 0, cos r)
+            // cos θ = sin r, -sin θ = cos r → θ = π/2 - r
+            const r = arrivedItem.mesh.rotation.y;
+            let perchAngle = Math.PI / 2 - r;
+            while (perchAngle >  Math.PI) perchAngle -= 2 * Math.PI;
+            while (perchAngle < -Math.PI) perchAngle += 2 * Math.PI;
+            this.turnAroundAngle = perchAngle;
+            this.posePitchTarget = 0.10; // slight nose-up lean on the trunk
           } else {
             this.perchHeight = 0;
           }
@@ -666,20 +675,32 @@ export class Gecko {
         // keep rear legs on the ground.
         // legDefs: i=0,1 front (localX=0.13, localZ=±0.11), i=2,3 rear (localX=-0.08)
         this.legGroups.forEach((lg, i) => {
-          let targetLegY: number;
           if (this.perchHeight > 0) {
-            // Perching on tree — tuck legs naturally under body
-            targetLegY = 0;
+            // Perching on tree — spread feet onto the three branches.
+            // Gecko faces branch 0 (+X local). Branches in gecko-local XZ:
+            //   Branch 0 (front):        (+0.14,  0   ) → FL and FR straddle it
+            //   Branch 2 (rear-left):    (-0.07, +0.12) → RL
+            //   Branch 1 (rear-right):   (-0.07, -0.12) → RR
+            const perchPos = [
+              [ 0.17,  0,  0.05],  // FL — front, slightly left
+              [ 0.17,  0, -0.05],  // FR — front, slightly right
+              [-0.07,  0,  0.14],  // RL — rear-left branch
+              [-0.07,  0, -0.14],  // RR — rear-right branch
+            ][i];
+            lg.position.x += (perchPos[0] - lg.position.x) * 0.08;
+            lg.position.y += (perchPos[1] - lg.position.y) * 0.08;
+            lg.position.z += (perchPos[2] - lg.position.z) * 0.08;
           } else {
             // On ground — compensate pitch so legs stay flat on floor
             const pitch  = this.posePitch;
             const localX = i < 2 ? 0.13 : -0.08;
             const groupY = this.geckoY + 0.08 * Math.sin(-pitch);
-            targetLegY = (0 - groupY - localX * Math.sin(pitch)) / (Math.cos(pitch) || 1);
+            const targetLegY = (0 - groupY - localX * Math.sin(pitch)) / (Math.cos(pitch) || 1);
+            lg.position.y += (targetLegY - lg.position.y) * 0.15;
+            const defaultZ = [0.11, -0.11, 0.11, -0.11][i];
+            lg.position.x += ([0.13, 0.13, -0.08, -0.08][i] - lg.position.x) * 0.10;
+            lg.position.z += (defaultZ - lg.position.z) * 0.10;
           }
-          lg.position.y += (targetLegY - lg.position.y) * 0.15;
-          const defaultZ = [0.11, -0.11, 0.11, -0.11][i];
-          lg.position.z += (defaultZ - lg.position.z) * 0.10;
         });
         this.group.rotation.z += (0 - this.group.rotation.z) * 0.12;
         this.targetY = this.perchHeight;
@@ -728,7 +749,8 @@ export class Gecko {
             this.waterDishItemId = null;
           }
 
-          this.perchHeight = 0; // gecko descends as it walks away
+          this.perchHeight = 0;
+          this.posePitchTarget = 0;
           if (this.sleepingInHide) {
             this.sleepingInHide = false;
             this.justLeftHide = true;          // don't go straight back in
