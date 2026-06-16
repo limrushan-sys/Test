@@ -136,86 +136,44 @@ export function createItemMesh(type: ItemType): THREE.Group {
       break;
     }
 
-    // ── Water Dish: large soaking basin with entry ramp on one side ────────
+    // ── Water Dish: circular soaking basin ────────────────────────────────
     case ItemType.WATER_DISH: {
-      const OUTER_R  = 0.68;
-      const INNER_R  = 0.60;
-      const WALL_H   = 0.07;
-      const ENTRY_A  = Math.PI / 3;   // 60° entry gap centred on +X
-      const RAMP_EXT = 0.22;
+      const OUTER_R = 0.68;
+      const INNER_R = 0.60;
+      const WALL_H  = 0.07;
 
       const dishMat  = new THREE.MeshLambertMaterial({ color: 0x78909c, side: THREE.DoubleSide });
       const floorMat = new THREE.MeshLambertMaterial({ color: 0x607d8b });
       const waterMat = new THREE.MeshLambertMaterial({ color: 0x4dd0e1, transparent: true, opacity: 0.85 });
 
-      // CylinderGeometry uses x=R·sin(θ), z=R·cos(θ) so +X is at θ=π/2.
-      // To centre the gap on +X, the arc must start at π/2 + ENTRY_A/2.
-      const cylStart  = Math.PI / 2 + ENTRY_A / 2;
-      const wallArc   = Math.PI * 2 - ENTRY_A;
-
       const outerWall = new THREE.Mesh(
-        new THREE.CylinderGeometry(OUTER_R, OUTER_R, WALL_H, 28, 1, true, cylStart, wallArc),
+        new THREE.CylinderGeometry(OUTER_R, OUTER_R, WALL_H, 32, 1, true),
         dishMat
       );
       outerWall.position.y = WALL_H / 2;
+
       const innerWall = new THREE.Mesh(
-        new THREE.CylinderGeometry(INNER_R, INNER_R, WALL_H, 28, 1, true, cylStart, wallArc),
+        new THREE.CylinderGeometry(INNER_R, INNER_R, WALL_H, 32, 1, true),
         dishMat
       );
       innerWall.position.y = WALL_H / 2;
 
-      // RingGeometry maps θ=0 → +X (after rotation.x=-π/2), so gap is at ringStart=ENTRY_A/2.
-      const ringStart = ENTRY_A / 2;
       const rimRing = new THREE.Mesh(
-        new THREE.RingGeometry(INNER_R, OUTER_R, 28, 1, ringStart, wallArc),
+        new THREE.RingGeometry(INNER_R, OUTER_R, 32),
         floorMat
       );
       rimRing.rotation.x = -Math.PI / 2;
       rimRing.position.y = WALL_H + 0.001;
 
-      // Basin floor & water
-      const floor = new THREE.Mesh(new THREE.CircleGeometry(OUTER_R, 28), floorMat);
+      const floor = new THREE.Mesh(new THREE.CircleGeometry(OUTER_R, 32), floorMat);
       floor.rotation.x = -Math.PI / 2;
       floor.position.y = 0.002;
 
-      const water = new THREE.Mesh(new THREE.CircleGeometry(INNER_R - 0.04, 28), waterMat);
+      const water = new THREE.Mesh(new THREE.CircleGeometry(INNER_R - 0.04, 32), waterMat);
       water.rotation.x = -Math.PI / 2;
       water.position.y = 0.038;
 
-      // Entry ramp — vertices computed from actual cylinder arc endpoints so the
-      // ramp connects seamlessly where the wall gaps end.
-      // At cylStart = π/2 + ENTRY_A/2 the arc endpoint in XZ is:
-      //   x = OUTER_R · sin(cylStart) = OUTER_R · cos(ENTRY_A/2)
-      //   z = OUTER_R · cos(cylStart) = -OUTER_R · sin(ENTRY_A/2)  (left edge, -Z side)
-      // and at cylEnd = π/2 - ENTRY_A/2:
-      //   x = OUTER_R · cos(ENTRY_A/2),  z = +OUTER_R · sin(ENTRY_A/2)  (right edge, +Z side)
-      const theta = ENTRY_A / 2;
-      const rimX  = OUTER_R * Math.cos(theta);   // ≈ 0.589
-      const rimZ  = OUTER_R * Math.sin(theta);   // = 0.34
-      const flrX  = INNER_R * Math.cos(theta);   // ≈ 0.520
-      const flrZ  = INNER_R * Math.sin(theta);   // = 0.30
-
-      const verts = new Float32Array([
-        rimX + RAMP_EXT, 0,       -rimZ,  // 0 ext-left
-        rimX + RAMP_EXT, 0,        rimZ,  // 1 ext-right
-        rimX,            WALL_H,  -rimZ,  // 2 rim-left  ← matches wall arc endpoint
-        rimX,            WALL_H,   rimZ,  // 3 rim-right ← matches wall arc endpoint
-        flrX,            0,        -flrZ,  // 4 flr-left  ← matches inner wall endpoint
-        flrX,            0,         flrZ,  // 5 flr-right ← matches inner wall endpoint
-      ]);
-      const idx = new Uint16Array([
-        0,2,1,  1,2,3,   // outer slope (ground → rim)
-        2,4,3,  3,4,5,   // inner slope (rim → basin floor)
-        0,2,4,            // left side wall
-        1,5,3,            // right side wall
-      ]);
-      const rampGeo = new THREE.BufferGeometry();
-      rampGeo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
-      rampGeo.setIndex(new THREE.BufferAttribute(idx, 1));
-      rampGeo.computeVertexNormals();
-      const ramp = new THREE.Mesh(rampGeo, dishMat);
-
-      group.add(outerWall, innerWall, rimRing, floor, water, ramp);
+      group.add(outerWall, innerWall, rimRing, floor, water);
       break;
     }
 
