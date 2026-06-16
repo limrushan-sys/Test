@@ -270,11 +270,11 @@ export class Gecko {
 
         // U-shaped sleep eye — shown only when sleeping
         const uCurve = new THREE.QuadraticBezierCurve3(
-          new THREE.Vector3(-0.032, 0.010, 0),
-          new THREE.Vector3(0,      -0.022, 0),
-          new THREE.Vector3( 0.032, 0.010, 0),
+          new THREE.Vector3(-0.072, 0.030, 0),
+          new THREE.Vector3(0,      -0.055, 0),
+          new THREE.Vector3( 0.072, 0.030, 0),
         );
-        const sleepGeo = new THREE.TubeGeometry(uCurve, 12, 0.007, 6, false);
+        const sleepGeo = new THREE.TubeGeometry(uCurve, 16, 0.012, 6, false);
         const sleepEye = new THREE.Mesh(sleepGeo, pupilMat);
         sleepEye.position.set(ex, eyeY, side * (hw + 0.052));
         sleepEye.visible = false;
