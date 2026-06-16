@@ -666,13 +666,18 @@ export class Gecko {
         // keep rear legs on the ground.
         // legDefs: i=0,1 front (localX=0.13, localZ=±0.11), i=2,3 rear (localX=-0.08)
         this.legGroups.forEach((lg, i) => {
-          const pitch  = this.posePitch;
-          const localX = i < 2 ? 0.13 : -0.08;
-          // Keep all legs at ground level despite pitch
-          const groupY = this.geckoY + 0.08 * Math.sin(-pitch);
-          const localY = (0 - groupY - localX * Math.sin(pitch)) / (Math.cos(pitch) || 1);
-          lg.position.y += (localY - lg.position.y) * 0.15;
-          // Return legs to default Z
+          let targetLegY: number;
+          if (this.perchHeight > 0) {
+            // Perching on tree — tuck legs naturally under body
+            targetLegY = 0;
+          } else {
+            // On ground — compensate pitch so legs stay flat on floor
+            const pitch  = this.posePitch;
+            const localX = i < 2 ? 0.13 : -0.08;
+            const groupY = this.geckoY + 0.08 * Math.sin(-pitch);
+            targetLegY = (0 - groupY - localX * Math.sin(pitch)) / (Math.cos(pitch) || 1);
+          }
+          lg.position.y += (targetLegY - lg.position.y) * 0.15;
           const defaultZ = [0.11, -0.11, 0.11, -0.11][i];
           lg.position.z += (defaultZ - lg.position.z) * 0.10;
         });
