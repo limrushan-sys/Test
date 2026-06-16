@@ -216,24 +216,62 @@ export function createItemMesh(type: ItemType): THREE.Group {
       break;
     }
 
-    // ── Climbing Branch ─────────────────────────────────────────────────────
+    // ── Climbing Branch: small leafless tree ────────────────────────────────
     case ItemType.CLIMBING_BRANCH: {
-      const logMat  = new THREE.MeshLambertMaterial({ color: 0x5d4037 });
-      const darkMat = new THREE.MeshLambertMaterial({ color: 0x3e2723 });
-      const log = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.085, 0.85, 8), logMat);
-      log.rotation.z = Math.PI / 2;
-      log.position.y = 0.12;
-      for (const [bx, bz] of [[-0.2, 0.04],[0.1,-0.03],[0.3,0.05]] as [number,number][]) {
-        const knot = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), darkMat);
-        knot.position.set(bx, 0.19, bz);
-        group.add(knot);
+      const trunkMat  = new THREE.MeshLambertMaterial({ color: 0x5d4037 });
+      const branchMat = new THREE.MeshLambertMaterial({ color: 0x6d5040 });
+      const darkMat   = new THREE.MeshLambertMaterial({ color: 0x3e2723 });
+
+      // Trunk
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.075, 0.55, 8), trunkMat);
+      trunk.position.y = 0.275;
+      group.add(trunk);
+
+      // Root flares
+      for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2;
+        const root = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.035, 0.14, 5), darkMat);
+        root.position.set(Math.cos(angle) * 0.07, 0.05, Math.sin(angle) * 0.07);
+        root.rotation.z = Math.cos(angle) * 0.4;
+        root.rotation.x = Math.sin(angle) * 0.4;
+        group.add(root);
       }
-      for (const sx of [-0.32, 0.32]) {
-        const s = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.18, 6), darkMat);
-        s.position.set(sx, 0.05, 0);
-        group.add(s);
+
+      // Main branches fanning out from upper trunk
+      const branchDefs: [number, number, number, number, number][] = [
+        //  angle   tilt   len    rx     rz
+        [  0.3,    0.55,  0.28,  0,     0.3  ],
+        [ -0.4,    0.50,  0.24,  0,    -0.35 ],
+        [  1.2,    0.45,  0.22,  0.2,   0    ],
+        [ -1.3,    0.48,  0.20, -0.2,   0    ],
+        [  2.5,    0.42,  0.18,  0,     0.25 ],
+        [ -2.6,    0.40,  0.20,  0,    -0.25 ],
+      ];
+
+      for (const [azimuth, tilt, len, rx, rz] of branchDefs) {
+        const b = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.022, len, 6), branchMat);
+        b.position.set(
+          Math.sin(azimuth) * 0.06,
+          0.46 + Math.random() * 0.06,
+          Math.cos(azimuth) * 0.06
+        );
+        b.rotation.set(rx + tilt * Math.cos(azimuth), azimuth, rz + tilt * Math.sin(azimuth));
+        group.add(b);
+
+        // Smaller sub-branches
+        for (let s = 0; s < 2; s++) {
+          const subLen = len * 0.55;
+          const sub = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.010, subLen, 5), branchMat);
+          const spread = (s === 0 ? 0.3 : -0.3);
+          sub.position.set(
+            b.position.x + Math.sin(azimuth + spread) * len * 0.4,
+            b.position.y + len * 0.35,
+            b.position.z + Math.cos(azimuth + spread) * len * 0.4
+          );
+          sub.rotation.set(b.rotation.x * 0.6, azimuth + spread, b.rotation.z * 0.6 + spread * 0.5);
+          group.add(sub);
+        }
       }
-      group.add(log);
       break;
     }
 
