@@ -489,11 +489,12 @@ export class Gecko {
           if (colR <= 0) continue;
           const r2 = colR * colR;
 
-          // Test body centre and head-tip probe; accumulate the deepest penetration
+          // Test body centre, head-tip, and rear probe; accumulate the deepest penetration
           let worstPush = 0, pushDx = 0, pushDz = 0;
           for (const [px, pz] of [
             [nx,                        nz                       ],
             [nx + facingX * HEAD_REACH, nz + facingZ * HEAD_REACH],
+            [nx - facingX * 0.38,       nz - facingZ * 0.38      ],
           ] as [number, number][]) {
             const cdx = px - item.position.x;
             const cdz = pz - item.position.z;
