@@ -276,7 +276,7 @@ export class Gecko {
         );
         const sleepGeo = new THREE.TubeGeometry(uCurve, 16, 0.012, 6, false);
         const sleepEye = new THREE.Mesh(sleepGeo, pupilMat);
-        sleepEye.position.set(ex, eyeY, side * (hw - 0.010));
+        sleepEye.position.set(ex, eyeY - 0.018, side * (hw + 0.025));
         sleepEye.visible = false;
         this.poseGroup.add(sleepEye);
         this.sleepEyeMeshes.push(sleepEye);
