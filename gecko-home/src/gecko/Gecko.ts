@@ -420,17 +420,28 @@ export class Gecko {
           // ── Water dish multi-phase entry/exit ──────────────────────────────
           if (arrivedItem?.type === ItemType.WATER_DISH) {
             if (this.waterDishPhase === 1) {
-              // Arrived at ramp-entry waypoint → walk into the basin (walls now off)
               const rotY = arrivedItem.mesh.rotation.y;
               const edx = Math.cos(rotY), edz = -Math.sin(rotY);
-              // Walk to basin centre — path goes straight through the ramp channel
-              this.target.set(
-                arrivedItem.position.x,
-                0,
-                arrivedItem.position.z
-              );
+              // Only enter when gecko is actually aligned with the ramp sector.
+              // If not yet aligned, keep the waypoint and let the orbit steering
+              // walk the gecko around to the correct side.
+              const gx = this.group.position.x - arrivedItem.position.x;
+              const gz = this.group.position.z - arrivedItem.position.z;
+              const gd = Math.sqrt(gx*gx + gz*gz) || 1;
+              const alignDot = (gx/gd)*edx + (gz/gd)*edz;
+              if (alignDot <= 0.82) {
+                // Not in the ramp sector yet — orbit to it
+                this.target.set(
+                  arrivedItem.position.x + edx * 1.40,
+                  0,
+                  arrivedItem.position.z + edz * 1.40,
+                );
+                break; // keep WALKING
+              }
+              // In the ramp sector — walk straight into the basin
+              this.target.set(arrivedItem.position.x, 0, arrivedItem.position.z);
               this.waterDishPhase = 2;
-              break; // keep WALKING
+              break;
             }
             if (this.waterDishPhase === 3) {
               // Arrived at ramp exit → fully reset, proceed to generic ARRIVED/IDLE
@@ -507,9 +518,9 @@ export class Gecko {
           if (item.type === ItemType.WATER_DISH) {
             const rotY    = item.mesh.rotation.y;
             const entryDX = Math.cos(rotY), entryDZ = -Math.sin(rotY);
-            const BOWL_R  = 0.90;  // covers outer wall (0.68) + ramp (0.81) + margin
-            const INNER_R = 0.58;  // inside the basin — always passable
-            const ENTRY_COS = 0.85; // cos ≈ 32° — slightly wider than ramp half-angle 30°
+            const BOWL_R    = 0.90;
+            const INNER_R   = 0.58;
+            const ENTRY_COS = 0.82; // cos≈35° — ramp half-angle is 30°
 
             let worstPush = 0, pushDx = 0, pushDz = 0;
             for (const [px, pz] of [
@@ -519,13 +530,11 @@ export class Gecko {
               const cdx = px - item.position.x;
               const cdz = pz - item.position.z;
               const d2  = cdx * cdx + cdz * cdz;
-              if (d2 >= BOWL_R * BOWL_R) continue; // outside bowl entirely
+              if (d2 >= BOWL_R * BOWL_R) continue;
               const d = Math.sqrt(d2) || 0.001;
-              if (d < INNER_R) continue; // inside basin — no collision
-              // Check if probe is within the ramp entry sector
+              if (d < INNER_R) continue;
               const dot = (cdx / d) * entryDX + (cdz / d) * entryDZ;
-              if (dot > ENTRY_COS) continue; // in the ramp gap — passable
-              // Solid wall — push probe outward
+              if (dot > ENTRY_COS) continue;
               const push = BOWL_R - d + 0.02;
               if (push > worstPush) {
                 worstPush = push;
@@ -535,16 +544,19 @@ export class Gecko {
             }
             if (worstPush > 0) {
               nx += pushDx; nz += pushDz;
-              const normPx = pushDx / worstPush, normPz = pushDz / worstPush;
-              const tanLx = -normPz, tanLz =  normPx;
-              const tanRx =  normPz, tanRz = -normPx;
-              const goalDx = this.target.x - nx, goalDz = this.target.z - nz;
-              const steerX = (goalDx*tanLx + goalDz*tanLz) >= (goalDx*tanRx + goalDz*tanRz) ? tanLx : tanRx;
-              const steerZ = (goalDx*tanLx + goalDz*tanLz) >= (goalDx*tanRx + goalDz*tanRz) ? tanLz : tanRz;
-              nx += steerX * Math.min(worstPush * 1.5, step * 0.8);
-              nz += steerZ * Math.min(worstPush * 1.5, step * 0.8);
+              // Orbit steering: steer the gecko TOWARD the ramp gap rather
+              // than any generic perpendicular. Cross product of gecko bearing
+              // vs entry direction tells which way to go around the bowl.
+              const bx = nx - item.position.x, bz = nz - item.position.z;
+              const bd = Math.sqrt(bx*bx + bz*bz) || 1;
+              const cross = (bx/bd) * entryDZ - (bz/bd) * entryDX; // +/-1: which side ramp is on
+              // Tangent pointing toward ramp gap
+              const steerX = cross > 0 ? -bz/bd :  bz/bd;
+              const steerZ = cross > 0 ?  bx/bd : -bx/bd;
+              nx += steerX * Math.min(worstPush * 2.0, step);
+              nz += steerZ * Math.min(worstPush * 2.0, step);
             }
-            continue; // handled — skip generic block
+            continue;
           }
 
           // ── Generic collision ───────────────────────────────────────────────
