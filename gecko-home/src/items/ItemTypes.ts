@@ -216,56 +216,42 @@ export function createItemMesh(type: ItemType): THREE.Group {
       break;
     }
 
-    // ── Climbing Branch: leafless tree matching reference silhouette ──────────
+    // ── Climbing Branch: driftwood/manzanita arch ───────────────────────────
     case ItemType.CLIMBING_BRANCH: {
-      const mat = new THREE.MeshLambertMaterial({ color: 0x4a2e1a });
+      const mat  = new THREE.MeshLambertMaterial({ color: 0xc8a070 });
+      const dark = new THREE.MeshLambertMaterial({ color: 0x8b5230 });
 
-      // Helper: add a tapered cylinder between two full 3D points
       const addSeg3 = (
         x1: number, y1: number, z1: number,
         x2: number, y2: number, z2: number,
-        r1: number, r2: number
+        r1: number, r2: number, m: THREE.Material = mat
       ) => {
         const dir = new THREE.Vector3(x2-x1, y2-y1, z2-z1);
         const len = dir.length();
-        const seg = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, len, 7), mat);
+        const seg = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, len, 8), m);
         seg.position.set((x1+x2)/2, (y1+y2)/2, (z1+z2)/2);
         seg.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.normalize());
         group.add(seg);
       };
 
-      // Trunk
-      addSeg3(0, 0, 0,  0, 0.40, 0,  0.088, 0.050);
-      addSeg3(0, 0.40, 0,  0, 0.54, 0,  0.050, 0.040);
-
-      // 3 main branches at 120° apart (viewed from top = Y-shape)
-      for (let i = 0; i < 3; i++) {
-        const a = (i / 3) * Math.PI * 2; // 0°, 120°, 240°
-        const bx = Math.sin(a), bz = Math.cos(a);
-
-        // Main branch segment 1
-        const m1x = bx * 0.14, m1z = bz * 0.14;
-        addSeg3(0, 0.52, 0,  m1x, 0.68, m1z,  0.034, 0.024);
-
-        // Main branch segment 2 (continues outward)
-        const m2x = bx * 0.30, m2z = bz * 0.30;
-        addSeg3(m1x, 0.68, m1z,  m2x, 0.82, m2z,  0.024, 0.015);
-
-        // Sub-branch A — spreads 40° left of main direction
-        const la = a - 0.7;
-        const s1x = m2x + Math.sin(la) * 0.20, s1z = m2z + Math.cos(la) * 0.20;
-        addSeg3(m2x, 0.82, m2z,  s1x, 0.96, s1z,  0.012, 0.005);
-
-        // Sub-branch B — spreads 40° right of main direction
-        const ra = a + 0.7;
-        const s2x = m2x + Math.sin(ra) * 0.18, s2z = m2z + Math.cos(ra) * 0.18;
-        addSeg3(m2x, 0.82, m2z,  s2x, 0.96, s2z,  0.012, 0.005);
-
-        // Sub-branch C — straight continuation, tip
-        const s3x = m2x + bx * 0.16, s3z = m2z + bz * 0.16;
-        addSeg3(m2x, 0.82, m2z,  s3x, 0.98, s3z,  0.010, 0.004);
-      }
-
+      // Base stump
+      addSeg3( 0.00, 0.00,  0.00,  0.00, 0.16,  0.00, 0.095, 0.080);
+      // Left main leg curving up
+      addSeg3( 0.00, 0.14,  0.00, -0.12, 0.30, -0.06, 0.078, 0.065);
+      addSeg3(-0.12, 0.30, -0.06, -0.18, 0.55, -0.04, 0.065, 0.050);
+      addSeg3(-0.18, 0.55, -0.04, -0.10, 0.76,  0.00, 0.050, 0.038);
+      // Right main leg curving up
+      addSeg3( 0.00, 0.14,  0.00,  0.14, 0.28,  0.08, 0.078, 0.065);
+      addSeg3( 0.14, 0.28,  0.08,  0.20, 0.50,  0.05, 0.065, 0.052);
+      addSeg3( 0.20, 0.50,  0.05,  0.12, 0.72,  0.00, 0.052, 0.040);
+      // Top connecting bar
+      addSeg3(-0.10, 0.76,  0.00,  0.12, 0.72,  0.00, 0.038, 0.040);
+      // Small side branch
+      addSeg3( 0.18, 0.42,  0.06,  0.36, 0.40,  0.12, 0.034, 0.018, dark);
+      addSeg3( 0.36, 0.40,  0.12,  0.46, 0.36,  0.16, 0.018, 0.009, dark);
+      // Root feet
+      addSeg3(-0.02, 0.04,  0.00, -0.14, 0.00, -0.08, 0.055, 0.035, dark);
+      addSeg3(-0.02, 0.04,  0.00,  0.12, 0.00,  0.10, 0.055, 0.035, dark);
       break;
     }
 
