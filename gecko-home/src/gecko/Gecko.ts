@@ -37,6 +37,7 @@ export class Gecko {
 
   private eyeMeshes: THREE.Mesh[] = [];
   private pupilMeshes: THREE.Mesh[] = [];
+  private sleepEyeMeshes: THREE.Mesh[] = [];
   private blinkTimer = 3.5;
   private blinkTime  = -1;
   private spotMeshes: THREE.Mesh[] = [];
@@ -257,15 +258,28 @@ export class Gecko {
         eye.position.set(ex, eyeY, side * (hw + 0.008));
         this.poseGroup.add(eye);
         this.eyeMeshes.push(eye);
-        // Big cute pupil — nearly fills the whole eye
+        // Big cute pupil — nearly fills the whole eye, wider
         const pupil = new THREE.Mesh(
           new THREE.SphereGeometry(0.048, 8, 8),
           pupilMat
         );
-        pupil.scale.set(0.9, 0.95, 0.5);
+        pupil.scale.set(1.1, 0.95, 0.5);
         pupil.position.set(ex, eyeY, side * (hw + 0.046));
         this.poseGroup.add(pupil);
         this.pupilMeshes.push(pupil);
+
+        // U-shaped sleep eye — shown only when sleeping
+        const uCurve = new THREE.QuadraticBezierCurve3(
+          new THREE.Vector3(-0.032, 0.010, 0),
+          new THREE.Vector3(0,      -0.022, 0),
+          new THREE.Vector3( 0.032, 0.010, 0),
+        );
+        const sleepGeo = new THREE.TubeGeometry(uCurve, 12, 0.007, 6, false);
+        const sleepEye = new THREE.Mesh(sleepGeo, pupilMat);
+        sleepEye.position.set(ex, eyeY, side * (hw + 0.052));
+        sleepEye.visible = false;
+        this.poseGroup.add(sleepEye);
+        this.sleepEyeMeshes.push(sleepEye);
       }
     }
 
@@ -669,8 +683,9 @@ export class Gecko {
           if (Math.abs(diff) < 0.04) {
             this.group.rotation.y = this.turnAroundAngle;
             this.turnAroundAngle = null;
-            this.eyeMeshes.forEach(e => { e.scale.y = 0.04; });
-            this.pupilMeshes.forEach(p => { p.scale.y = 0.04; });
+            this.eyeMeshes.forEach(e => { e.visible = false; });
+            this.pupilMeshes.forEach(p => { p.visible = false; });
+            this.sleepEyeMeshes.forEach(s => { s.visible = true; });
             if (this.sleepingInHide) this.setStatus('💤 Sleeping…');
           }
         }
@@ -703,8 +718,9 @@ export class Gecko {
           if (this.sleepingInHide) {
             this.sleepingInHide = false;
             this.justLeftHide = true;          // don't go straight back in
-            this.eyeMeshes.forEach(e => { e.scale.y = 1; });
-            this.pupilMeshes.forEach(p => { p.scale.y = 0.95; }); // wake up
+            this.eyeMeshes.forEach(e => { e.visible = true; e.scale.y = 1; });
+            this.pupilMeshes.forEach(p => { p.visible = true; p.scale.y = 0.95; });
+            this.sleepEyeMeshes.forEach(s => { s.visible = false; }); // wake up
           } else {
             this.hideTongue();
           }
