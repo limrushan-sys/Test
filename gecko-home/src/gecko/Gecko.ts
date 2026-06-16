@@ -423,10 +423,11 @@ export class Gecko {
               // Arrived at ramp-entry waypoint → walk into the basin (walls now off)
               const rotY = arrivedItem.mesh.rotation.y;
               const edx = Math.cos(rotY), edz = -Math.sin(rotY);
+              // Walk to basin centre — path goes straight through the ramp channel
               this.target.set(
-                arrivedItem.position.x + edx * 0.25,
+                arrivedItem.position.x,
                 0,
-                arrivedItem.position.z + edz * 0.25
+                arrivedItem.position.z
               );
               this.waterDishPhase = 2;
               break; // keep WALKING
@@ -509,7 +510,9 @@ export class Gecko {
             }
           } else if (item.type === ItemType.WATER_DISH) {
             const inside = this.waterDishPhase >= 2 && this.waterDishItemId === item.id;
-            colR = inside ? 0 : 0.72;
+            // 0.90 > ramp outer edge (0.81), so gecko is fully outside the bowl
+            // during approach and can only enter through the ramp gap in phase 2+
+            colR = inside ? 0 : 0.90;
           } else {
             colR = col.radius;
           }
@@ -636,9 +639,9 @@ export class Gecko {
             if (dish) {
               const rotY = dish.mesh.rotation.y;
               this.target.set(
-                dish.position.x + Math.cos(rotY) * 1.15,
+                dish.position.x + Math.cos(rotY) * 1.40,
                 0,
-                dish.position.z - Math.sin(rotY) * 1.15,
+                dish.position.z - Math.sin(rotY) * 1.40,
               );
               this.waterDishPhase = 3;
               this.targetItemId   = this.waterDishItemId;
@@ -850,9 +853,9 @@ export class Gecko {
         const edz = -Math.sin(rotY);
         // Phase 1 waypoint: stand in front of the ramp opening
         this.target.set(
-          item.position.x + edx * 1.15,
+          item.position.x + edx * 1.40,
           0,
-          item.position.z + edz * 1.15,
+          item.position.z + edz * 1.40,
         );
         this.waterDishPhase  = 1;
         this.waterDishItemId = item.id;
