@@ -520,7 +520,12 @@ export class Gecko {
             const entryDX = Math.cos(rotY), entryDZ = -Math.sin(rotY);
             const BOWL_R    = 0.90;
             const INNER_R   = 0.58;
-            const ENTRY_COS = 0.82; // cos≈35° — ramp half-angle is 30°
+            const ENTRY_COS = 0.82;
+            // Only open the ramp gap and basin interior when the gecko is
+            // deliberately inside this dish via the multi-phase system.
+            // Phases 0 & 1: fully solid — gecko orbits the exterior.
+            // Phases 2 & 3: sector gap + basin interior passable.
+            const insideDish = this.waterDishItemId === item.id && this.waterDishPhase >= 2;
 
             let worstPush = 0, pushDx = 0, pushDz = 0;
             for (const [px, pz] of [
@@ -532,9 +537,11 @@ export class Gecko {
               const d2  = cdx * cdx + cdz * cdz;
               if (d2 >= BOWL_R * BOWL_R) continue;
               const d = Math.sqrt(d2) || 0.001;
-              if (d < INNER_R) continue;
-              const dot = (cdx / d) * entryDX + (cdz / d) * entryDZ;
-              if (dot > ENTRY_COS) continue;
+              if (insideDish) {
+                if (d < INNER_R) continue;
+                const dot = (cdx / d) * entryDX + (cdz / d) * entryDZ;
+                if (dot > ENTRY_COS) continue;
+              }
               const push = BOWL_R - d + 0.02;
               if (push > worstPush) {
                 worstPush = push;
@@ -544,13 +551,11 @@ export class Gecko {
             }
             if (worstPush > 0) {
               nx += pushDx; nz += pushDz;
-              // Orbit steering: steer the gecko TOWARD the ramp gap rather
-              // than any generic perpendicular. Cross product of gecko bearing
-              // vs entry direction tells which way to go around the bowl.
+              // Orbit steering: steer toward ramp gap by computing which
+              // side of the gecko-to-dish axis the ramp is on.
               const bx = nx - item.position.x, bz = nz - item.position.z;
               const bd = Math.sqrt(bx*bx + bz*bz) || 1;
-              const cross = (bx/bd) * entryDZ - (bz/bd) * entryDX; // +/-1: which side ramp is on
-              // Tangent pointing toward ramp gap
+              const cross = (bx/bd) * entryDZ - (bz/bd) * entryDX;
               const steerX = cross > 0 ? -bz/bd :  bz/bd;
               const steerZ = cross > 0 ?  bx/bd : -bx/bd;
               nx += steerX * Math.min(worstPush * 2.0, step);
