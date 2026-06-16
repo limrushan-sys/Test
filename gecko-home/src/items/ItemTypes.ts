@@ -220,52 +220,49 @@ export function createItemMesh(type: ItemType): THREE.Group {
     case ItemType.CLIMBING_BRANCH: {
       const mat = new THREE.MeshLambertMaterial({ color: 0x4a2e1a });
 
-      // Helper: add a tapered cylinder branch between two 3D points
-      const addSeg = (x1: number, y1: number, x2: number, y2: number, z: number, r1: number, r2: number) => {
-        const dx = x2 - x1, dy = y2 - y1;
-        const len = Math.sqrt(dx*dx + dy*dy);
+      // Helper: add a tapered cylinder between two full 3D points
+      const addSeg3 = (
+        x1: number, y1: number, z1: number,
+        x2: number, y2: number, z2: number,
+        r1: number, r2: number
+      ) => {
+        const dir = new THREE.Vector3(x2-x1, y2-y1, z2-z1);
+        const len = dir.length();
         const seg = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, len, 7), mat);
-        seg.position.set((x1+x2)/2, (y1+y2)/2, z);
-        seg.rotation.z = -Math.atan2(dx, dy);
+        seg.position.set((x1+x2)/2, (y1+y2)/2, (z1+z2)/2);
+        seg.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.normalize());
         group.add(seg);
       };
 
-      // Trunk — widens toward base
-      addSeg( 0.00, 0.00,  0.00, 0.38, 0, 0.088, 0.048);
-      addSeg( 0.00, 0.38,  0.00, 0.52, 0, 0.048, 0.038);
+      // Trunk
+      addSeg3( 0,  0,    0,   0,  0.40,  0,    0.088, 0.050);
+      addSeg3( 0,  0.40, 0,   0,  0.54,  0,    0.050, 0.040);
 
-      // Left main branch
-      addSeg( 0.00, 0.50, -0.12, 0.66, 0, 0.034, 0.024);
-      addSeg(-0.12, 0.66, -0.28, 0.80, 0, 0.024, 0.016);
+      // Left main branch — spreads left and slightly forward
+      addSeg3( 0, 0.52,  0.00, -0.14, 0.68,  0.08, 0.034, 0.024);
+      addSeg3(-0.14, 0.68, 0.08, -0.30, 0.82,  0.14, 0.024, 0.015);
 
-      // Centre main branch — goes straight up
-      addSeg( 0.00, 0.50,  0.02, 0.68, 0, 0.032, 0.022);
-      addSeg( 0.02, 0.68,  0.02, 0.85, 0, 0.022, 0.014);
+      // Right main branch — spreads right and slightly back
+      addSeg3( 0, 0.52,  0.00,  0.16, 0.68, -0.08, 0.034, 0.024);
+      addSeg3( 0.16, 0.68, -0.08,  0.32, 0.82, -0.14, 0.024, 0.015);
 
-      // Right main branch
-      addSeg( 0.00, 0.50,  0.14, 0.66, 0, 0.034, 0.024);
-      addSeg( 0.14, 0.66,  0.30, 0.80, 0, 0.024, 0.016);
+      // Left sub-branches (spread in 3D)
+      addSeg3(-0.22, 0.76, 0.10, -0.46, 0.92,  0.18, 0.013, 0.005);
+      addSeg3(-0.22, 0.76, 0.10, -0.16, 0.96, -0.08, 0.013, 0.005);
+      addSeg3(-0.30, 0.82, 0.14, -0.52, 0.98,  0.06, 0.010, 0.004);
 
-      // Left sub-branches
-      addSeg(-0.20, 0.74, -0.44, 0.90, 0, 0.014, 0.006);
-      addSeg(-0.20, 0.74, -0.12, 0.95, 0, 0.014, 0.006);
-      addSeg(-0.28, 0.80, -0.50, 0.97, 0, 0.011, 0.004);
+      // Right sub-branches (spread in 3D)
+      addSeg3( 0.24, 0.76, -0.10,  0.48, 0.92, -0.18, 0.013, 0.005);
+      addSeg3( 0.24, 0.76, -0.10,  0.18, 0.96,  0.08, 0.013, 0.005);
+      addSeg3( 0.32, 0.82, -0.14,  0.54, 0.98, -0.06, 0.010, 0.004);
 
-      // Centre sub-branches
-      addSeg( 0.02, 0.80, -0.14, 0.95, 0, 0.013, 0.005);
-      addSeg( 0.02, 0.80,  0.18, 0.95, 0, 0.013, 0.005);
-      addSeg( 0.02, 0.85,  0.02, 1.00, 0, 0.010, 0.004);
+      // Lower side branch — front
+      addSeg3( 0, 0.28,  0.00,  0.10, 0.42,  0.24, 0.018, 0.008);
+      addSeg3( 0.10, 0.42, 0.24,  0.16, 0.52,  0.36, 0.008, 0.004);
 
-      // Right sub-branches
-      addSeg( 0.22, 0.74,  0.46, 0.90, 0, 0.014, 0.006);
-      addSeg( 0.22, 0.74,  0.14, 0.95, 0, 0.014, 0.006);
-      addSeg( 0.30, 0.80,  0.52, 0.97, 0, 0.011, 0.004);
-
-      // Lower side branches on trunk
-      addSeg(-0.02, 0.28, -0.22, 0.44, 0, 0.018, 0.008);
-      addSeg(-0.22, 0.44, -0.36, 0.52, 0, 0.008, 0.004);
-      addSeg( 0.02, 0.26,  0.20, 0.40, 0, 0.016, 0.007);
-      addSeg( 0.20, 0.40,  0.32, 0.48, 0, 0.007, 0.003);
+      // Lower side branch — back
+      addSeg3( 0, 0.30,  0.00, -0.12, 0.44, -0.22, 0.016, 0.007);
+      addSeg3(-0.12, 0.44, -0.22, -0.20, 0.52, -0.34, 0.007, 0.003);
 
       break;
     }
