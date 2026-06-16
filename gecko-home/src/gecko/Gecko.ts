@@ -27,8 +27,8 @@ export class Gecko {
   private legGroups: THREE.Group[] = [];
 
   private bodyGeo!: THREE.SphereGeometry;
-  private bodyTopColor  = new THREE.Color(0xa8c060);
-  private bodyBotColor  = new THREE.Color(0xd4c890);
+  private bodyTopColor  = new THREE.Color(0xf07030); // leopard orange
+  private bodyBotColor  = new THREE.Color(0xffe8d0); // cream belly
 
   private baseMat!: THREE.MeshLambertMaterial;
   private bodyMat!: THREE.MeshLambertMaterial;
@@ -102,12 +102,15 @@ export class Gecko {
 
   // ── Build gecko mesh ───────────────────────────────────────────────────────
   private buildMesh() {
-    this.baseMat = new THREE.MeshLambertMaterial({ color: 0xa8c060 });
+    this.baseMat = new THREE.MeshLambertMaterial({ color: 0xe86820 }); // orange — head/tail
     this.bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true });
-    this.spotMat = new THREE.MeshLambertMaterial({ color: 0xf0d070 });
-    this.darkMat = new THREE.MeshLambertMaterial({ color: 0x7a9040 });
-    const eyeMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+    this.spotMat = new THREE.MeshLambertMaterial({ color: 0x1a0800 }); // near-black spots
+    this.darkMat = new THREE.MeshLambertMaterial({ color: 0xc04010 }); // darker orange legs
+    const eyeMat    = new THREE.MeshLambertMaterial({ color: 0xd4a820 }); // gold iris
+    const pupilMat  = new THREE.MeshLambertMaterial({ color: 0x080400 }); // vertical slit
     const tongueMat = new THREE.MeshLambertMaterial({ color: 0xe05070 });
+    const bandLightMat = new THREE.MeshLambertMaterial({ color: 0xf5e8c0 }); // cream tail band
+    const bandDarkMat  = new THREE.MeshLambertMaterial({ color: 0x3a1a00 }); // dark tail band
 
     // Body — vertex-coloured sphere: top half = body colour, bottom half = belly colour
     this.bodyGeo = new THREE.SphereGeometry(0.13, 16, 12);
@@ -131,16 +134,21 @@ export class Gecko {
     const surfY = (x: number, z: number) =>
       bcy + ay * Math.sqrt(Math.max(0, 1 - (x/ax)**2 - (z/az)**2)) + 0.003;
     const spotDefs: [number, number, number][] = [
-      // x,      z,      radius
-      [-0.17,  0.04,  0.030],
-      [-0.08, -0.05,  0.038],
-      [-0.13,  0.07,  0.026],
-      [ 0.02, -0.06,  0.034],
-      [ 0.09,  0.05,  0.030],
-      [ 0.16, -0.04,  0.024],
-      [ 0.17,  0.05,  0.032],
-      [ 0.05,  0.08,  0.022],
-      [-0.06, -0.07,  0.028],
+      // x,      z,      radius  — leopard gecko blotch pattern
+      [-0.17,  0.00,  0.038],
+      [-0.17,  0.08,  0.022],
+      [-0.17, -0.08,  0.020],
+      [-0.10,  0.05,  0.032],
+      [-0.10, -0.05,  0.030],
+      [-0.03,  0.09,  0.024],
+      [-0.03, -0.08,  0.026],
+      [ 0.04,  0.04,  0.034],
+      [ 0.04, -0.06,  0.028],
+      [ 0.11,  0.07,  0.022],
+      [ 0.11, -0.04,  0.030],
+      [ 0.17,  0.03,  0.026],
+      [ 0.17, -0.07,  0.020],
+      [ 0.00,  0.00,  0.018],
     ];
     for (const [sx, sz, sr] of spotDefs) {
       const spot = new THREE.Mesh(new THREE.SphereGeometry(sr, 6, 5), this.spotMat);
@@ -154,11 +162,11 @@ export class Gecko {
     // No separate meshes, so zero z-fighting.
     {
       const bx  = 0.185;  // neck X
-      const tx  = 0.370;  // snout X (cap arc pivots here)
-      const hw  = 0.065;  // constant half-width (true prism)
+      const tx  = 0.390;  // snout X (cap arc pivots here)
+      const hw  = 0.090;  // wider — leopard gecko has broad triangular head
       const yb  = 0.032;  // bottom Y
-      const ytB = 0.148;  // top Y at neck
-      const ytF = 0.108;  // top Y at snout (less slant)
+      const ytB = 0.155;  // top Y at neck
+      const ytF = 0.105;  // top Y at snout
 
       const snoutH = ytF - yb;
       const r  = snoutH / 2;    // arc radius
@@ -239,15 +247,23 @@ export class Gecko {
         this.poseGroup.add(n);
       }
 
-      // Eyes at midpoint along the sides, upper portion
+      // Eyes — gold iris with vertical slit pupil
       this.eyeMeshes = [];
       for (const side of [-1, 1] as const) {
-        const ex   = bx + (tx - bx) * 0.50;
-        const eyeY = yb + (ytB - (ytB - ytF) * 0.5) * 0.72;
-        const eye  = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), eyeMat);
+        const ex   = bx + (tx - bx) * 0.45;
+        const eyeY = yb + (ytB - (ytB - ytF) * 0.5) * 0.70;
+        const eye  = new THREE.Mesh(new THREE.SphereGeometry(0.040, 10, 8), eyeMat);
         eye.position.set(ex, eyeY, side * (hw + 0.008));
         this.poseGroup.add(eye);
         this.eyeMeshes.push(eye);
+        // Vertical slit pupil
+        const pupil = new THREE.Mesh(
+          new THREE.SphereGeometry(0.018, 6, 8),
+          pupilMat
+        );
+        pupil.scale.set(0.35, 1, 0.25); // tall narrow ellipse
+        pupil.position.set(ex, eyeY, side * (hw + 0.046));
+        this.poseGroup.add(pupil);
       }
     }
 
@@ -261,12 +277,12 @@ export class Gecko {
     this.poseGroup.add(this.tongueMesh);
 
     // ── Legs: hemispheres, dome pointing up, flat bottom on ground ───────────
-    const LEG_R = 0.046;
+    const LEG_R = 0.058; // chunkier leopard gecko legs
     const legDefs: [number, number, number][] = [
-      [ 0.13, 0,  0.11],  // FL
-      [ 0.13, 0, -0.11],  // FR
-      [-0.08, 0,  0.11],  // RL
-      [-0.08, 0, -0.11],  // RR
+      [ 0.13, 0,  0.12],  // FL
+      [ 0.13, 0, -0.12],  // FR
+      [-0.08, 0,  0.12],  // RL
+      [-0.08, 0, -0.12],  // RR
     ];
 
     for (let li = 0; li < 4; li++) {
@@ -274,39 +290,53 @@ export class Gecko {
       const lgGroup = new THREE.Group();
       lgGroup.position.set(lx, ly, lz);
 
-      // thetaStart=0, thetaLength=PI/2 → top hemisphere, dome up, flat at y=0
       const leg = new THREE.Mesh(
         new THREE.SphereGeometry(LEG_R, 10, 7, 0, Math.PI * 2, 0, Math.PI / 2),
         this.darkMat
       );
       lgGroup.add(leg);
+
+      // Toe bumps — 5 small spheres fanning outward
+      const toeSign = lz > 0 ? 1 : -1;
+      for (let ti = 0; ti < 5; ti++) {
+        const toeAngle = (ti / 4 - 0.5) * Math.PI * 0.7 + (toeSign > 0 ? Math.PI * 0.5 : -Math.PI * 0.5);
+        const toe = new THREE.Mesh(new THREE.SphereGeometry(0.012, 5, 4), this.darkMat);
+        toe.position.set(Math.cos(toeAngle) * 0.065, -0.005, Math.sin(toeAngle) * 0.065);
+        lgGroup.add(toe);
+      }
+
       this.poseGroup.add(lgGroup);
       this.legGroups.push(lgGroup);
     }
 
-    // ── Tail — wavy tapered segments ─────────────────────────────────────────
+    // ── Tail — fat leopard gecko tail with cream/dark banding ─────────────────
     const tailCurve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(-0.18, 0.075,  0.000),
-      new THREE.Vector3(-0.30, 0.079,  0.030),
-      new THREE.Vector3(-0.44, 0.073, -0.028),
-      new THREE.Vector3(-0.58, 0.077,  0.022),
-      new THREE.Vector3(-0.70, 0.074, -0.010),
-      new THREE.Vector3(-0.80, 0.075,  0.000),
+      new THREE.Vector3(-0.28, 0.079,  0.020),
+      new THREE.Vector3(-0.40, 0.073, -0.020),
+      new THREE.Vector3(-0.52, 0.077,  0.015),
+      new THREE.Vector3(-0.62, 0.074, -0.008),
+      new THREE.Vector3(-0.70, 0.075,  0.000),
     ]);
 
     const N   = 18;
     const pts = tailCurve.getPoints(N);
     const up  = new THREE.Vector3(0, 1, 0);
-    const R_BASE = 0.040, R_TIP = 0.005;
+    // Leopard gecko fat tail: wide at base, tapers to tip
+    const R_BASE = 0.072, R_MID = 0.068, R_TIP = 0.006;
 
     for (let i = 0; i < N; i++) {
-      const t  = i / N;
-      const r1 = R_BASE + (R_TIP - R_BASE) * (i / N);
-      const r2 = R_BASE + (R_TIP - R_BASE) * ((i + 1) / N);
+      const t  = i / (N - 1);
+      // Fat bulge in first half, then taper
+      const bulge = t < 0.4 ? 1.0 : 1.0 - ((t - 0.4) / 0.6);
+      const r1 = (R_MID + (R_BASE - R_MID) * Math.max(0, 1 - t * 3)) * bulge + R_TIP * (1 - bulge);
+      const r2 = (R_MID + (R_BASE - R_MID) * Math.max(0, 1 - (t + 1/N) * 3)) * Math.max(0, bulge - 1/N) + R_TIP * (1 - Math.max(0, bulge - 1/N));
       const p1 = pts[i], p2 = pts[i + 1];
+      // Alternate bands: every 2 segments switch between cream and dark
+      const bandMat = Math.floor(i / 2) % 2 === 0 ? bandLightMat : bandDarkMat;
       const seg = new THREE.Mesh(
-        new THREE.CylinderGeometry(r2, r1, p1.distanceTo(p2), 7),
-        this.baseMat
+        new THREE.CylinderGeometry(r2, r1, p1.distanceTo(p2), 8),
+        bandMat
       );
       seg.position.copy(p1.clone().add(p2).multiplyScalar(0.5));
       seg.quaternion.setFromUnitVectors(up, p2.clone().sub(p1).normalize());
@@ -337,9 +367,9 @@ export class Gecko {
   // ── Gecko colour setters ──────────────────────────────────────────────────
   setBodyColor(hex: number) {
     this.bodyTopColor.setHex(hex);
-    this.baseMat.color.setHex(hex);   // head, tail, legs stay in sync
+    this.baseMat.color.setHex(hex);
     const c = new THREE.Color(hex);
-    this.darkMat.color.setRGB(c.r * 0.72, c.g * 0.78, c.b * 0.65);
+    this.darkMat.color.setRGB(c.r * 0.78, c.g * 0.62, c.b * 0.40);
     this.refreshBodyColors();
   }
 
