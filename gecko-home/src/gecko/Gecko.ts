@@ -498,7 +498,56 @@ export class Gecko {
 
         this.targetY = 0;
         for (const item of items) {
-          const col  = ITEM_COLLISION[item.type];
+          const col = ITEM_COLLISION[item.type];
+
+          // ── Water dish: geometric sector collision ──────────────────────────
+          // The bowl is solid everywhere EXCEPT inside the ±30° ramp gap on
+          // the dish's local +X axis. Check per probe so the exact contact
+          // point determines whether it can pass through.
+          if (item.type === ItemType.WATER_DISH) {
+            const rotY    = item.mesh.rotation.y;
+            const entryDX = Math.cos(rotY), entryDZ = -Math.sin(rotY);
+            const BOWL_R  = 0.90;  // covers outer wall (0.68) + ramp (0.81) + margin
+            const INNER_R = 0.58;  // inside the basin — always passable
+            const ENTRY_COS = 0.85; // cos ≈ 32° — slightly wider than ramp half-angle 30°
+
+            let worstPush = 0, pushDx = 0, pushDz = 0;
+            for (const [px, pz] of [
+              [nx,                        nz                       ],
+              [nx + facingX * HEAD_REACH, nz + facingZ * HEAD_REACH],
+            ] as [number, number][]) {
+              const cdx = px - item.position.x;
+              const cdz = pz - item.position.z;
+              const d2  = cdx * cdx + cdz * cdz;
+              if (d2 >= BOWL_R * BOWL_R) continue; // outside bowl entirely
+              const d = Math.sqrt(d2) || 0.001;
+              if (d < INNER_R) continue; // inside basin — no collision
+              // Check if probe is within the ramp entry sector
+              const dot = (cdx / d) * entryDX + (cdz / d) * entryDZ;
+              if (dot > ENTRY_COS) continue; // in the ramp gap — passable
+              // Solid wall — push probe outward
+              const push = BOWL_R - d + 0.02;
+              if (push > worstPush) {
+                worstPush = push;
+                pushDx = (cdx / d) * push;
+                pushDz = (cdz / d) * push;
+              }
+            }
+            if (worstPush > 0) {
+              nx += pushDx; nz += pushDz;
+              const normPx = pushDx / worstPush, normPz = pushDz / worstPush;
+              const tanLx = -normPz, tanLz =  normPx;
+              const tanRx =  normPz, tanRz = -normPx;
+              const goalDx = this.target.x - nx, goalDz = this.target.z - nz;
+              const steerX = (goalDx*tanLx + goalDz*tanLz) >= (goalDx*tanRx + goalDz*tanRz) ? tanLx : tanRx;
+              const steerZ = (goalDx*tanLx + goalDz*tanLz) >= (goalDx*tanRx + goalDz*tanRz) ? tanLz : tanRz;
+              nx += steerX * Math.min(worstPush * 1.5, step * 0.8);
+              nz += steerZ * Math.min(worstPush * 1.5, step * 0.8);
+            }
+            continue; // handled — skip generic block
+          }
+
+          // ── Generic collision ───────────────────────────────────────────────
           let colR: number;
           if (item.type === ItemType.SLEEPING_HIDE) {
             if (this.hideEntryPhase === 3 && this.targetItemId === item.id) {
@@ -508,11 +557,6 @@ export class Gecko {
             } else {
               colR = 0.45;
             }
-          } else if (item.type === ItemType.WATER_DISH) {
-            const inside = this.waterDishPhase >= 2 && this.waterDishItemId === item.id;
-            // 0.90 > ramp outer edge (0.81), so gecko is fully outside the bowl
-            // during approach and can only enter through the ramp gap in phase 2+
-            colR = inside ? 0 : 0.90;
           } else {
             colR = col.radius;
           }
