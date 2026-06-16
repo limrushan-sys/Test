@@ -38,6 +38,7 @@ export class Gecko {
   private eyeMeshes: THREE.Mesh[] = [];
   private pupilMeshes: THREE.Mesh[] = [];
   private sleepEyeMeshes: THREE.Mesh[] = [];
+  private reachMeshes: THREE.Mesh[] = []; // articulated perch legs
   private blinkTimer = 3.5;
   private blinkTime  = -1;
   private spotMeshes: THREE.Mesh[] = [];
@@ -324,6 +325,16 @@ export class Gecko {
 
       this.poseGroup.add(lgGroup);
       this.legGroups.push(lgGroup);
+    }
+
+    // ── Perch reach legs: 4 cylinders that connect hip→foot when on a tree ───
+    const reachMat = new THREE.MeshLambertMaterial({ color: 0xc04010 });
+    for (let i = 0; i < 4; i++) {
+      // Unit-height cylinder; scale.y will be set to actual length each frame
+      const reach = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 1, 6), reachMat);
+      reach.visible = false;
+      this.poseGroup.add(reach);
+      this.reachMeshes.push(reach);
     }
 
     // ── Tail — fat leopard gecko tail with cream/dark banding ─────────────────
@@ -674,24 +685,44 @@ export class Gecko {
         // Settle legs; when pitched, place front legs on the bowl rim sides,
         // keep rear legs on the ground.
         // legDefs: i=0,1 front (localX=0.13, localZ=±0.11), i=2,3 rear (localX=-0.08)
-        this.legGroups.forEach((lg, i) => {
-          if (this.perchHeight > 0) {
-            // Perching on tree — spread feet onto the three branches.
-            // Gecko faces branch 0 (+X local). Branches in gecko-local XZ:
-            //   Branch 0 (front):        (+0.14,  0   ) → FL and FR straddle it
-            //   Branch 2 (rear-left):    (-0.07, +0.12) → RL
-            //   Branch 1 (rear-right):   (-0.07, -0.12) → RR
-            const perchPos = [
-              [ 0.17,  0,  0.05],  // FL — front, slightly left
-              [ 0.17,  0, -0.05],  // FR — front, slightly right
-              [-0.07,  0,  0.14],  // RL — rear-left branch
-              [-0.07,  0, -0.14],  // RR — rear-right branch
-            ][i];
-            lg.position.x += (perchPos[0] - lg.position.x) * 0.08;
-            lg.position.y += (perchPos[1] - lg.position.y) * 0.08;
-            lg.position.z += (perchPos[2] - lg.position.z) * 0.08;
-          } else {
-            // On ground — compensate pitch so legs stay flat on floor
+        if (this.perchHeight > 0) {
+          // Hide normal leg blobs, show articulated reach cylinders
+          this.legGroups.forEach(lg => { lg.visible = false; });
+
+          // Hip positions in poseGroup local space (body attachment points)
+          const hips = [
+            new THREE.Vector3( 0.13, 0.00,  0.12),  // FL
+            new THREE.Vector3( 0.13, 0.00, -0.12),  // FR
+            new THREE.Vector3(-0.08, 0.00,  0.12),  // RL
+            new THREE.Vector3(-0.08, 0.00, -0.12),  // RR
+          ];
+          // Foot targets: FL/FR splay outward onto front branch,
+          // RL onto left-rear branch, RR onto right-rear branch
+          const feet = [
+            new THREE.Vector3( 0.24, -0.03,  0.04),  // FL — front branch, left
+            new THREE.Vector3( 0.24, -0.03, -0.04),  // FR — front branch, right
+            new THREE.Vector3(-0.13, -0.01,  0.22),  // RL — rear-left branch
+            new THREE.Vector3(-0.13, -0.01, -0.22),  // RR — rear-right branch
+          ];
+
+          const up = new THREE.Vector3(0, 1, 0);
+          this.reachMeshes.forEach((rm, i) => {
+            rm.visible = true;
+            const hip  = hips[i];
+            const foot = feet[i];
+            const dir  = foot.clone().sub(hip);
+            const len  = dir.length();
+            rm.position.copy(hip.clone().add(foot).multiplyScalar(0.5));
+            rm.scale.y = len;
+            rm.quaternion.setFromUnitVectors(up, dir.normalize());
+          });
+        } else {
+          // Show normal leg blobs, hide reach cylinders
+          this.legGroups.forEach(lg => { lg.visible = true; });
+          this.reachMeshes.forEach(rm => { rm.visible = false; });
+
+          // On ground — compensate pitch so legs stay flat on floor
+          this.legGroups.forEach((lg, i) => {
             const pitch  = this.posePitch;
             const localX = i < 2 ? 0.13 : -0.08;
             const groupY = this.geckoY + 0.08 * Math.sin(-pitch);
@@ -700,8 +731,8 @@ export class Gecko {
             const defaultZ = [0.11, -0.11, 0.11, -0.11][i];
             lg.position.x += ([0.13, 0.13, -0.08, -0.08][i] - lg.position.x) * 0.10;
             lg.position.z += (defaultZ - lg.position.z) * 0.10;
-          }
-        });
+          });
+        }
         this.group.rotation.z += (0 - this.group.rotation.z) * 0.12;
         this.targetY = this.perchHeight;
         this.geckoY += (this.targetY - this.geckoY) * Math.min(3 * delta, 1);
@@ -751,6 +782,8 @@ export class Gecko {
 
           this.perchHeight = 0;
           this.posePitchTarget = 0;
+          this.reachMeshes.forEach(rm => { rm.visible = false; });
+          this.legGroups.forEach(lg => { lg.visible = true; });
           if (this.sleepingInHide) {
             this.sleepingInHide = false;
             this.justLeftHide = true;          // don't go straight back in
