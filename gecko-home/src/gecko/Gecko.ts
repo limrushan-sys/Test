@@ -36,6 +36,7 @@ export class Gecko {
   private darkMat!: THREE.MeshLambertMaterial;
 
   private eyeMeshes: THREE.Mesh[] = [];
+  private pupilMeshes: THREE.Mesh[] = [];
   private blinkTimer = 3.5;
   private blinkTime  = -1;
   private spotMeshes: THREE.Mesh[] = [];
@@ -256,14 +257,15 @@ export class Gecko {
         eye.position.set(ex, eyeY, side * (hw + 0.008));
         this.poseGroup.add(eye);
         this.eyeMeshes.push(eye);
-        // Big cute pupil — covers most of the eye
+        // Big cute pupil — nearly fills the whole eye
         const pupil = new THREE.Mesh(
-          new THREE.SphereGeometry(0.044, 8, 8),
+          new THREE.SphereGeometry(0.048, 8, 8),
           pupilMat
         );
-        pupil.scale.set(0.8, 0.9, 0.5);
+        pupil.scale.set(0.9, 0.95, 0.5);
         pupil.position.set(ex, eyeY, side * (hw + 0.046));
         this.poseGroup.add(pupil);
+        this.pupilMeshes.push(pupil);
       }
     }
 
@@ -667,7 +669,8 @@ export class Gecko {
           if (Math.abs(diff) < 0.04) {
             this.group.rotation.y = this.turnAroundAngle;
             this.turnAroundAngle = null;
-            this.eyeMeshes.forEach(e => { e.scale.y = 0.04; }); // eyes shut
+            this.eyeMeshes.forEach(e => { e.scale.y = 0.04; });
+            this.pupilMeshes.forEach(p => { p.scale.y = 0.04; });
             if (this.sleepingInHide) this.setStatus('💤 Sleeping…');
           }
         }
@@ -700,7 +703,8 @@ export class Gecko {
           if (this.sleepingInHide) {
             this.sleepingInHide = false;
             this.justLeftHide = true;          // don't go straight back in
-            this.eyeMeshes.forEach(e => { e.scale.y = 1; }); // wake up
+            this.eyeMeshes.forEach(e => { e.scale.y = 1; });
+            this.pupilMeshes.forEach(p => { p.scale.y = 0.95; }); // wake up
           } else {
             this.hideTongue();
           }
@@ -728,10 +732,13 @@ export class Gecko {
       const t = Math.min(this.blinkTime / BLINK_DUR, 1);
       // t 0→0.5: squish down; t 0.5→1: open back up
       const squish = t < 0.5 ? 1 - t * 2 * 0.96 : 0.04 + (t - 0.5) * 2 * 0.96;
-      this.eyeMeshes.forEach(e => { e.scale.y = Math.max(0.04, squish); });
+      const s = Math.max(0.04, squish);
+      this.eyeMeshes.forEach(e => { e.scale.y = s; });
+      this.pupilMeshes.forEach(p => { p.scale.y = 0.95 * s; });
       if (t >= 1) {
         this.blinkTime = -1;
         this.eyeMeshes.forEach(e => { e.scale.y = 1; });
+        this.pupilMeshes.forEach(p => { p.scale.y = 0.95; });
       }
     }
   }
