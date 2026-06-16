@@ -256,12 +256,12 @@ export class Gecko {
         eye.position.set(ex, eyeY, side * (hw + 0.008));
         this.poseGroup.add(eye);
         this.eyeMeshes.push(eye);
-        // Big cute pupil
+        // Big cute pupil — covers most of the eye
         const pupil = new THREE.Mesh(
-          new THREE.SphereGeometry(0.030, 8, 8),
+          new THREE.SphereGeometry(0.044, 8, 8),
           pupilMat
         );
-        pupil.scale.set(0.5, 1, 0.4);
+        pupil.scale.set(0.8, 0.9, 0.5);
         pupil.position.set(ex, eyeY, side * (hw + 0.046));
         this.poseGroup.add(pupil);
       }
