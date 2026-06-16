@@ -216,62 +216,48 @@ export function createItemMesh(type: ItemType): THREE.Group {
       break;
     }
 
-    // ── Climbing Branch: small leafless tree ────────────────────────────────
+    // ── Climbing Branch: leafless tree matching reference silhouette ──────────
     case ItemType.CLIMBING_BRANCH: {
-      const trunkMat  = new THREE.MeshLambertMaterial({ color: 0x5d4037 });
-      const branchMat = new THREE.MeshLambertMaterial({ color: 0x6d5040 });
-      const darkMat   = new THREE.MeshLambertMaterial({ color: 0x3e2723 });
+      const mat = new THREE.MeshLambertMaterial({ color: 0x4a2e1a });
 
-      // Trunk
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.075, 0.55, 8), trunkMat);
-      trunk.position.y = 0.275;
-      group.add(trunk);
+      // Helper: add a tapered cylinder branch between two 3D points
+      const addSeg = (x1: number, y1: number, x2: number, y2: number, z: number, r1: number, r2: number) => {
+        const dx = x2 - x1, dy = y2 - y1;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        const seg = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, len, 7), mat);
+        seg.position.set((x1+x2)/2, (y1+y2)/2, z);
+        seg.rotation.z = -Math.atan2(dx, dy);
+        group.add(seg);
+      };
 
-      // Root flares
-      for (let i = 0; i < 4; i++) {
-        const angle = (i / 4) * Math.PI * 2;
-        const root = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.035, 0.14, 5), darkMat);
-        root.position.set(Math.cos(angle) * 0.07, 0.05, Math.sin(angle) * 0.07);
-        root.rotation.z = Math.cos(angle) * 0.4;
-        root.rotation.x = Math.sin(angle) * 0.4;
-        group.add(root);
-      }
+      // Trunk — widens toward base
+      addSeg( 0.00, 0.00,  0.00, 0.38, 0, 0.088, 0.048);
+      addSeg( 0.00, 0.38,  0.00, 0.52, 0, 0.048, 0.038);
 
-      // Main branches fanning out from upper trunk
-      const branchDefs: [number, number, number, number, number][] = [
-        //  angle   tilt   len    rx     rz
-        [  0.3,    0.55,  0.28,  0,     0.3  ],
-        [ -0.4,    0.50,  0.24,  0,    -0.35 ],
-        [  1.2,    0.45,  0.22,  0.2,   0    ],
-        [ -1.3,    0.48,  0.20, -0.2,   0    ],
-        [  2.5,    0.42,  0.18,  0,     0.25 ],
-        [ -2.6,    0.40,  0.20,  0,    -0.25 ],
-      ];
+      // Left main branch up and outward, two segments to suggest curve
+      addSeg( 0.00, 0.50, -0.10, 0.66, 0, 0.036, 0.026);
+      addSeg(-0.10, 0.66, -0.24, 0.80, 0, 0.026, 0.018);
 
-      for (const [azimuth, tilt, len, rx, rz] of branchDefs) {
-        const b = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.022, len, 6), branchMat);
-        b.position.set(
-          Math.sin(azimuth) * 0.06,
-          0.46 + Math.random() * 0.06,
-          Math.cos(azimuth) * 0.06
-        );
-        b.rotation.set(rx + tilt * Math.cos(azimuth), azimuth, rz + tilt * Math.sin(azimuth));
-        group.add(b);
+      // Right main branch
+      addSeg( 0.00, 0.50,  0.10, 0.66, 0, 0.036, 0.026);
+      addSeg( 0.10, 0.66,  0.26, 0.80, 0, 0.026, 0.018);
 
-        // Smaller sub-branches
-        for (let s = 0; s < 2; s++) {
-          const subLen = len * 0.55;
-          const sub = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.010, subLen, 5), branchMat);
-          const spread = (s === 0 ? 0.3 : -0.3);
-          sub.position.set(
-            b.position.x + Math.sin(azimuth + spread) * len * 0.4,
-            b.position.y + len * 0.35,
-            b.position.z + Math.cos(azimuth + spread) * len * 0.4
-          );
-          sub.rotation.set(b.rotation.x * 0.6, azimuth + spread, b.rotation.z * 0.6 + spread * 0.5);
-          group.add(sub);
-        }
-      }
+      // Left sub-branches from left main (spread wide)
+      addSeg(-0.18, 0.74, -0.40, 0.90, 0, 0.016, 0.007);
+      addSeg(-0.18, 0.74, -0.14, 0.96, 0, 0.016, 0.007);
+      addSeg(-0.24, 0.80, -0.48, 0.96, 0, 0.013, 0.005);
+
+      // Right sub-branches
+      addSeg( 0.18, 0.74,  0.42, 0.90, 0, 0.016, 0.007);
+      addSeg( 0.18, 0.74,  0.16, 0.96, 0, 0.016, 0.007);
+      addSeg( 0.26, 0.80,  0.50, 0.96, 0, 0.013, 0.005);
+
+      // Lower side branches on trunk
+      addSeg(-0.02, 0.30, -0.22, 0.46, 0, 0.020, 0.009);
+      addSeg(-0.22, 0.46, -0.36, 0.54, 0, 0.009, 0.005);
+      addSeg( 0.02, 0.28,  0.20, 0.42, 0, 0.018, 0.008);
+      addSeg( 0.20, 0.42,  0.32, 0.50, 0, 0.008, 0.004);
+
       break;
     }
 
