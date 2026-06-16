@@ -49,8 +49,14 @@ export class Gecko {
   private sleepingInHide = false;
   private hideEntryPhase = 0; // 0=none 1=side waypoint 2=staging point 3=walking inside
   private turnAroundAngle: number | null = null; // target Y rotation after arriving at hide
+  // Water dish: 0=normal, 1=walking inside, 2=drinking (ARRIVED), 3=walking back out
+  private waterDishPhase  = 0;
+  private waterDishItemId: number | null = null;
   private geckoY = 0;        // current Y (for climbing)
   private targetY = 0;
+  // Stuck detection
+  private stuckTimer = 0;
+  private lastStuckCheckPos = new THREE.Vector3();
 
   private tongueMesh: THREE.Mesh | null = null;
   private tongueAnim  = 0;   // 0=off 1=extending 2=stuck 3=retracting
@@ -391,6 +397,24 @@ export class Gecko {
           const arrivedItem = this.targetItemId !== null
             ? items.find(i => i.id === this.targetItemId) : null;
 
+          // ── Water dish: walk in, drink, walk back out ──────────────────────
+          if (arrivedItem?.type === ItemType.WATER_DISH && this.waterDishPhase === 1) {
+            // Arrived at bowl centre — transition to drinking
+            this.waterDishPhase = 2;
+            this.state = 'ARRIVED';
+            this.idleTimer = IDLE_WAIT_MIN + Math.random() * (IDLE_WAIT_MAX - IDLE_WAIT_MIN);
+            this.posePitchTarget = -0.14;
+            this.startDrinkAnimation();
+            this.setStatus('🦎 Exploring…');
+            break;
+          }
+          if (this.waterDishPhase === 3) {
+            // Arrived at exit waypoint — fully done
+            this.waterDishPhase  = 0;
+            this.waterDishItemId = null;
+            this.targetItemId    = null;
+          }
+
           if (arrivedItem?.type === ItemType.SLEEPING_HIDE) {
             if (this.hideEntryPhase === 1) {
               // Arrived at side waypoint → now head to staging point in front of mouth
@@ -475,7 +499,10 @@ export class Gecko {
 
           // ── Generic collision ───────────────────────────────────────────────
           let colR: number;
-          if (item.type === ItemType.SLEEPING_HIDE) {
+          if (item.type === ItemType.WATER_DISH) {
+            // Disable collision while gecko is entering, inside, or exiting this dish
+            colR = (this.waterDishItemId === item.id) ? 0 : col.radius;
+          } else if (item.type === ItemType.SLEEPING_HIDE) {
             if (this.hideEntryPhase === 3 && this.targetItemId === item.id) {
               colR = 0;
             } else if (this.hideEntryPhase >= 1 && this.targetItemId === item.id) {
@@ -542,6 +569,21 @@ export class Gecko {
         pos.x = nx;
         pos.z = nz;
 
+        // Stuck detection — if gecko barely moves for 2s, abandon target and pick a new one
+        this.stuckTimer += delta;
+        if (this.stuckTimer > 2.0) {
+          const moved = pos.distanceTo(this.lastStuckCheckPos);
+          if (moved < 0.08) {
+            // Reset water dish state too in case it got stuck trying to enter
+            this.waterDishPhase  = 0;
+            this.waterDishItemId = null;
+            this.hideEntryPhase  = 0;
+            this.pickTarget(items, bounds);
+          }
+          this.stuckTimer = 0;
+          this.lastStuckCheckPos.copy(pos);
+        }
+
         // Smooth Y for climbing
         this.geckoY += (this.targetY - this.geckoY) * Math.min(9 * delta, 1);
 
@@ -603,6 +645,27 @@ export class Gecko {
         if (this.idleTimer <= 0) {
           this.hideEntryPhase = 0;
           this.posePitchTarget = 0; // reset bowl/water pose
+
+          // Water dish exit: walk gecko back out before idling
+          if (this.waterDishPhase === 2) {
+            const dish = items.find(i => i.id === this.waterDishItemId);
+            if (dish) {
+              // Pick an exit point in the direction the gecko is currently facing
+              const exitAngle = this.group.rotation.y;
+              this.target.set(
+                dish.position.x + Math.cos(exitAngle) * 1.10,
+                0,
+                dish.position.z - Math.sin(exitAngle) * 1.10,
+              );
+              this.waterDishPhase = 3;
+              this.state = 'WALKING';
+              this.walkTime = 0;
+              this.setStatus('🦎 Exploring…');
+              break;
+            }
+            this.waterDishPhase  = 0;
+            this.waterDishItemId = null;
+          }
 
           if (this.sleepingInHide) {
             this.sleepingInHide = false;
@@ -793,6 +856,12 @@ export class Gecko {
           item.position.z + pDZ * side * 0.80 + mDZ * 0.40,
         );
         this.hideEntryPhase = 1;
+      } else if (item.type === ItemType.WATER_DISH) {
+        this.hideEntryPhase = 0;
+        // Walk straight to the bowl centre — collision is disabled while waterDishItemId is set
+        this.target.set(item.position.x, 0, item.position.z);
+        this.waterDishPhase  = 1;
+        this.waterDishItemId = item.id;
       } else {
         this.hideEntryPhase = 0;
         const approachR = col.climbable
