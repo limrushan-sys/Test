@@ -235,34 +235,36 @@ export function createItemMesh(type: ItemType): THREE.Group {
       };
 
       // Trunk
-      addSeg3( 0,  0,    0,   0,  0.40,  0,    0.088, 0.050);
-      addSeg3( 0,  0.40, 0,   0,  0.54,  0,    0.050, 0.040);
+      addSeg3(0, 0, 0,  0, 0.40, 0,  0.088, 0.050);
+      addSeg3(0, 0.40, 0,  0, 0.54, 0,  0.050, 0.040);
 
-      // Left main branch — spreads left and slightly forward
-      addSeg3( 0, 0.52,  0.00, -0.14, 0.68,  0.08, 0.034, 0.024);
-      addSeg3(-0.14, 0.68, 0.08, -0.30, 0.82,  0.14, 0.024, 0.015);
+      // 3 main branches at 120° apart (viewed from top = Y-shape)
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI * 2; // 0°, 120°, 240°
+        const bx = Math.sin(a), bz = Math.cos(a);
 
-      // Right main branch — spreads right and slightly back
-      addSeg3( 0, 0.52,  0.00,  0.16, 0.68, -0.08, 0.034, 0.024);
-      addSeg3( 0.16, 0.68, -0.08,  0.32, 0.82, -0.14, 0.024, 0.015);
+        // Main branch segment 1
+        const m1x = bx * 0.14, m1z = bz * 0.14;
+        addSeg3(0, 0.52, 0,  m1x, 0.68, m1z,  0.034, 0.024);
 
-      // Left sub-branches (spread in 3D)
-      addSeg3(-0.22, 0.76, 0.10, -0.46, 0.92,  0.18, 0.013, 0.005);
-      addSeg3(-0.22, 0.76, 0.10, -0.16, 0.96, -0.08, 0.013, 0.005);
-      addSeg3(-0.30, 0.82, 0.14, -0.52, 0.98,  0.06, 0.010, 0.004);
+        // Main branch segment 2 (continues outward)
+        const m2x = bx * 0.30, m2z = bz * 0.30;
+        addSeg3(m1x, 0.68, m1z,  m2x, 0.82, m2z,  0.024, 0.015);
 
-      // Right sub-branches (spread in 3D)
-      addSeg3( 0.24, 0.76, -0.10,  0.48, 0.92, -0.18, 0.013, 0.005);
-      addSeg3( 0.24, 0.76, -0.10,  0.18, 0.96,  0.08, 0.013, 0.005);
-      addSeg3( 0.32, 0.82, -0.14,  0.54, 0.98, -0.06, 0.010, 0.004);
+        // Sub-branch A — spreads 40° left of main direction
+        const la = a - 0.7;
+        const s1x = m2x + Math.sin(la) * 0.20, s1z = m2z + Math.cos(la) * 0.20;
+        addSeg3(m2x, 0.82, m2z,  s1x, 0.96, s1z,  0.012, 0.005);
 
-      // Lower side branch — front
-      addSeg3( 0, 0.28,  0.00,  0.10, 0.42,  0.24, 0.018, 0.008);
-      addSeg3( 0.10, 0.42, 0.24,  0.16, 0.52,  0.36, 0.008, 0.004);
+        // Sub-branch B — spreads 40° right of main direction
+        const ra = a + 0.7;
+        const s2x = m2x + Math.sin(ra) * 0.18, s2z = m2z + Math.cos(ra) * 0.18;
+        addSeg3(m2x, 0.82, m2z,  s2x, 0.96, s2z,  0.012, 0.005);
 
-      // Lower side branch — back
-      addSeg3( 0, 0.30,  0.00, -0.12, 0.44, -0.22, 0.016, 0.007);
-      addSeg3(-0.12, 0.44, -0.22, -0.20, 0.52, -0.34, 0.007, 0.003);
+        // Sub-branch C — straight continuation, tip
+        const s3x = m2x + bx * 0.16, s3z = m2z + bz * 0.16;
+        addSeg3(m2x, 0.82, m2z,  s3x, 0.98, s3z,  0.010, 0.004);
+      }
 
       break;
     }
