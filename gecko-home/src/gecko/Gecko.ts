@@ -252,16 +252,16 @@ export class Gecko {
       for (const side of [-1, 1] as const) {
         const ex   = bx + (tx - bx) * 0.45;
         const eyeY = yb + (ytB - (ytB - ytF) * 0.5) * 0.70;
-        const eye  = new THREE.Mesh(new THREE.SphereGeometry(0.040, 10, 8), eyeMat);
+        const eye  = new THREE.Mesh(new THREE.SphereGeometry(0.050, 10, 8), eyeMat);
         eye.position.set(ex, eyeY, side * (hw + 0.008));
         this.poseGroup.add(eye);
         this.eyeMeshes.push(eye);
-        // Vertical slit pupil
+        // Big cute pupil
         const pupil = new THREE.Mesh(
-          new THREE.SphereGeometry(0.018, 6, 8),
+          new THREE.SphereGeometry(0.030, 8, 8),
           pupilMat
         );
-        pupil.scale.set(0.35, 1, 0.25); // tall narrow ellipse
+        pupil.scale.set(0.5, 1, 0.4);
         pupil.position.set(ex, eyeY, side * (hw + 0.046));
         this.poseGroup.add(pupil);
       }
