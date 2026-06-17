@@ -42,6 +42,24 @@ export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
   [ItemType.LEAF_DECOR]:      { radius: 0.12, height: 0,    climbable: false },
 };
 
+// ── Branch spine: polyline segments in item-local XZ + height at each node ──
+// Each node: [x, y, z, radius] — the gecko collides with capsules between nodes
+export const BRANCH_SPINE: [number, number, number, number][] = [
+  [ 0.50, 0.02,  0.00, 0.07],
+  [ 0.30, 0.04,  0.02, 0.08],
+  [ 0.05, 0.08,  0.00, 0.08],
+  [-0.18, 0.16,  0.00, 0.07],
+  [-0.34, 0.30, -0.02, 0.06],
+  [-0.42, 0.44,  0.00, 0.05],  // fork point
+  [-0.52, 0.60,  0.04, 0.04],  // upper fork
+  [-0.56, 0.72,  0.06, 0.03],
+];
+export const BRANCH_SPINE_FORK: [number, number, number, number][] = [
+  [-0.42, 0.44,  0.00, 0.05],  // fork point (shared)
+  [-0.56, 0.42, -0.06, 0.04],  // lower fork
+  [-0.68, 0.36, -0.08, 0.02],
+];
+
 // ── Cricket factory ──────────────────────────────────────────────────────────
 export function createCricketMesh(): THREE.Group {
   const g = new THREE.Group();

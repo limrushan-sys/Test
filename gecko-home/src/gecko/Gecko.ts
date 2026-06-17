@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { PlacedItem } from '../items/ItemManager.js';
 import type { EnclosureBounds } from '../scene/Enclosure.js';
-import { ITEM_COLLISION, ItemType } from '../items/ItemTypes.js';
+import { ITEM_COLLISION, ItemType, BRANCH_SPINE, BRANCH_SPINE_FORK } from '../items/ItemTypes.js';
 
 const WALK_SPEED      = 0.85;
 const ARRIVE_DIST     = 0.15;
@@ -13,6 +13,46 @@ const BODY_BOB_AMP    = 0.010;
 const BODY_BOB_SPEED  = 5.0; // one gentle bob per stride
 
 type GeckoState = 'IDLE' | 'WALKING' | 'ARRIVED';
+
+/** Closest point on segment AB to point P (all 2D: x,z). Returns {t, dist, projX, projZ} */
+function closestOnSeg(ax: number, az: number, bx: number, bz: number, px: number, pz: number) {
+  const abx = bx - ax, abz = bz - az;
+  const len2 = abx * abx + abz * abz;
+  let t = len2 > 0 ? ((px - ax) * abx + (pz - az) * abz) / len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  const projX = ax + t * abx, projZ = az + t * abz;
+  const dx = px - projX, dz = pz - projZ;
+  return { t, dist: Math.sqrt(dx * dx + dz * dz), projX, projZ };
+}
+
+/** Find the closest spine segment to a world XZ point, given item position and rotation. Returns {dist, height, radius, projX, projZ} in world space. */
+function branchProbe(
+  spines: [number, number, number, number][][],
+  itemX: number, itemZ: number, rot: number,
+  px: number, pz: number,
+) {
+  const cosR = Math.cos(rot), sinR = Math.sin(rot);
+  // Transform world point to item-local space
+  const lx = (px - itemX) * cosR + (pz - itemZ) * sinR;
+  const lz = -(px - itemX) * sinR + (pz - itemZ) * cosR;
+
+  let bestDist = Infinity, bestH = 0, bestR = 0, bestWx = 0, bestWz = 0;
+  for (const spine of spines) {
+    for (let i = 0; i < spine.length - 1; i++) {
+      const [ax, ay, az, ar] = spine[i];
+      const [bx, by, bz, br] = spine[i + 1];
+      const c = closestOnSeg(ax, az, bx, bz, lx, lz);
+      if (c.dist < bestDist) {
+        bestDist = c.dist;
+        bestH = ay + c.t * (by - ay);
+        bestR = ar + c.t * (br - ar);
+        bestWx = c.projX * cosR - c.projZ * sinR + itemX;
+        bestWz = c.projX * sinR + c.projZ * cosR + itemZ;
+      }
+    }
+  }
+  return { dist: bestDist, height: bestH, radius: bestR, projX: bestWx, projZ: bestWz };
+}
 
 export class Gecko {
   group = new THREE.Group();
@@ -500,16 +540,29 @@ export class Gecko {
 
           // Remember climb height so ARRIVED state can hold the gecko up
           if (arrivedItem && ITEM_COLLISION[arrivedItem.type].climbable) {
-            this.perchHeight = ITEM_COLLISION[arrivedItem.type].height;
-            // Face gecko toward branch 0 (+Z of the tree item in world space)
-            // gecko local +X faces world (cos θ, 0, -sin θ), want it to face item's +Z = (sin r, 0, cos r)
-            // cos θ = sin r, -sin θ = cos r → θ = π/2 - r
-            const r = arrivedItem.mesh.rotation.y;
-            let perchAngle = Math.PI / 2 - r;
-            while (perchAngle >  Math.PI) perchAngle -= 2 * Math.PI;
-            while (perchAngle < -Math.PI) perchAngle += 2 * Math.PI;
-            this.turnAroundAngle = perchAngle;
-            this.posePitchTarget = 0.05; // slight lean along the branch curve
+            if (arrivedItem.type === ItemType.CLIMBING_BRANCH) {
+              // Use spine probe to find actual branch height at gecko's position
+              const probe = branchProbe(
+                [BRANCH_SPINE, BRANCH_SPINE_FORK],
+                arrivedItem.position.x, arrivedItem.position.z,
+                arrivedItem.mesh.rotation.y,
+                pos.x, pos.z,
+              );
+              this.perchHeight = probe.height;
+              // Face along the branch direction
+              const toFork = Math.atan2(
+                -(probe.projZ - pos.z), probe.projX - pos.x,
+              );
+              this.turnAroundAngle = toFork;
+            } else {
+              this.perchHeight = ITEM_COLLISION[arrivedItem.type].height;
+              const r = arrivedItem.mesh.rotation.y;
+              let perchAngle = Math.PI / 2 - r;
+              while (perchAngle >  Math.PI) perchAngle -= 2 * Math.PI;
+              while (perchAngle < -Math.PI) perchAngle += 2 * Math.PI;
+              this.turnAroundAngle = perchAngle;
+            }
+            this.posePitchTarget = 0.05;
           } else {
             this.perchHeight = 0;
           }
@@ -588,6 +641,21 @@ export class Gecko {
             colR = col.radius;
           }
           if (colR <= 0) continue;
+
+          // ── Climbing branch: segment-based collision following the spine ──
+          if (item.type === ItemType.CLIMBING_BRANCH) {
+            const rot = item.mesh.rotation.y;
+            const probe = branchProbe(
+              [BRANCH_SPINE, BRANCH_SPINE_FORK],
+              item.position.x, item.position.z, rot, nx, nz,
+            );
+            const margin = probe.radius + 0.08;
+            if (probe.dist < margin) {
+              this.targetY = Math.max(this.targetY, probe.height);
+            }
+            continue;
+          }
+
           const r2 = colR * colR;
 
           // Test body centre, head-tip, and rear probe; accumulate the deepest penetration
@@ -686,22 +754,22 @@ export class Gecko {
         // keep rear legs on the ground.
         // legDefs: i=0,1 front (localX=0.13, localZ=±0.11), i=2,3 rear (localX=-0.08)
         if (this.perchHeight > 0) {
-          // Keep normal legs visible, reposition them to cling to the branch
+          // Keep normal legs visible, position them clinging to the sides of the branch
           this.legGroups.forEach(lg => { lg.visible = true; });
           this.reachMeshes.forEach(rm => { rm.visible = false; });
 
-          // Foot targets: splay outward to grip the branch surface
+          // Legs drape down the sides of the branch — belly rests in the curve
           const perchFeet = [
-            { x:  0.15, y: -0.06, z:  0.10 },  // FL — forward-left on branch
-            { x:  0.15, y: -0.06, z: -0.10 },  // FR — forward-right on branch
-            { x: -0.10, y: -0.06, z:  0.10 },  // RL — rear-left on branch
-            { x: -0.10, y: -0.06, z: -0.10 },  // RR — rear-right on branch
+            { x:  0.14, y: -0.04, z:  0.14 },  // FL — forward-left, hangs over side
+            { x:  0.14, y: -0.04, z: -0.14 },  // FR — forward-right, hangs over side
+            { x: -0.09, y: -0.04, z:  0.14 },  // RL — rear-left, hangs over side
+            { x: -0.09, y: -0.04, z: -0.14 },  // RR — rear-right, hangs over side
           ];
           this.legGroups.forEach((lg, i) => {
             const t = perchFeet[i];
-            lg.position.x += (t.x - lg.position.x) * 0.15;
-            lg.position.y += (t.y - lg.position.y) * 0.15;
-            lg.position.z += (t.z - lg.position.z) * 0.15;
+            lg.position.x += (t.x - lg.position.x) * 0.12;
+            lg.position.y += (t.y - lg.position.y) * 0.12;
+            lg.position.z += (t.z - lg.position.z) * 0.12;
           });
         } else {
           // Show normal leg blobs, hide reach cylinders
