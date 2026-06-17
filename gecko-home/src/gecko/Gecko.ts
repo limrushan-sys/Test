@@ -570,7 +570,9 @@ export class Gecko {
               const dirWX = dirLX * cosR - dirLZ * sinR;
               const dirWZ = dirLX * sinR + dirLZ * cosR;
               // Gecko facing angle — face uphill toward the fork end
-              this.turnAroundAngle = Math.atan2(-dirWZ, dirWX);
+              let faceAngle = Math.atan2(-dirWZ, dirWX) + Math.PI;
+              while (faceAngle >  Math.PI) faceAngle -= 2 * Math.PI;
+              this.turnAroundAngle = faceAngle;
 
               // Tilt body to match the branch slope
               const dirLY = nextNode[1] - prevNode[1];
