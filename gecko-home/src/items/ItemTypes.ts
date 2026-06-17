@@ -142,7 +142,14 @@ export function createItemMesh(type: ItemType): THREE.Group {
       backDisc.rotation.y = -Math.PI / 2;
       backDisc.position.x = -len / 2;
 
-      group.add(outer, inner, backDisc);
+      const frontRing = new THREE.Mesh(
+        new THREE.RingGeometry(R - wall, R, SEG, 1, 0, Math.PI),
+        dark
+      );
+      frontRing.rotation.y = Math.PI / 2;
+      frontRing.position.x = len / 2;
+
+      group.add(outer, inner, backDisc, frontRing);
       break;
     }
 
