@@ -558,7 +558,7 @@ export class Gecko {
               const c = closestOnSeg(sA[0], sA[2], sB[0], sB[2], lx, lz);
               const spineH = sA[1] + c.t * (sB[1] - sA[1]);
               const spineR = sA[3] + c.t * (sB[3] - sA[3]);
-              this.perchHeight = spineH + spineR + 0.06;
+              this.perchHeight = spineH + spineR * 0.6;
 
               // Face uphill along the branch (toward the fork end)
               const nextNode = BRANCH_SPINE[Math.min(bestIdx + 2, BRANCH_SPINE.length - 1)];
@@ -681,8 +681,7 @@ export class Gecko {
               const probe = branchProbe(spines, item.position.x, item.position.z, rot, px, pz);
               const margin = probe.radius + 0.10;
               if (probe.dist < margin) {
-                // Raise gecko onto the branch
-                this.targetY = Math.max(this.targetY, probe.height + probe.radius + 0.06);
+                this.targetY = Math.max(this.targetY, probe.height);
                 // Push horizontally away if not climbing this branch
                 if (!isTargeting) {
                   const pushAmt = margin - probe.dist + 0.02;
