@@ -558,7 +558,7 @@ export class Gecko {
               const c = closestOnSeg(sA[0], sA[2], sB[0], sB[2], lx, lz);
               const spineH = sA[1] + c.t * (sB[1] - sA[1]);
               const spineR = sA[3] + c.t * (sB[3] - sA[3]);
-              this.perchHeight = spineH - spineR * 0.3;
+              this.perchHeight = spineH + spineR * 0.5;
 
               // Face uphill along the branch (toward the fork end)
               const nextNode = BRANCH_SPINE[Math.min(bestIdx + 2, BRANCH_SPINE.length - 1)];
