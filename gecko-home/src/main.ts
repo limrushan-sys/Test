@@ -82,6 +82,22 @@ class GeckoHomeApp {
         const added = this.itemManager.addCrickets(item);
         this.ui.showTip(added ? '🦗 Crickets added! Gecko will come to eat them.' : 'Bowl is full of crickets!', 2500);
       },
+      onLampRadius: (radius: number) => {
+        const item = this.itemManager.selectedItem;
+        if (!item) return;
+        const mesh = item.mesh;
+        mesh.userData.lampRadius = radius;
+        const oldBeam = mesh.userData.lampBeam as THREE.Mesh;
+        const oldSpot = mesh.userData.lampSpot as THREE.Mesh;
+        if (oldBeam) {
+          oldBeam.geometry.dispose();
+          oldBeam.geometry = new THREE.CylinderGeometry(radius, radius, 2.05, 16, 1, true);
+        }
+        if (oldSpot) {
+          oldSpot.geometry.dispose();
+          oldSpot.geometry = new THREE.CircleGeometry(radius, 24);
+        }
+      },
     });
 
     this.bindPointer(canvas);

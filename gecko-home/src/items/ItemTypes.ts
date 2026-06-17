@@ -462,6 +462,10 @@ export function createItemMesh(type: ItemType): THREE.Group {
       group.add(spotlight);
       group.add(spotlight.target);
 
+      group.userData.lampRadius = 0.50;
+      group.userData.lampBeam = beam;
+      group.userData.lampSpot = spot;
+
       break;
     }
 

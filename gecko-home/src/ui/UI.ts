@@ -12,6 +12,7 @@ export interface UICallbacks {
   onSpotColor: (hex: number | null) => void;
   onBellyColor: (hex: number) => void;
   onAddCrickets: () => void;
+  onLampRadius: (radius: number) => void;
 }
 
 // null hex = "None" (hide spots)
@@ -160,6 +161,10 @@ export class UI {
           🦗 Add Crickets
         </button>
       </div>
+      <div id="lamp-section" style="display:none;padding:0 12px 8px;">
+        <label style="font-size:11px;display:block;margin-bottom:4px;">Light Radius</label>
+        <input type="range" id="lamp-radius" min="0.2" max="2.0" step="0.05" value="0.50" style="width:100%"/>
+      </div>
       <button id="del-item" class="del-btn">🗑 Delete Item</button>
     `;
     root.appendChild(ctrl);
@@ -209,6 +214,9 @@ export class UI {
     document.getElementById('rot-right')!.onclick  = () => this.callbacks.onRotateItem(Math.PI / 8);
     document.getElementById('del-item')!.onclick   = () => this.callbacks.onDeleteItem();
     document.getElementById('add-crickets')!.onclick = () => this.callbacks.onAddCrickets();
+    (document.getElementById('lamp-radius') as HTMLInputElement).oninput = (e) => {
+      this.callbacks.onLampRadius(+(e.target as HTMLInputElement).value);
+    };
   }
 
   // ── Colour swatch builder ─────────────────────────────────────────────────
@@ -288,8 +296,13 @@ export class UI {
     if (item) {
       panel.className = 'panel visible';
       panel.querySelector('h4')!.textContent = `${ITEM_EMOJIS[item.type]} ${item.type}`;
-      // Show cricket button only for food bowls
       cricketSection.style.display = item.type === ItemType.FOOD_BOWL ? 'block' : 'none';
+      const lampSection = document.getElementById('lamp-section')!;
+      lampSection.style.display = item.type === ItemType.BASKING_LAMP ? 'block' : 'none';
+      if (item.type === ItemType.BASKING_LAMP) {
+        const radius = item.mesh.userData.lampRadius ?? 0.50;
+        (document.getElementById('lamp-radius') as HTMLInputElement).value = String(radius);
+      }
     } else {
       panel.className = 'panel';
     }
