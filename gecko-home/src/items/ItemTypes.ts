@@ -247,11 +247,9 @@ export function createItemMesh(type: ItemType): THREE.Group {
       // Fork: lower-right branch angles out
       addSeg3(-0.42, 0.44,  0.00, -0.56, 0.42, -0.06, 0.042, 0.030);
       addSeg3(-0.56, 0.42, -0.06, -0.68, 0.36, -0.08, 0.030, 0.018);
-      // Small stub/knot on main trunk
-      addSeg3(-0.10, 0.12,  0.00, -0.08, 0.18,  0.08, 0.028, 0.014, dark);
-      // Root end splay
-      addSeg3( 0.50, 0.02,  0.00,  0.58, 0.00,  0.06, 0.050, 0.030, dark);
-      addSeg3( 0.50, 0.02,  0.00,  0.56, 0.00, -0.06, 0.045, 0.028, dark);
+      // Thick support leg — props the trunk up like a kickstand
+      addSeg3(-0.10, 0.12,  0.00, -0.06, 0.04,  0.14, 0.055, 0.060, dark);
+      addSeg3(-0.06, 0.04,  0.14, -0.04, 0.00,  0.22, 0.060, 0.048, dark);
       break;
     }
 
