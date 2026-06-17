@@ -432,8 +432,8 @@ export function createItemMesh(type: ItemType): THREE.Group {
       group.add(bulb);
 
       // Light beam cylinder
-      const beamMat = new THREE.MeshLambertMaterial({
-        color: 0xffcc33, transparent: true, opacity: 0.04, side: THREE.DoubleSide,
+      const beamMat = new THREE.MeshBasicMaterial({
+        color: 0xffcc33, transparent: true, opacity: 0.04, side: THREE.DoubleSide, depthWrite: false,
       });
       const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.50, 0.50, 2.05, 16, 1, true), beamMat);
       beam.castShadow = false;
@@ -442,10 +442,12 @@ export function createItemMesh(type: ItemType): THREE.Group {
       group.add(beam);
 
       // Warm spot on the ground
-      const spotMat = new THREE.MeshLambertMaterial({
-        color: 0xffaa33, transparent: true, opacity: 0.35, side: THREE.DoubleSide,
+      const spotMat = new THREE.MeshBasicMaterial({
+        color: 0xffaa33, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false,
       });
       const spot = new THREE.Mesh(new THREE.CircleGeometry(0.50, 24), spotMat);
+      spot.castShadow = false;
+      spot.receiveShadow = false;
       spot.rotation.x = -Math.PI / 2;
       spot.position.y = 0.005;
       group.add(spot);
