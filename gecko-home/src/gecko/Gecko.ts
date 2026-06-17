@@ -770,11 +770,11 @@ export class Gecko {
         pos.x = nx;
         pos.z = nz;
 
-        // Stuck detection — if gecko barely moves for 2s, abandon target and pick a new one
+        // Stuck detection — if gecko barely moves for 0.8s, abandon target and pick a new one
         this.stuckTimer += delta;
-        if (this.stuckTimer > 2.0) {
+        if (this.stuckTimer > 0.8) {
           const moved = pos.distanceTo(this.lastStuckCheckPos);
-          if (moved < 0.08) {
+          if (moved < 0.15) {
             // Reset water dish state too in case it got stuck trying to enter
             this.waterDishPhase  = 0;
             this.waterDishItemId = null;
