@@ -541,19 +541,39 @@ export class Gecko {
           // Remember climb height so ARRIVED state can hold the gecko up
           if (arrivedItem && ITEM_COLLISION[arrivedItem.type].climbable) {
             if (arrivedItem.type === ItemType.CLIMBING_BRANCH) {
-              // Use spine probe to find actual branch height at gecko's position
-              const probe = branchProbe(
-                [BRANCH_SPINE, BRANCH_SPINE_FORK],
-                arrivedItem.position.x, arrivedItem.position.z,
-                arrivedItem.mesh.rotation.y,
-                pos.x, pos.z,
-              );
-              this.perchHeight = probe.height;
-              // Face along the branch direction
-              const toFork = Math.atan2(
-                -(probe.projZ - pos.z), probe.projX - pos.x,
-              );
-              this.turnAroundAngle = toFork;
+              const rot = arrivedItem.mesh.rotation.y;
+              const cosR = Math.cos(rot), sinR = Math.sin(rot);
+
+              // Find which spine segment the gecko is closest to
+              const lx = (pos.x - arrivedItem.position.x) * cosR + (pos.z - arrivedItem.position.z) * sinR;
+              const lz = -(pos.x - arrivedItem.position.x) * sinR + (pos.z - arrivedItem.position.z) * cosR;
+              let bestD = Infinity, bestIdx = 0;
+              for (let i = 0; i < BRANCH_SPINE.length - 1; i++) {
+                const c = closestOnSeg(BRANCH_SPINE[i][0], BRANCH_SPINE[i][2], BRANCH_SPINE[i+1][0], BRANCH_SPINE[i+1][2], lx, lz);
+                if (c.dist < bestD) { bestD = c.dist; bestIdx = i; }
+              }
+
+              // Height from closest point on spine
+              const sA = BRANCH_SPINE[bestIdx], sB = BRANCH_SPINE[Math.min(bestIdx + 1, BRANCH_SPINE.length - 1)];
+              const c = closestOnSeg(sA[0], sA[2], sB[0], sB[2], lx, lz);
+              this.perchHeight = sA[1] + c.t * (sB[1] - sA[1]);
+
+              // Face uphill along the branch (toward the fork end)
+              const nextNode = BRANCH_SPINE[Math.min(bestIdx + 2, BRANCH_SPINE.length - 1)];
+              const prevNode = BRANCH_SPINE[bestIdx];
+              // Direction in local space: prev → next
+              const dirLX = nextNode[0] - prevNode[0];
+              const dirLZ = nextNode[2] - prevNode[2];
+              // Transform to world space
+              const dirWX = dirLX * cosR - dirLZ * sinR;
+              const dirWZ = dirLX * sinR + dirLZ * cosR;
+              // Gecko facing angle (local +X = forward)
+              this.turnAroundAngle = Math.atan2(-dirWZ, dirWX);
+
+              // Tilt body to match the branch slope
+              const dirLY = nextNode[1] - prevNode[1];
+              const horizLen = Math.sqrt(dirLX * dirLX + dirLZ * dirLZ);
+              this.posePitchTarget = -Math.atan2(dirLY, horizLen);
             } else {
               this.perchHeight = ITEM_COLLISION[arrivedItem.type].height;
               const r = arrivedItem.mesh.rotation.y;
@@ -561,8 +581,8 @@ export class Gecko {
               while (perchAngle >  Math.PI) perchAngle -= 2 * Math.PI;
               while (perchAngle < -Math.PI) perchAngle += 2 * Math.PI;
               this.turnAroundAngle = perchAngle;
+              this.posePitchTarget = 0.05;
             }
-            this.posePitchTarget = 0.05;
           } else {
             this.perchHeight = 0;
           }
@@ -760,10 +780,10 @@ export class Gecko {
 
           // Legs drape down the sides of the branch — belly rests in the curve
           const perchFeet = [
-            { x:  0.14, y: -0.04, z:  0.14 },  // FL — forward-left, hangs over side
-            { x:  0.14, y: -0.04, z: -0.14 },  // FR — forward-right, hangs over side
-            { x: -0.09, y: -0.04, z:  0.14 },  // RL — rear-left, hangs over side
-            { x: -0.09, y: -0.04, z: -0.14 },  // RR — rear-right, hangs over side
+            { x:  0.14, y: -0.06, z:  0.16 },  // FL — hangs down left side
+            { x:  0.14, y: -0.06, z: -0.16 },  // FR — hangs down right side
+            { x: -0.09, y: -0.06, z:  0.16 },  // RL — hangs down left side
+            { x: -0.09, y: -0.06, z: -0.16 },  // RR — hangs down right side
           ];
           this.legGroups.forEach((lg, i) => {
             const t = perchFeet[i];
@@ -1040,9 +1060,19 @@ export class Gecko {
         this.waterDishPhase  = 1;
         this.waterDishItemId = item.id;
       } else if (col.climbable) {
-        // Walk straight to the base of the climbable — gecko will rise as it arrives
         this.hideEntryPhase = 0;
-        this.target.set(item.position.x, 0, item.position.z);
+        if (item.type === ItemType.CLIMBING_BRANCH) {
+          // Walk to a perch point on the rising section of the branch
+          const rot = item.mesh.rotation.y;
+          const cosR = Math.cos(rot), sinR = Math.sin(rot);
+          // Pick a spot on the spine around the mid-rise area (node index 3-4)
+          const node = BRANCH_SPINE[3 + Math.floor(Math.random() * 2)];
+          const wx = node[0] * cosR - node[2] * sinR + item.position.x;
+          const wz = node[0] * sinR + node[2] * cosR + item.position.z;
+          this.target.set(wx, 0, wz);
+        } else {
+          this.target.set(item.position.x, 0, item.position.z);
+        }
       } else {
         this.hideEntryPhase = 0;
         const approachR = col.radius + HEAD_REACH + 0.05;
