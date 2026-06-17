@@ -42,7 +42,7 @@ export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
   [ItemType.PLATFORM]:        { radius: 0.01, height: 0,    climbable: false },
   [ItemType.STONE]:           { radius: 0.26, height: 0,    climbable: false },
   [ItemType.LEAF_DECOR]:      { radius: 0.12, height: 0,    climbable: false },
-  [ItemType.BASKING_LAMP]:    { radius: 0.05, height: 0,    climbable: false },
+  [ItemType.BASKING_LAMP]:    { radius: 0,    height: 0,    climbable: false },
 };
 
 // ── Branch spine: polyline segments in item-local XZ + height at each node ──
@@ -378,7 +378,7 @@ export function createItemMesh(type: ItemType): THREE.Group {
       right.position.set(W / 2 - WALL / 2, H / 2, 0);
       group.add(right);
       // Front wall with rectangular doorway
-      const doorW = 0.44, doorH = H * 0.75;
+      const doorW = 0.44, doorH = H * 0.62;
       const lintelH = H - doorH;
       const pillarW = (W - doorW) / 2;
       const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(pillarW, H, WALL), blackMat);
@@ -499,7 +499,8 @@ export function createItemMesh(type: ItemType): THREE.Group {
 
       // Spotlight
       const spotlight = new THREE.SpotLight(0xffaa44, 2.5, 4, Math.PI / 6, 0.5, 1);
-      spotlight.castShadow = false;
+      spotlight.castShadow = true;
+      spotlight.shadow.mapSize.set(512, 512);
       spotlight.position.y = 2.1;
       spotlight.target.position.set(0, 0, 0);
       group.add(spotlight);
