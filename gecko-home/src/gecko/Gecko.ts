@@ -558,7 +558,7 @@ export class Gecko {
               const c = closestOnSeg(sA[0], sA[2], sB[0], sB[2], lx, lz);
               const spineH = sA[1] + c.t * (sB[1] - sA[1]);
               const spineR = sA[3] + c.t * (sB[3] - sA[3]);
-              this.perchHeight = spineH + spineR + 0.12;
+              this.perchHeight = spineH + spineR + 0.06;
 
               // Face uphill along the branch (toward the fork end)
               const nextNode = BRANCH_SPINE[Math.min(bestIdx + 2, BRANCH_SPINE.length - 1)];
@@ -577,7 +577,7 @@ export class Gecko {
               // Tilt body to match the branch slope
               const dirLY = nextNode[1] - prevNode[1];
               const horizLen = Math.sqrt(dirLX * dirLX + dirLZ * dirLZ);
-              this.posePitchTarget = Math.min(0.25, Math.atan2(dirLY, horizLen));
+              this.posePitchTarget = Math.min(0.12, Math.atan2(dirLY, horizLen) * 0.3);
             } else {
               this.perchHeight = ITEM_COLLISION[arrivedItem.type].height;
               const r = arrivedItem.mesh.rotation.y;
