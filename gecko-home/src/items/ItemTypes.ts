@@ -423,11 +423,13 @@ export function createItemMesh(type: ItemType): THREE.Group {
         blackMat
       );
       bowl.rotation.x = 0;
+      bowl.castShadow = false;
       bowl.position.y = 2.15;
       group.add(bowl);
 
       // Glowing bulb inside
       const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), bulbMat);
+      bulb.castShadow = false;
       bulb.position.y = 2.08;
       group.add(bulb);
 
