@@ -135,7 +135,14 @@ export function createItemMesh(type: ItemType): THREE.Group {
       );
       inner.rotation.z = Math.PI / 2;
 
-      group.add(outer, inner);
+      const backDisc = new THREE.Mesh(
+        new THREE.CircleGeometry(R, SEG, 0, Math.PI),
+        dark
+      );
+      backDisc.rotation.y = -Math.PI / 2;
+      backDisc.position.x = -len / 2;
+
+      group.add(outer, inner, backDisc);
       break;
     }
 
@@ -363,30 +370,15 @@ export function createItemMesh(type: ItemType): THREE.Group {
       const right = new THREE.Mesh(new THREE.BoxGeometry(WALL, H, D), blackMat);
       right.position.set(W / 2 - WALL / 2, H / 2, 0);
       group.add(right);
-      // Front wall with arch cutout
-      const archR = 0.22, archW = archR * 2;
-      const pillarW = (W - archW) / 2;
+      // Front wall with rectangular doorway
+      const doorW = 0.44, doorH = H;
+      const pillarW = (W - doorW) / 2;
       const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(pillarW, H, WALL), blackMat);
       leftPillar.position.set(-W / 2 + pillarW / 2, H / 2, D / 2 - WALL / 2);
       group.add(leftPillar);
       const rightPillar = new THREE.Mesh(new THREE.BoxGeometry(pillarW, H, WALL), blackMat);
       rightPillar.position.set(W / 2 - pillarW / 2, H / 2, D / 2 - WALL / 2);
       group.add(rightPillar);
-      const lintelH = H - archR * 2;
-      if (lintelH > 0) {
-        const lintel = new THREE.Mesh(new THREE.BoxGeometry(archW, lintelH, WALL), blackMat);
-        lintel.position.set(0, H - lintelH / 2, D / 2 - WALL / 2);
-        group.add(lintel);
-      }
-      // Arch
-      const arch = new THREE.Mesh(
-        new THREE.CylinderGeometry(archR, archR, WALL, 16, 1, true, 0, Math.PI),
-        innerMat
-      );
-      arch.rotation.x = Math.PI / 2;
-      arch.rotation.z = Math.PI;
-      arch.position.set(0, archR * 2, D / 2 - WALL / 2);
-      group.add(arch);
 
       // Ceiling
       const top = new THREE.Mesh(new THREE.BoxGeometry(W, WALL, D), blackMat);
