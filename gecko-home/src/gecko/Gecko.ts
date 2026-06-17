@@ -577,7 +577,7 @@ export class Gecko {
               // Tilt body to match the branch slope
               const dirLY = nextNode[1] - prevNode[1];
               const horizLen = Math.sqrt(dirLX * dirLX + dirLZ * dirLZ);
-              this.posePitchTarget = Math.min(0.12, Math.atan2(dirLY, horizLen) * 0.3);
+              this.posePitchTarget = 0;
             } else {
               this.perchHeight = ITEM_COLLISION[arrivedItem.type].height;
               const r = arrivedItem.mesh.rotation.y;
@@ -669,13 +669,30 @@ export class Gecko {
           // ── Climbing branch: segment-based collision following the spine ──
           if (item.type === ItemType.CLIMBING_BRANCH) {
             const rot = item.mesh.rotation.y;
-            const probe = branchProbe(
-              [BRANCH_SPINE, BRANCH_SPINE_FORK],
-              item.position.x, item.position.z, rot, nx, nz,
-            );
-            const margin = probe.radius + 0.08;
-            if (probe.dist < margin) {
-              this.targetY = Math.max(this.targetY, probe.height);
+            const spines = [BRANCH_SPINE, BRANCH_SPINE_FORK];
+            const isTargeting = this.targetItemId === item.id;
+
+            // Check body centre, head, and rear against the branch spine
+            for (const [px, pz] of [
+              [nx, nz],
+              [nx + facingX * HEAD_REACH, nz + facingZ * HEAD_REACH],
+              [nx - facingX * 0.38, nz - facingZ * 0.38],
+            ] as [number, number][]) {
+              const probe = branchProbe(spines, item.position.x, item.position.z, rot, px, pz);
+              const margin = probe.radius + 0.10;
+              if (probe.dist < margin) {
+                // Raise gecko onto the branch
+                this.targetY = Math.max(this.targetY, probe.height + probe.radius + 0.06);
+                // Push horizontally away if not climbing this branch
+                if (!isTargeting) {
+                  const pushAmt = margin - probe.dist + 0.02;
+                  const pdx = px - probe.projX;
+                  const pdz = pz - probe.projZ;
+                  const pd = Math.sqrt(pdx * pdx + pdz * pdz) || 0.001;
+                  nx += (pdx / pd) * pushAmt;
+                  nz += (pdz / pd) * pushAmt;
+                }
+              }
             }
             continue;
           }
