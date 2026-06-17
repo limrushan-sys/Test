@@ -553,10 +553,12 @@ export class Gecko {
                 if (c.dist < bestD) { bestD = c.dist; bestIdx = i; }
               }
 
-              // Height from closest point on spine
+              // Height: sink the belly into the branch curve (subtract branch radius so body wraps around it)
               const sA = BRANCH_SPINE[bestIdx], sB = BRANCH_SPINE[Math.min(bestIdx + 1, BRANCH_SPINE.length - 1)];
               const c = closestOnSeg(sA[0], sA[2], sB[0], sB[2], lx, lz);
-              this.perchHeight = sA[1] + c.t * (sB[1] - sA[1]);
+              const spineH = sA[1] + c.t * (sB[1] - sA[1]);
+              const spineR = sA[3] + c.t * (sB[3] - sA[3]);
+              this.perchHeight = spineH - spineR * 0.3;
 
               // Face uphill along the branch (toward the fork end)
               const nextNode = BRANCH_SPINE[Math.min(bestIdx + 2, BRANCH_SPINE.length - 1)];
@@ -567,11 +569,8 @@ export class Gecko {
               // Transform to world space
               const dirWX = dirLX * cosR - dirLZ * sinR;
               const dirWZ = dirLX * sinR + dirLZ * cosR;
-              // Gecko facing angle (local +X = forward) — face uphill (toward fork)
-              let faceAngle = Math.atan2(-dirWZ, dirWX) + Math.PI;
-              while (faceAngle >  Math.PI) faceAngle -= 2 * Math.PI;
-              while (faceAngle < -Math.PI) faceAngle += 2 * Math.PI;
-              this.turnAroundAngle = faceAngle;
+              // Gecko facing angle — face uphill toward the fork end
+              this.turnAroundAngle = Math.atan2(-dirWZ, dirWX);
 
               // Tilt body to match the branch slope
               const dirLY = nextNode[1] - prevNode[1];
