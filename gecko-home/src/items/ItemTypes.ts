@@ -34,7 +34,7 @@ export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
   [ItemType.SLEEPING_HIDE]:   { radius: 0.01, height: 0,    climbable: false },
   [ItemType.WATER_DISH]:      { radius: 0.70, height: 0,    climbable: false },
   [ItemType.FOOD_BOWL]:       { radius: 0.32, height: 0,    climbable: false },
-  [ItemType.CLIMBING_BRANCH]: { radius: 0.20, height: 0.54, climbable: true  },
+  [ItemType.CLIMBING_BRANCH]: { radius: 0.35, height: 0.40, climbable: true  },
   [ItemType.CORK_BARK]:       { radius: 0.38, height: 0.12, climbable: true  },
   [ItemType.RAMP]:            { radius: 0.42, height: 0.30, climbable: true  },
   [ItemType.PLATFORM]:        { radius: 0.58, height: 0.30, climbable: true  },
@@ -216,10 +216,10 @@ export function createItemMesh(type: ItemType): THREE.Group {
       break;
     }
 
-    // ── Climbing Branch: driftwood/manzanita arch ───────────────────────────
+    // ── Climbing Branch: horizontal driftwood with Y-fork ───────────────────
     case ItemType.CLIMBING_BRANCH: {
-      const mat  = new THREE.MeshLambertMaterial({ color: 0xc8a070 });
-      const dark = new THREE.MeshLambertMaterial({ color: 0x8b5230 });
+      const mat  = new THREE.MeshLambertMaterial({ color: 0xb8a088 });
+      const dark = new THREE.MeshLambertMaterial({ color: 0x8a7560 });
 
       const addSeg3 = (
         x1: number, y1: number, z1: number,
@@ -234,24 +234,24 @@ export function createItemMesh(type: ItemType): THREE.Group {
         group.add(seg);
       };
 
-      // Base stump
-      addSeg3( 0.00, 0.00,  0.00,  0.00, 0.16,  0.00, 0.095, 0.080);
-      // Left main leg curving up
-      addSeg3( 0.00, 0.14,  0.00, -0.12, 0.30, -0.06, 0.078, 0.065);
-      addSeg3(-0.12, 0.30, -0.06, -0.18, 0.55, -0.04, 0.065, 0.050);
-      addSeg3(-0.18, 0.55, -0.04, -0.10, 0.76,  0.00, 0.050, 0.038);
-      // Right main leg curving up
-      addSeg3( 0.00, 0.14,  0.00,  0.14, 0.28,  0.08, 0.078, 0.065);
-      addSeg3( 0.14, 0.28,  0.08,  0.20, 0.50,  0.05, 0.065, 0.052);
-      addSeg3( 0.20, 0.50,  0.05,  0.12, 0.72,  0.00, 0.052, 0.040);
-      // Top connecting bar
-      addSeg3(-0.10, 0.76,  0.00,  0.12, 0.72,  0.00, 0.038, 0.040);
-      // Small side branch
-      addSeg3( 0.18, 0.42,  0.06,  0.36, 0.40,  0.12, 0.034, 0.018, dark);
-      addSeg3( 0.36, 0.40,  0.12,  0.46, 0.36,  0.16, 0.018, 0.009, dark);
-      // Root feet
-      addSeg3(-0.02, 0.04,  0.00, -0.14, 0.00, -0.08, 0.055, 0.035, dark);
-      addSeg3(-0.02, 0.04,  0.00,  0.12, 0.00,  0.10, 0.055, 0.035, dark);
+      // Long base section lying mostly flat, slight upward angle
+      addSeg3( 0.50, 0.02,  0.00,  0.30, 0.04,  0.02, 0.060, 0.068);
+      addSeg3( 0.30, 0.04,  0.02,  0.05, 0.08,  0.00, 0.068, 0.072);
+      addSeg3( 0.05, 0.08,  0.00, -0.18, 0.16,  0.00, 0.072, 0.065);
+      // Rises up toward the fork
+      addSeg3(-0.18, 0.16,  0.00, -0.34, 0.30, -0.02, 0.065, 0.055);
+      addSeg3(-0.34, 0.30, -0.02, -0.42, 0.44,  0.00, 0.055, 0.048);
+      // Fork: upper-left branch continues up
+      addSeg3(-0.42, 0.44,  0.00, -0.52, 0.60,  0.04, 0.046, 0.032);
+      addSeg3(-0.52, 0.60,  0.04, -0.56, 0.72,  0.06, 0.032, 0.020);
+      // Fork: lower-right branch angles out
+      addSeg3(-0.42, 0.44,  0.00, -0.56, 0.42, -0.06, 0.042, 0.030);
+      addSeg3(-0.56, 0.42, -0.06, -0.68, 0.36, -0.08, 0.030, 0.018);
+      // Small stub/knot on main trunk
+      addSeg3(-0.10, 0.12,  0.00, -0.08, 0.18,  0.08, 0.028, 0.014, dark);
+      // Root end splay
+      addSeg3( 0.50, 0.02,  0.00,  0.58, 0.00,  0.06, 0.050, 0.030, dark);
+      addSeg3( 0.50, 0.02,  0.00,  0.56, 0.00, -0.06, 0.045, 0.028, dark);
       break;
     }
 
