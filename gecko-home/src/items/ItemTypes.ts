@@ -378,7 +378,8 @@ export function createItemMesh(type: ItemType): THREE.Group {
       right.position.set(W / 2 - WALL / 2, H / 2, 0);
       group.add(right);
       // Front wall with rectangular doorway
-      const doorW = 0.44, doorH = H;
+      const doorW = 0.44, doorH = H * 0.75;
+      const lintelH = H - doorH;
       const pillarW = (W - doorW) / 2;
       const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(pillarW, H, WALL), blackMat);
       leftPillar.position.set(-W / 2 + pillarW / 2, H / 2, D / 2 - WALL / 2);
@@ -386,6 +387,9 @@ export function createItemMesh(type: ItemType): THREE.Group {
       const rightPillar = new THREE.Mesh(new THREE.BoxGeometry(pillarW, H, WALL), blackMat);
       rightPillar.position.set(W / 2 - pillarW / 2, H / 2, D / 2 - WALL / 2);
       group.add(rightPillar);
+      const lintel = new THREE.Mesh(new THREE.BoxGeometry(doorW, lintelH, WALL), blackMat);
+      lintel.position.set(0, H - lintelH / 2, D / 2 - WALL / 2);
+      group.add(lintel);
 
       // Ceiling
       const top = new THREE.Mesh(new THREE.BoxGeometry(W, WALL, D), blackMat);
