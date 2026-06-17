@@ -450,6 +450,7 @@ export function createItemMesh(type: ItemType): THREE.Group {
 
       // Spotlight
       const spotlight = new THREE.SpotLight(0xffaa44, 2.5, 4, Math.PI / 6, 0.5, 1);
+      spotlight.castShadow = false;
       spotlight.position.y = 2.1;
       spotlight.target.position.set(0, 0, 0);
       group.add(spotlight);
