@@ -115,45 +115,106 @@ export function createItemMesh(type: ItemType): THREE.Group {
 
     // ── Sleeping Hide: half hollow cylinder laid on its side ────────────────
     case ItemType.SLEEPING_HIDE: {
-      const R    = 0.38;
-      const len  = 0.95;
-      const wall = 0.045;
-      const SEG  = 24;
+      const W = 0.80, D = 0.65, H = 0.45;
+      const WALL = 0.04;
+      const blackMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a, side: THREE.DoubleSide });
+      const innerMat = new THREE.MeshLambertMaterial({ color: 0x2a2a2a, side: THREE.DoubleSide });
+      const trayMat  = new THREE.MeshLambertMaterial({ color: 0xc05a28, side: THREE.DoubleSide });
+      const rimMat   = new THREE.MeshLambertMaterial({ color: 0x151515 });
+      const leafMat  = new THREE.MeshLambertMaterial({ color: 0x4a8c2a, side: THREE.DoubleSide });
+      const darkLeaf = new THREE.MeshLambertMaterial({ color: 0x2d6618, side: THREE.DoubleSide });
+      const stemMat  = new THREE.MeshLambertMaterial({ color: 0x3a7020 });
 
-      const mat  = new THREE.MeshLambertMaterial({ color: 0x8b5e3c, side: THREE.DoubleSide });
-      const dark = new THREE.MeshLambertMaterial({ color: 0x5c3820, side: THREE.DoubleSide });
+      // Base plate
+      const base = new THREE.Mesh(new THREE.BoxGeometry(W + 0.08, 0.02, D + 0.08), blackMat);
+      base.position.y = 0.01;
+      group.add(base);
 
-      // Outer curved shell — openEnded to avoid any overlapping faces
-      const outer = new THREE.Mesh(
-        new THREE.CylinderGeometry(R, R, len, SEG, 1, true, 0, Math.PI),
-        mat
+      // Outer box walls
+      // Back wall
+      const back = new THREE.Mesh(new THREE.BoxGeometry(W, H, WALL), blackMat);
+      back.position.set(0, H / 2, -D / 2 + WALL / 2);
+      group.add(back);
+      // Left wall
+      const left = new THREE.Mesh(new THREE.BoxGeometry(WALL, H, D), blackMat);
+      left.position.set(-W / 2 + WALL / 2, H / 2, 0);
+      group.add(left);
+      // Right wall
+      const right = new THREE.Mesh(new THREE.BoxGeometry(WALL, H, D), blackMat);
+      right.position.set(W / 2 - WALL / 2, H / 2, 0);
+      group.add(right);
+      // Front wall with arch cutout — two pillars on each side of the arch
+      const archR = 0.14, archW = archR * 2;
+      const pillarW = (W - archW) / 2;
+      const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(pillarW, H, WALL), blackMat);
+      leftPillar.position.set(-W / 2 + pillarW / 2, H / 2, D / 2 - WALL / 2);
+      group.add(leftPillar);
+      const rightPillar = new THREE.Mesh(new THREE.BoxGeometry(pillarW, H, WALL), blackMat);
+      rightPillar.position.set(W / 2 - pillarW / 2, H / 2, D / 2 - WALL / 2);
+      group.add(rightPillar);
+      // Lintel above arch
+      const lintelH = H - archR * 2;
+      if (lintelH > 0) {
+        const lintel = new THREE.Mesh(new THREE.BoxGeometry(archW, lintelH, WALL), blackMat);
+        lintel.position.set(0, H - lintelH / 2, D / 2 - WALL / 2);
+        group.add(lintel);
+      }
+      // Arch (half-cylinder)
+      const arch = new THREE.Mesh(
+        new THREE.CylinderGeometry(archR, archR, WALL, 16, 1, true, 0, Math.PI),
+        innerMat
       );
-      outer.rotation.z = Math.PI / 2;
+      arch.rotation.x = Math.PI / 2;
+      arch.rotation.z = Math.PI;
+      arch.position.set(0, archR * 2, D / 2 - WALL / 2);
+      group.add(arch);
 
-      // Inner curved shell — hollow cavity
-      const inner = new THREE.Mesh(
-        new THREE.CylinderGeometry(R - wall, R - wall, len, SEG, 1, true, 0, Math.PI),
-        mat
-      );
-      inner.rotation.z = Math.PI / 2;
+      // Ceiling / top
+      const top = new THREE.Mesh(new THREE.BoxGeometry(W, WALL, D), blackMat);
+      top.position.y = H;
+      group.add(top);
 
-      // Back: solid half-disc sealing the closed end (CircleGeometry = flat, no overlap)
-      const backDisc = new THREE.Mesh(
-        new THREE.CircleGeometry(R, SEG, 0, Math.PI),
-        dark
-      );
-      backDisc.rotation.y = -Math.PI / 2;   // face outward (-X)
-      backDisc.position.x = -len / 2;
+      // Rim around top
+      const rimF = new THREE.Mesh(new THREE.BoxGeometry(W + 0.04, 0.03, 0.03), rimMat);
+      rimF.position.set(0, H + 0.015, D / 2 + 0.01);
+      const rimB = new THREE.Mesh(new THREE.BoxGeometry(W + 0.04, 0.03, 0.03), rimMat);
+      rimB.position.set(0, H + 0.015, -D / 2 - 0.01);
+      const rimL = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, D + 0.06), rimMat);
+      rimL.position.set(-W / 2 - 0.01, H + 0.015, 0);
+      const rimR = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, D + 0.06), rimMat);
+      rimR.position.set(W / 2 + 0.01, H + 0.015, 0);
+      group.add(rimF, rimB, rimL, rimR);
 
-      // Front: half-ring annulus shows the wall edge but leaves the opening clear
-      const frontRing = new THREE.Mesh(
-        new THREE.RingGeometry(R - wall, R, SEG, 1, 0, Math.PI),
-        dark
-      );
-      frontRing.rotation.y = Math.PI / 2;   // face outward (+X)
-      frontRing.position.x = len / 2;
+      // Orange/terracotta tray on top
+      const trayH = 0.03;
+      const tray = new THREE.Mesh(new THREE.BoxGeometry(W - 0.06, trayH, D - 0.06), trayMat);
+      tray.position.y = H + 0.03 + trayH / 2;
+      group.add(tray);
 
-      group.add(outer, inner, backDisc, frontRing);
+      // Small plants on the tray
+      for (let pi = 0; pi < 5; pi++) {
+        const px = (pi / 4 - 0.5) * (W - 0.20);
+        const pz = (Math.random() - 0.5) * (D - 0.25);
+        const plantH = 0.08 + Math.random() * 0.06;
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, plantH, 4), stemMat);
+        stem.position.set(px, H + 0.03 + trayH + plantH / 2, pz);
+        group.add(stem);
+        for (let li = 0; li < 3; li++) {
+          const leaf = new THREE.Mesh(
+            new THREE.PlaneGeometry(0.06, 0.03),
+            li % 2 === 0 ? leafMat : darkLeaf
+          );
+          const la = (li / 3) * Math.PI * 2 + pi;
+          leaf.position.set(
+            px + Math.cos(la) * 0.02,
+            H + 0.03 + trayH + plantH * 0.6 + li * 0.02,
+            pz + Math.sin(la) * 0.02
+          );
+          leaf.rotation.set(-0.4 + Math.random() * 0.3, la, 0);
+          group.add(leaf);
+        }
+      }
+
       break;
     }
 
