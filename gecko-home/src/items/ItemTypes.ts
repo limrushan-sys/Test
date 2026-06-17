@@ -10,6 +10,7 @@ export enum ItemType {
   PLATFORM        = 'Platform',
   STONE           = 'Stone',
   LEAF_DECOR      = 'Leaf Decor',
+  BASKING_LAMP    = 'Basking Lamp',
 }
 
 export const ITEM_EMOJIS: Record<ItemType, string> = {
@@ -22,6 +23,7 @@ export const ITEM_EMOJIS: Record<ItemType, string> = {
   [ItemType.PLATFORM]:        '⬜',
   [ItemType.STONE]:           '⚫',
   [ItemType.LEAF_DECOR]:      '🌿',
+  [ItemType.BASKING_LAMP]:    '💡',
 };
 
 export interface ItemCollisionData {
@@ -40,6 +42,7 @@ export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
   [ItemType.PLATFORM]:        { radius: 0.58, height: 0.30, climbable: true  },
   [ItemType.STONE]:           { radius: 0.26, height: 0,    climbable: false },
   [ItemType.LEAF_DECOR]:      { radius: 0.12, height: 0,    climbable: false },
+  [ItemType.BASKING_LAMP]:    { radius: 0.05, height: 0,    climbable: false },
 };
 
 // ── Branch spine: polyline segments in item-local XZ + height at each node ──
@@ -410,6 +413,59 @@ export function createItemMesh(type: ItemType): THREE.Group {
     }
 
     // ── Leaf Decor ──────────────────────────────────────────────────────────
+    case ItemType.BASKING_LAMP: {
+      // Lamp fixture floating above
+      const lampMat = new THREE.MeshLambertMaterial({ color: 0x2a2a2a });
+      const bulbMat = new THREE.MeshLambertMaterial({ color: 0xffdd44, emissive: 0xffaa00, emissiveIntensity: 0.8 });
+      const domeMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+
+      // Dome shade
+      const dome = new THREE.Mesh(
+        new THREE.SphereGeometry(0.22, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5),
+        domeMat
+      );
+      dome.rotation.x = Math.PI;
+      dome.position.y = 2.2;
+      group.add(dome);
+
+      // Bulb
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), bulbMat);
+      bulb.position.y = 2.12;
+      group.add(bulb);
+
+      // Mounting rod to ceiling
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6), lampMat);
+      rod.position.y = 2.45;
+      group.add(rod);
+
+      // Light cone (translucent)
+      const coneMat = new THREE.MeshLambertMaterial({
+        color: 0xffcc33, transparent: true, opacity: 0.06, side: THREE.DoubleSide,
+      });
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.55, 2.1, 16, 1, true), coneMat);
+      cone.rotation.x = Math.PI;
+      cone.position.y = 1.05;
+      group.add(cone);
+
+      // Warm light spot on the ground (the "blueprint")
+      const spotMat = new THREE.MeshLambertMaterial({
+        color: 0xffaa33, transparent: true, opacity: 0.35, side: THREE.DoubleSide,
+      });
+      const spot = new THREE.Mesh(new THREE.CircleGeometry(0.55, 24), spotMat);
+      spot.rotation.x = -Math.PI / 2;
+      spot.position.y = 0.005;
+      group.add(spot);
+
+      // Actual Three.js spotlight for real lighting
+      const spotlight = new THREE.SpotLight(0xffaa44, 2.5, 4, Math.PI / 6, 0.5, 1);
+      spotlight.position.y = 2.1;
+      spotlight.target.position.set(0, 0, 0);
+      group.add(spotlight);
+      group.add(spotlight.target);
+
+      break;
+    }
+
     case ItemType.LEAF_DECOR: {
       const leafMat = new THREE.MeshLambertMaterial({ color: 0x558b2f, side: THREE.DoubleSide });
       const darkLeaf= new THREE.MeshLambertMaterial({ color: 0x33691e, side: THREE.DoubleSide });
