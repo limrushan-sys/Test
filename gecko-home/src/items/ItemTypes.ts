@@ -436,6 +436,8 @@ export function createItemMesh(type: ItemType): THREE.Group {
         color: 0xffcc33, transparent: true, opacity: 0.04, side: THREE.DoubleSide,
       });
       const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.50, 0.50, 2.05, 16, 1, true), beamMat);
+      beam.castShadow = false;
+      beam.receiveShadow = false;
       beam.position.y = 1.03;
       group.add(beam);
 
