@@ -124,7 +124,9 @@ export class ItemManager {
     const pt = hits[0].point;
     const mesh = createItemMesh(this.selectedType);
     mesh.position.set(pt.x, 0, pt.z);
-    mesh.traverse(c => { if ((c as THREE.Mesh).isMesh) (c as THREE.Mesh).castShadow = true; });
+    if (this.selectedType !== ItemType.BASKING_LAMP) {
+      mesh.traverse(c => { if ((c as THREE.Mesh).isMesh) (c as THREE.Mesh).castShadow = true; });
+    }
     this.scene.add(mesh);
 
     this.items.push({
