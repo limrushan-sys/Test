@@ -558,7 +558,7 @@ export class Gecko {
               const c = closestOnSeg(sA[0], sA[2], sB[0], sB[2], lx, lz);
               const spineH = sA[1] + c.t * (sB[1] - sA[1]);
               const spineR = sA[3] + c.t * (sB[3] - sA[3]);
-              this.perchHeight = spineH + spineR;
+              this.perchHeight = spineH + spineR + 0.04;
 
               // Face uphill along the branch (toward the fork end)
               const nextNode = BRANCH_SPINE[Math.min(bestIdx + 2, BRANCH_SPINE.length - 1)];
@@ -782,12 +782,12 @@ export class Gecko {
           this.legGroups.forEach(lg => { lg.visible = true; });
           this.reachMeshes.forEach(rm => { rm.visible = false; });
 
-          // Legs drape down the sides of the branch — belly rests in the curve
+          // Legs wrap around the branch — paws grip the sides
           const perchFeet = [
-            { x:  0.14, y: -0.06, z:  0.16 },  // FL — hangs down left side
-            { x:  0.14, y: -0.06, z: -0.16 },  // FR — hangs down right side
-            { x: -0.09, y: -0.06, z:  0.16 },  // RL — hangs down left side
-            { x: -0.09, y: -0.06, z: -0.16 },  // RR — hangs down right side
+            { x:  0.13, y: -0.10, z:  0.13 },  // FL — hangs down left side
+            { x:  0.13, y: -0.10, z: -0.13 },  // FR — hangs down right side
+            { x: -0.08, y: -0.10, z:  0.13 },  // RL — hangs down left side
+            { x: -0.08, y: -0.10, z: -0.13 },  // RR — hangs down right side
           ];
           this.legGroups.forEach((lg, i) => {
             const t = perchFeet[i];
