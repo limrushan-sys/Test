@@ -558,7 +558,7 @@ export class Gecko {
               const c = closestOnSeg(sA[0], sA[2], sB[0], sB[2], lx, lz);
               const spineH = sA[1] + c.t * (sB[1] - sA[1]);
               const spineR = sA[3] + c.t * (sB[3] - sA[3]);
-              this.perchHeight = spineH;
+              this.perchHeight = spineH + spineR;
 
               // Face uphill along the branch (toward the fork end)
               const nextNode = BRANCH_SPINE[Math.min(bestIdx + 2, BRANCH_SPINE.length - 1)];
@@ -1067,8 +1067,8 @@ export class Gecko {
           // Walk to a perch point on the rising section of the branch
           const rot = item.mesh.rotation.y;
           const cosR = Math.cos(rot), sinR = Math.sin(rot);
-          // Pick a spot on the gentle rise area (node index 2-3)
-          const node = BRANCH_SPINE[2 + Math.floor(Math.random() * 2)];
+          // Pick a spot on the mid-rise area (node index 3-4)
+          const node = BRANCH_SPINE[3 + Math.floor(Math.random() * 2)];
           const wx = node[0] * cosR - node[2] * sinR + item.position.x;
           const wz = node[0] * sinR + node[2] * cosR + item.position.z;
           this.target.set(wx, 0, wz);
