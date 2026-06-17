@@ -801,10 +801,10 @@ export class Gecko {
 
           // Legs wrap around the branch — paws grip the sides
           const perchFeet = [
-            { x:  0.13, y: -0.10, z:  0.13 },  // FL — hangs down left side
-            { x:  0.13, y: -0.10, z: -0.13 },  // FR — hangs down right side
-            { x: -0.08, y: -0.10, z:  0.13 },  // RL — hangs down left side
-            { x: -0.08, y: -0.10, z: -0.13 },  // RR — hangs down right side
+            { x:  0.13, y: -0.05, z:  0.10 },  // FL — left side of branch
+            { x:  0.13, y: -0.05, z: -0.10 },  // FR — right side of branch
+            { x: -0.08, y: -0.05, z:  0.10 },  // RL — left side of branch
+            { x: -0.08, y: -0.05, z: -0.10 },  // RR — right side of branch
           ];
           this.legGroups.forEach((lg, i) => {
             const t = perchFeet[i];
