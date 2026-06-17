@@ -252,8 +252,8 @@ export function createItemMesh(type: ItemType): THREE.Group {
       addSeg3(-0.06, 0.04,  0.14, -0.04, 0.00,  0.22, 0.060, 0.048, dark);
       // Second support leg on opposite side
       const leg2 = new THREE.MeshLambertMaterial({ color: 0x9a8468 });
-      addSeg3( 0.12, 0.09,  0.00,  0.16, 0.04, -0.12, 0.050, 0.055, leg2);
-      addSeg3( 0.16, 0.04, -0.12,  0.18, 0.00, -0.20, 0.055, 0.042, leg2);
+      addSeg3( 0.12, 0.09,  0.00,  0.18, 0.04, -0.18, 0.050, 0.055, leg2);
+      addSeg3( 0.18, 0.04, -0.18,  0.22, 0.00, -0.30, 0.055, 0.042, leg2);
       break;
     }
 
