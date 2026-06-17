@@ -135,14 +135,7 @@ export function createItemMesh(type: ItemType): THREE.Group {
       );
       inner.rotation.z = Math.PI / 2;
 
-      const backDisc = new THREE.Mesh(
-        new THREE.CircleGeometry(R, SEG, 0, Math.PI),
-        dark
-      );
-      backDisc.rotation.y = -Math.PI / 2;
-      backDisc.position.x = -len / 2;
-
-      group.add(outer, inner, backDisc);
+      group.add(outer, inner);
       break;
     }
 
