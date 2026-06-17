@@ -414,70 +414,32 @@ export function createItemMesh(type: ItemType): THREE.Group {
 
     // ── Leaf Decor ──────────────────────────────────────────────────────────
     case ItemType.BASKING_LAMP: {
-      const blackMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
-      const innerMat = new THREE.MeshLambertMaterial({ color: 0x888888, side: THREE.DoubleSide });
+      const blackMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a, side: THREE.DoubleSide });
       const bulbMat  = new THREE.MeshLambertMaterial({ color: 0xffdd44, emissive: 0xffaa00, emissiveIntensity: 0.8 });
-      const wireMat  = new THREE.MeshLambertMaterial({ color: 0x555555 });
 
-      // Dome shade — wide, deep bowl shape
-      const domeOuter = new THREE.Mesh(
-        new THREE.SphereGeometry(0.32, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.45),
+      // Upside-down bowl
+      const bowl = new THREE.Mesh(
+        new THREE.SphereGeometry(0.30, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.5),
         blackMat
       );
-      domeOuter.rotation.x = Math.PI;
-      domeOuter.position.y = 2.15;
-      group.add(domeOuter);
+      bowl.rotation.x = Math.PI;
+      bowl.position.y = 2.15;
+      group.add(bowl);
 
-      // Inner reflective surface
-      const domeInner = new THREE.Mesh(
-        new THREE.SphereGeometry(0.30, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.44),
-        innerMat
-      );
-      domeInner.rotation.x = Math.PI;
-      domeInner.position.y = 2.15;
-      group.add(domeInner);
-
-      // Rim ring at bottom of dome
-      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.30, 0.015, 8, 24), blackMat);
-      rim.position.y = 2.15;
-      group.add(rim);
-
-      // Bulb
-      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), bulbMat);
+      // Glowing bulb inside
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), bulbMat);
       bulb.position.y = 2.08;
       group.add(bulb);
 
-      // Wire clamp handle on top
-      const clampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.04, 8), blackMat);
-      clampBase.position.y = 2.32;
-      group.add(clampBase);
-      // Wire loop
-      for (let side = -1; side <= 1; side += 2) {
-        const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.22, 4), wireMat);
-        wire.position.set(side * 0.04, 2.43, 0);
-        wire.rotation.z = side * 0.15;
-        group.add(wire);
-      }
-      const wireTop = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.12, 4), wireMat);
-      wireTop.position.y = 2.55;
-      wireTop.rotation.z = Math.PI / 2;
-      group.add(wireTop);
-
-      // Power cord going up
-      const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.4, 5), blackMat);
-      cord.position.set(0.08, 2.45, 0);
-      cord.rotation.z = 0.3;
-      group.add(cord);
-
-      // Light beam — cylinder matching the ground spot size
+      // Light beam cylinder
       const beamMat = new THREE.MeshLambertMaterial({
         color: 0xffcc33, transparent: true, opacity: 0.04, side: THREE.DoubleSide,
       });
-      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.50, 0.50, 2.1, 16, 1, true), beamMat);
-      beam.position.y = 1.05;
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.50, 0.50, 2.05, 16, 1, true), beamMat);
+      beam.position.y = 1.03;
       group.add(beam);
 
-      // Warm light spot on the ground
+      // Warm spot on the ground
       const spotMat = new THREE.MeshLambertMaterial({
         color: 0xffaa33, transparent: true, opacity: 0.35, side: THREE.DoubleSide,
       });
@@ -486,7 +448,7 @@ export function createItemMesh(type: ItemType): THREE.Group {
       spot.position.y = 0.005;
       group.add(spot);
 
-      // Actual Three.js spotlight
+      // Spotlight
       const spotlight = new THREE.SpotLight(0xffaa44, 2.5, 4, Math.PI / 6, 0.5, 1);
       spotlight.position.y = 2.1;
       spotlight.target.position.set(0, 0, 0);
