@@ -63,8 +63,8 @@ function hideConfig(type: ItemType, rotY: number) {
     // Arch faces local +Z
     return {
       mDX: -Math.sin(rotY), mDZ: Math.cos(rotY),
-      mouthDist: 0.45, normalR: 0.58, entryR: 0.88,
-      sideClear: 0.95, sideForward: 0.50,
+      mouthDist: 0.45, normalR: 0.48, entryR: 0.65,
+      sideClear: 0.75, sideForward: 0.40,
     };
   }
   // SLEEPING_HIDE: mouth faces local +X
