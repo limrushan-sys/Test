@@ -422,7 +422,7 @@ export function createItemMesh(type: ItemType): THREE.Group {
         new THREE.SphereGeometry(0.30, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.5),
         blackMat
       );
-      bowl.rotation.x = Math.PI;
+      bowl.rotation.x = 0;
       bowl.position.y = 2.15;
       group.add(bowl);
 
