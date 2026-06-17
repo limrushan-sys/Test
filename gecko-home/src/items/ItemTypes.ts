@@ -39,7 +39,7 @@ export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
   [ItemType.CLIMBING_BRANCH]: { radius: 0.35, height: 0.40, climbable: true  },
   [ItemType.CORK_BARK]:       { radius: 0.38, height: 0.12, climbable: true  },
   [ItemType.RAMP]:            { radius: 0.42, height: 0.30, climbable: true  },
-  [ItemType.PLATFORM]:        { radius: 0.58, height: 0.30, climbable: true  },
+  [ItemType.PLATFORM]:        { radius: 0.01, height: 0,    climbable: false },
   [ItemType.STONE]:           { radius: 0.26, height: 0,    climbable: false },
   [ItemType.LEAF_DECOR]:      { radius: 0.12, height: 0,    climbable: false },
   [ItemType.BASKING_LAMP]:    { radius: 0.05, height: 0,    climbable: false },
@@ -355,7 +355,7 @@ export function createItemMesh(type: ItemType): THREE.Group {
 
     // ── Platform: elevated flat surface gecko walks on ───────────────────────
     case ItemType.PLATFORM: {
-      const W = 0.80, D = 0.65, H = 0.45;
+      const W = 1.10, D = 0.90, H = 0.55;
       const WALL = 0.04;
       const blackMat = new THREE.MeshLambertMaterial({ color: 0x2a2a2a, side: THREE.DoubleSide });
       const innerMat = new THREE.MeshLambertMaterial({ color: 0x111111, side: THREE.DoubleSide });
@@ -364,11 +364,6 @@ export function createItemMesh(type: ItemType): THREE.Group {
       const leafMat  = new THREE.MeshLambertMaterial({ color: 0x4a8c2a, side: THREE.DoubleSide });
       const darkLeaf = new THREE.MeshLambertMaterial({ color: 0x2d6618, side: THREE.DoubleSide });
       const stemMat  = new THREE.MeshLambertMaterial({ color: 0x3a7020 });
-
-      // Base plate
-      const base = new THREE.Mesh(new THREE.BoxGeometry(W + 0.08, 0.02, D + 0.08), blackMat);
-      base.position.y = 0.01;
-      group.add(base);
 
       // Back wall
       const back = new THREE.Mesh(new THREE.BoxGeometry(W, H, WALL), blackMat);
@@ -383,7 +378,7 @@ export function createItemMesh(type: ItemType): THREE.Group {
       right.position.set(W / 2 - WALL / 2, H / 2, 0);
       group.add(right);
       // Front wall with arch cutout
-      const archR = 0.14, archW = archR * 2;
+      const archR = 0.22, archW = archR * 2;
       const pillarW = (W - archW) / 2;
       const leftPillar = new THREE.Mesh(new THREE.BoxGeometry(pillarW, H, WALL), blackMat);
       leftPillar.position.set(-W / 2 + pillarW / 2, H / 2, D / 2 - WALL / 2);
@@ -430,23 +425,23 @@ export function createItemMesh(type: ItemType): THREE.Group {
       group.add(tray);
 
       // Plants on the tray
-      for (let pi = 0; pi < 5; pi++) {
-        const px = (pi / 4 - 0.5) * (W - 0.20);
+      for (let pi = 0; pi < 7; pi++) {
+        const px = (pi / 6 - 0.5) * (W - 0.20);
         const pz = (Math.random() - 0.5) * (D - 0.25);
-        const plantH = 0.08 + Math.random() * 0.06;
-        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, plantH, 4), stemMat);
+        const plantH = 0.10 + Math.random() * 0.08;
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.014, plantH, 4), stemMat);
         stem.position.set(px, H + 0.03 + trayH + plantH / 2, pz);
         group.add(stem);
         for (let li = 0; li < 3; li++) {
           const leaf = new THREE.Mesh(
-            new THREE.PlaneGeometry(0.06, 0.03),
+            new THREE.PlaneGeometry(0.07, 0.035),
             li % 2 === 0 ? leafMat : darkLeaf
           );
           const la = (li / 3) * Math.PI * 2 + pi;
           leaf.position.set(
-            px + Math.cos(la) * 0.02,
+            px + Math.cos(la) * 0.025,
             H + 0.03 + trayH + plantH * 0.6 + li * 0.02,
-            pz + Math.sin(la) * 0.02
+            pz + Math.sin(la) * 0.025
           );
           leaf.rotation.set(-0.4 + Math.random() * 0.3, la, 0);
           group.add(leaf);

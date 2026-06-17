@@ -54,6 +54,27 @@ function branchProbe(
   return { dist: bestDist, height: bestH, radius: bestR, projX: bestWx, projZ: bestWz };
 }
 
+function isHideType(t: ItemType): boolean {
+  return t === ItemType.SLEEPING_HIDE || t === ItemType.PLATFORM;
+}
+
+function hideConfig(type: ItemType, rotY: number) {
+  if (type === ItemType.PLATFORM) {
+    // Arch faces local +Z
+    return {
+      mDX: -Math.sin(rotY), mDZ: Math.cos(rotY),
+      mouthDist: 0.45, normalR: 0.58, entryR: 0.88,
+      sideClear: 0.95, sideForward: 0.50,
+    };
+  }
+  // SLEEPING_HIDE: mouth faces local +X
+  return {
+    mDX: Math.cos(rotY), mDZ: -Math.sin(rotY),
+    mouthDist: 0.475, normalR: 0.45, entryR: 0.68,
+    sideClear: 0.80, sideForward: 0.40,
+  };
+}
+
 export class Gecko {
   group = new THREE.Group();
 
@@ -513,16 +534,13 @@ export class Gecko {
             this.targetItemId    = null;
           }
 
-          if (arrivedItem?.type === ItemType.SLEEPING_HIDE) {
+          if (arrivedItem && isHideType(arrivedItem.type)) {
             if (this.hideEntryPhase === 1) {
-              // Arrived at side waypoint → now head to staging point in front of mouth
-              const rotY = arrivedItem.mesh.rotation.y;
-              const mDX  = Math.cos(rotY);
-              const mDZ  = -Math.sin(rotY);
+              const hc = hideConfig(arrivedItem.type, arrivedItem.mesh.rotation.y);
               this.target.set(
-                arrivedItem.position.x + mDX * (0.475 + 0.35),
+                arrivedItem.position.x + hc.mDX * (hc.mouthDist + 0.35),
                 0,
-                arrivedItem.position.z + mDZ * (0.475 + 0.35)
+                arrivedItem.position.z + hc.mDZ * (hc.mouthDist + 0.35)
               );
               this.hideEntryPhase = 2;
               break; // keep WALKING
@@ -591,7 +609,7 @@ export class Gecko {
             this.perchHeight = 0;
           }
 
-          if (this.hideEntryPhase === 3 && arrivedItem?.type === ItemType.SLEEPING_HIDE) {
+          if (this.hideEntryPhase === 3 && arrivedItem && isHideType(arrivedItem.type)) {
             this.hideEntryPhase = 0;
             // Turn around to face the opening (add PI to face back out through mouth)
             this.turnAroundAngle = this.group.rotation.y + Math.PI;
@@ -653,13 +671,14 @@ export class Gecko {
           if (item.type === ItemType.WATER_DISH) {
             // Disable collision while gecko is entering, inside, or exiting this dish
             colR = (this.waterDishItemId === item.id) ? 0 : col.radius;
-          } else if (item.type === ItemType.SLEEPING_HIDE) {
+          } else if (isHideType(item.type)) {
+            const hc = hideConfig(item.type, 0);
             if (this.hideEntryPhase === 3 && this.targetItemId === item.id) {
               colR = 0;
             } else if (this.hideEntryPhase >= 1 && this.targetItemId === item.id) {
-              colR = 0.68;
+              colR = hc.entryR;
             } else {
-              colR = 0.45;
+              colR = hc.normalR;
             }
           } else {
             colR = col.radius;
@@ -1038,7 +1057,7 @@ export class Gecko {
 
     // Filter out the hide right after waking so the gecko explores first
     const pickable = this.justLeftHide
-      ? items.filter(i => i.type !== ItemType.SLEEPING_HIDE)
+      ? items.filter(i => !isHideType(i.type))
       : items;
     this.justLeftHide = false; // consume the flag
 
@@ -1047,30 +1066,17 @@ export class Gecko {
       this.targetItemId = item.id;
       const col = ITEM_COLLISION[item.type];
       const HEAD_REACH = 0.42;
-      if (item.type === ItemType.SLEEPING_HIDE) {
-        // Three-phase entry so the gecko walks AROUND the hide to the mouth:
-        //   Phase 1 → side waypoint (clear of hide walls)
-        //   Phase 2 → staging point in front of mouth
-        //   Phase 3 → centre of hide (gecko enters freely, no wall collision)
-        // The hide's open front is at local +X (len/2 = 0.475).
-        // item.mesh.rotation.y gives the user rotation; local +X → world (cos θ, 0, −sin θ).
-        const rotY  = item.mesh.rotation.y;
-        const mDX   = Math.cos(rotY);       // mouth direction
-        const mDZ   = -Math.sin(rotY);
-        const pDX   = -mDZ;                 // perpendicular (left side)
-        const pDZ   =  mDX;
-        // Which side is the gecko on?
-        const relX  = this.group.position.x - item.position.x;
-        const relZ  = this.group.position.z - item.position.z;
-        const side  = (relX * pDX + relZ * pDZ) >= 0 ? 1 : -1;
-        // Side waypoint: beside the MOUTH end of the hide so the gecko only
-        // needs to step forward to reach the entrance (not slide around a corner).
-        // Perpendicular clear distance 0.80 > colR 0.68; forward offset puts it
-        // level with the mouth opening.
+      if (isHideType(item.type)) {
+        const hc  = hideConfig(item.type, item.mesh.rotation.y);
+        const pDX = -hc.mDZ;
+        const pDZ =  hc.mDX;
+        const relX = this.group.position.x - item.position.x;
+        const relZ = this.group.position.z - item.position.z;
+        const side = (relX * pDX + relZ * pDZ) >= 0 ? 1 : -1;
         this.target.set(
-          item.position.x + pDX * side * 0.80 + mDX * 0.40,
+          item.position.x + pDX * side * hc.sideClear + hc.mDX * hc.sideForward,
           0,
-          item.position.z + pDZ * side * 0.80 + mDZ * 0.40,
+          item.position.z + pDZ * side * hc.sideClear + hc.mDZ * hc.sideForward,
         );
         this.hideEntryPhase = 1;
       } else if (item.type === ItemType.WATER_DISH) {
