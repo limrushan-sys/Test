@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export enum ItemType {
-  SLEEPING_HIDE   = 'Sleeping Hide',
+  SLEEPING_HIDE   = 'Plant House',
   WATER_DISH      = 'Water Dish',
   FOOD_BOWL       = 'Food Bowl',
   CLIMBING_BRANCH = 'Climbing Branch',
@@ -117,8 +117,8 @@ export function createItemMesh(type: ItemType): THREE.Group {
     case ItemType.SLEEPING_HIDE: {
       const W = 0.80, D = 0.65, H = 0.45;
       const WALL = 0.04;
-      const blackMat = new THREE.MeshLambertMaterial({ color: 0x1a1a1a, side: THREE.DoubleSide });
-      const innerMat = new THREE.MeshLambertMaterial({ color: 0x2a2a2a, side: THREE.DoubleSide });
+      const blackMat = new THREE.MeshLambertMaterial({ color: 0x2a2a2a, side: THREE.DoubleSide });
+      const innerMat = new THREE.MeshLambertMaterial({ color: 0x111111, side: THREE.DoubleSide });
       const trayMat  = new THREE.MeshLambertMaterial({ color: 0xc05a28, side: THREE.DoubleSide });
       const rimMat   = new THREE.MeshLambertMaterial({ color: 0x151515 });
       const leafMat  = new THREE.MeshLambertMaterial({ color: 0x4a8c2a, side: THREE.DoubleSide });
