@@ -567,13 +567,16 @@ export class Gecko {
               // Transform to world space
               const dirWX = dirLX * cosR - dirLZ * sinR;
               const dirWZ = dirLX * sinR + dirLZ * cosR;
-              // Gecko facing angle (local +X = forward)
-              this.turnAroundAngle = Math.atan2(-dirWZ, dirWX);
+              // Gecko facing angle (local +X = forward) — face uphill (toward fork)
+              let faceAngle = Math.atan2(-dirWZ, dirWX) + Math.PI;
+              while (faceAngle >  Math.PI) faceAngle -= 2 * Math.PI;
+              while (faceAngle < -Math.PI) faceAngle += 2 * Math.PI;
+              this.turnAroundAngle = faceAngle;
 
               // Tilt body to match the branch slope
               const dirLY = nextNode[1] - prevNode[1];
               const horizLen = Math.sqrt(dirLX * dirLX + dirLZ * dirLZ);
-              this.posePitchTarget = -Math.atan2(dirLY, horizLen);
+              this.posePitchTarget = Math.atan2(dirLY, horizLen);
             } else {
               this.perchHeight = ITEM_COLLISION[arrivedItem.type].height;
               const r = arrivedItem.mesh.rotation.y;
@@ -810,7 +813,7 @@ export class Gecko {
         }
         this.group.rotation.z += (0 - this.group.rotation.z) * 0.12;
         this.targetY = this.perchHeight;
-        this.geckoY += (this.targetY - this.geckoY) * Math.min(3 * delta, 1);
+        this.geckoY += (this.targetY - this.geckoY) * Math.min(8 * delta, 1);
         // group.position.y is already set above (geckoY + poseY) — don't overwrite here
 
         // Smoothly rotate to face outward if in hide
