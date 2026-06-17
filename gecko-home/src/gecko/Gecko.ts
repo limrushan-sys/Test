@@ -70,8 +70,8 @@ function hideConfig(type: ItemType, rotY: number) {
   // SLEEPING_HIDE: mouth faces local +X
   return {
     mDX: Math.cos(rotY), mDZ: -Math.sin(rotY),
-    mouthDist: 0.475, normalR: 0.45, entryR: 0.68,
-    sideClear: 0.80, sideForward: 0.40,
+    mouthDist: 0.65, normalR: 0.55, entryR: 0.80,
+    sideClear: 0.90, sideForward: 0.55,
   };
 }
 

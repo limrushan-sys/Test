@@ -116,7 +116,7 @@ export function createItemMesh(type: ItemType): THREE.Group {
     // ── Sleeping Hide: half hollow cylinder laid on its side ────────────────
     case ItemType.SLEEPING_HIDE: {
       const R    = 0.38;
-      const len  = 0.95;
+      const len  = 1.30;
       const wall = 0.045;
       const SEG  = 24;
 
