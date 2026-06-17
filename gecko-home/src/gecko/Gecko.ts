@@ -509,7 +509,7 @@ export class Gecko {
             while (perchAngle >  Math.PI) perchAngle -= 2 * Math.PI;
             while (perchAngle < -Math.PI) perchAngle += 2 * Math.PI;
             this.turnAroundAngle = perchAngle;
-            this.posePitchTarget = 0.10; // slight nose-up lean on the trunk
+            this.posePitchTarget = 0.05; // slight lean along the branch curve
           } else {
             this.perchHeight = 0;
           }
@@ -686,35 +686,22 @@ export class Gecko {
         // keep rear legs on the ground.
         // legDefs: i=0,1 front (localX=0.13, localZ=±0.11), i=2,3 rear (localX=-0.08)
         if (this.perchHeight > 0) {
-          // Hide normal leg blobs, show articulated reach cylinders
-          this.legGroups.forEach(lg => { lg.visible = false; });
+          // Keep normal legs visible, reposition them to cling to the branch
+          this.legGroups.forEach(lg => { lg.visible = true; });
+          this.reachMeshes.forEach(rm => { rm.visible = false; });
 
-          // Hip positions in poseGroup local space (body attachment points)
-          const hips = [
-            new THREE.Vector3( 0.13, 0.00,  0.12),  // FL
-            new THREE.Vector3( 0.13, 0.00, -0.12),  // FR
-            new THREE.Vector3(-0.08, 0.00,  0.12),  // RL
-            new THREE.Vector3(-0.08, 0.00, -0.12),  // RR
+          // Foot targets: splay outward to grip the branch surface
+          const perchFeet = [
+            { x:  0.15, y: -0.06, z:  0.10 },  // FL — forward-left on branch
+            { x:  0.15, y: -0.06, z: -0.10 },  // FR — forward-right on branch
+            { x: -0.10, y: -0.06, z:  0.10 },  // RL — rear-left on branch
+            { x: -0.10, y: -0.06, z: -0.10 },  // RR — rear-right on branch
           ];
-          // Foot targets: FL/FR splay outward onto front branch,
-          // RL onto left-rear branch, RR onto right-rear branch
-          const feet = [
-            new THREE.Vector3( 0.24, -0.03,  0.04),  // FL — front branch, left
-            new THREE.Vector3( 0.24, -0.03, -0.04),  // FR — front branch, right
-            new THREE.Vector3(-0.13, -0.01,  0.22),  // RL — rear-left branch
-            new THREE.Vector3(-0.13, -0.01, -0.22),  // RR — rear-right branch
-          ];
-
-          const up = new THREE.Vector3(0, 1, 0);
-          this.reachMeshes.forEach((rm, i) => {
-            rm.visible = true;
-            const hip  = hips[i];
-            const foot = feet[i];
-            const dir  = foot.clone().sub(hip);
-            const len  = dir.length();
-            rm.position.copy(hip.clone().add(foot).multiplyScalar(0.5));
-            rm.scale.y = len;
-            rm.quaternion.setFromUnitVectors(up, dir.normalize());
+          this.legGroups.forEach((lg, i) => {
+            const t = perchFeet[i];
+            lg.position.x += (t.x - lg.position.x) * 0.15;
+            lg.position.y += (t.y - lg.position.y) * 0.15;
+            lg.position.z += (t.z - lg.position.z) * 0.15;
           });
         } else {
           // Show normal leg blobs, hide reach cylinders
