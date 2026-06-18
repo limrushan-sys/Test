@@ -558,7 +558,18 @@ export class Gecko {
 
           // Remember climb height so ARRIVED state can hold the gecko up
           if (arrivedItem && ITEM_COLLISION[arrivedItem.type].climbable) {
-            if (arrivedItem.type === ItemType.CLIMBING_BRANCH) {
+            if (arrivedItem.type === ItemType.CORK_BARK) {
+              const barkH = arrivedItem.mesh.userData.barkHeight ?? 0.35;
+              this.perchHeight = arrivedItem.mesh.position.y + barkH * 0.5;
+              const wn = arrivedItem.mesh.userData.wallNormal as THREE.Vector3 | undefined;
+              if (wn) {
+                const alongX = -wn.z, alongZ = wn.x;
+                const dot = Math.cos(this.group.rotation.y) * alongX + (-Math.sin(this.group.rotation.y)) * alongZ;
+                const sign = dot >= 0 ? 1 : -1;
+                this.turnAroundAngle = Math.atan2(-alongZ * sign, alongX * sign);
+              }
+              this.posePitchTarget = 0;
+            } else if (arrivedItem.type === ItemType.CLIMBING_BRANCH) {
               const rot = arrivedItem.mesh.rotation.y;
               const cosR = Math.cos(rot), sinR = Math.sin(rot);
 
@@ -1085,6 +1096,18 @@ export class Gecko {
         this.target.set(item.position.x, 0, item.position.z);
         this.waterDishPhase  = 1;
         this.waterDishItemId = item.id;
+      } else if (item.type === ItemType.CORK_BARK) {
+        this.hideEntryPhase = 0;
+        const wn = item.mesh.userData.wallNormal as THREE.Vector3 | undefined;
+        if (wn) {
+          this.target.set(
+            item.position.x + wn.x * 0.25,
+            0,
+            item.position.z + wn.z * 0.25,
+          );
+        } else {
+          this.target.set(item.position.x, 0, item.position.z);
+        }
       } else if (col.climbable) {
         this.hideEntryPhase = 0;
         if (item.type === ItemType.CLIMBING_BRANCH) {

@@ -29,6 +29,7 @@ class GeckoHomeApp {
     this.gecko = new Gecko(this.sceneSetup.scene);
 
     this.itemManager = new ItemManager(this.sceneSetup.scene, this.enclosure.floorMesh);
+    this.itemManager.setWalls(this.enclosure.wallMeshes);
     this.itemManager.setGeckoPositionGetter(() => this.gecko.group.position);
 
     // When gecko reaches a food bowl, play tongue-shoot eating animation
@@ -59,6 +60,7 @@ class GeckoHomeApp {
       onResizeEnclosure: (w, d, h) => {
         this.enclosure.resize(w, d, h);
         this.itemManager.setFloor(this.enclosure.floorMesh);
+        this.itemManager.setWalls(this.enclosure.wallMeshes);
         this.itemManager.clampAllToBounds(this.enclosure.placementBounds);
         const pos = this.gecko.group.position;
         const b   = this.enclosure.bounds;

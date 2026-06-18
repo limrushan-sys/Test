@@ -30,6 +30,7 @@ export interface ItemCollisionData {
   radius: number;    // horizontal collision radius
   height: number;    // elevation gecko reaches when on top
   climbable: boolean; // true = gecko walks on top; false = gecko is pushed around
+  wallMounted?: boolean; // true = can only be placed on enclosure walls
 }
 
 export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
@@ -37,7 +38,7 @@ export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
   [ItemType.WATER_DISH]:      { radius: 0.70, height: 0,    climbable: false },
   [ItemType.FOOD_BOWL]:       { radius: 0.32, height: 0,    climbable: false },
   [ItemType.CLIMBING_BRANCH]: { radius: 0.35, height: 0.40, climbable: true  },
-  [ItemType.CORK_BARK]:       { radius: 0.38, height: 0.12, climbable: true  },
+  [ItemType.CORK_BARK]:       { radius: 0.10, height: 0.20, climbable: true, wallMounted: true },
   [ItemType.RAMP]:            { radius: 0.42, height: 0.30, climbable: true  },
   [ItemType.PLATFORM]:        { radius: 0.01, height: 0,    climbable: false },
   [ItemType.STONE]:           { radius: 0.26, height: 0,    climbable: false },
@@ -435,18 +436,22 @@ export function createItemMesh(type: ItemType): THREE.Group {
       break;
     }
 
-    // ── Cork Bark ───────────────────────────────────────────────────────────
+    // ── Cork Bark: vertical wall-mounted piece, faces local +Z ────────────
     case ItemType.CORK_BARK: {
       const barkMat  = new THREE.MeshLambertMaterial({ color: 0x795548 });
       const ridgeMat = new THREE.MeshLambertMaterial({ color: 0x5d4037 });
-      const bark = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.09, 0.42), barkMat);
-      bark.position.y = 0.045;
+      const bW = 0.50, bH = 0.35, bD = 0.06;
+      const bark = new THREE.Mesh(new THREE.BoxGeometry(bW, bH, bD), barkMat);
+      bark.position.set(0, bH / 2, -bD / 2);
+      group.add(bark);
       for (let i = -2; i <= 2; i++) {
-        const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.025, 0.045), ridgeMat);
-        ridge.position.set(0, 0.095, i * 0.075);
+        const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.03, 0.02), ridgeMat);
+        ridge.position.set(0, bH / 2 + i * 0.065, -bD - 0.005);
         group.add(ridge);
       }
-      group.add(bark);
+      group.userData.wallMounted = true;
+      group.userData.barkWidth = bW;
+      group.userData.barkHeight = bH;
       break;
     }
 

@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { ItemType, ITEM_COLLISION, createItemMesh, createCricketMesh } from './ItemTypes.js';
 import type { EnclosureBounds } from '../scene/Enclosure.js';
 
+type WallSide = 'front' | 'back' | 'left' | 'right';
+
 export interface PlacedItem {
   id: number;
   type: ItemType;
@@ -25,6 +27,7 @@ export class ItemManager {
   selectedItem: PlacedItem | null = null;
 
   private floorMesh: THREE.Mesh;
+  private wallMeshes: THREE.Mesh[] = [];
 
   // Gecko collision barrier — set from main so placement can avoid the gecko
   private geckoPositionGetter: (() => THREE.Vector3) | null = null;
@@ -50,6 +53,7 @@ export class ItemManager {
   }
 
   setFloor(mesh: THREE.Mesh) { this.floorMesh = mesh; }
+  setWalls(meshes: THREE.Mesh[]) { this.wallMeshes = meshes; }
 
   setGeckoPositionGetter(fn: () => THREE.Vector3) { this.geckoPositionGetter = fn; }
 
@@ -66,19 +70,70 @@ export class ItemManager {
     this.destroyGhost();
   }
 
+  private wallPlacement(hit: THREE.Vector3, bounds: EnclosureBounds): { pos: THREE.Vector3; rotY: number; wall: WallSide } | null {
+    const hw = (bounds.maxX - bounds.minX) / 2;
+    const hd = (bounds.maxZ - bounds.minZ) / 2;
+    const cx = (bounds.minX + bounds.maxX) / 2;
+    const cz = (bounds.minZ + bounds.maxZ) / 2;
+    const rx = hit.x - cx, rz = hit.z - cz;
+
+    const dists: [WallSide, number][] = [
+      ['back',  Math.abs(rz - (-hd))],
+      ['front', Math.abs(rz - hd)],
+      ['left',  Math.abs(rx - (-hw))],
+      ['right', Math.abs(rx - hw)],
+    ];
+    dists.sort((a, b) => a[1] - b[1]);
+    const wall = dists[0][0];
+
+    const barkH = 0.35;
+    let y = Math.max(0, Math.min(bounds.maxY - barkH, hit.y));
+    let x = hit.x, z = hit.z, rotY = 0;
+
+    const barkHalfW = 0.25;
+    if (wall === 'back') {
+      z = bounds.minZ; rotY = Math.PI;
+      x = Math.max(bounds.minX + barkHalfW, Math.min(bounds.maxX - barkHalfW, x));
+    } else if (wall === 'front') {
+      z = bounds.maxZ; rotY = 0;
+      x = Math.max(bounds.minX + barkHalfW, Math.min(bounds.maxX - barkHalfW, x));
+    } else if (wall === 'left') {
+      x = bounds.minX; rotY = -Math.PI / 2;
+      z = Math.max(bounds.minZ + barkHalfW, Math.min(bounds.maxZ - barkHalfW, z));
+    } else {
+      x = bounds.maxX; rotY = Math.PI / 2;
+      z = Math.max(bounds.minZ + barkHalfW, Math.min(bounds.maxZ - barkHalfW, z));
+    }
+    return { pos: new THREE.Vector3(x, y, z), rotY, wall };
+  }
+
   // ── Ghost preview ─────────────────────────────────────────────────────────
-  private updateGhost(mouseVec: THREE.Vector2, camera: THREE.PerspectiveCamera, _bounds: EnclosureBounds) {
+  private updateGhost(mouseVec: THREE.Vector2, camera: THREE.PerspectiveCamera, bounds: EnclosureBounds) {
+    const isWall = ITEM_COLLISION[this.selectedType].wallMounted;
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouseVec, camera);
-    const hits = raycaster.intersectObject(this.floorMesh, false);
 
-    if (hits.length === 0) {
+    let pt: THREE.Vector3 | null = null;
+    let wallRotY = 0;
+    let wallSide: WallSide | null = null;
+
+    if (isWall) {
+      const hits = raycaster.intersectObjects(this.wallMeshes, false);
+      if (hits.length > 0) {
+        const wp = this.wallPlacement(hits[0].point, bounds);
+        if (wp) { pt = wp.pos; wallRotY = wp.rotY; wallSide = wp.wall; }
+      }
+    } else {
+      const hits = raycaster.intersectObject(this.floorMesh, false);
+      if (hits.length > 0) pt = hits[0].point;
+    }
+
+    if (!pt) {
       if (this.ghost) this.ghost.visible = false;
       return;
     }
 
-    const pt = hits[0].point;
-    const ghostPos = new THREE.Vector3(pt.x, 0, pt.z);
+    const ghostPos = isWall ? pt : new THREE.Vector3(pt.x, 0, pt.z);
     this.ghostValid = !this.overlapsAny(ghostPos, this.selectedType);
 
     if (!this.ghost) {
@@ -99,7 +154,12 @@ export class ItemManager {
     }
 
     this.ghost.visible = true;
-    this.ghost.position.set(pt.x, 0, pt.z);
+    if (isWall) {
+      this.ghost.position.copy(pt);
+      this.ghost.rotation.y = wallRotY;
+    } else {
+      this.ghost.position.set(pt.x, 0, pt.z);
+    }
 
     const tintHex = this.ghostValid ? 0xffffff : 0xff4444;
     this.ghost.traverse(child => {
@@ -113,17 +173,36 @@ export class ItemManager {
   }
 
   // ── Place item ────────────────────────────────────────────────────────────
-  tryPlace(mouseVec: THREE.Vector2, camera: THREE.PerspectiveCamera, _bounds: EnclosureBounds): boolean {
+  tryPlace(mouseVec: THREE.Vector2, camera: THREE.PerspectiveCamera, bounds: EnclosureBounds): boolean {
     if (!this.placeModeActive || !this.ghostValid) return false;
 
+    const isWall = ITEM_COLLISION[this.selectedType].wallMounted;
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouseVec, camera);
-    const hits = raycaster.intersectObject(this.floorMesh, false);
-    if (!hits.length) return false;
 
-    const pt = hits[0].point;
+    let pos: THREE.Vector3;
+    let rotY = 0;
+    let wallSide: WallSide | null = null;
+
+    if (isWall) {
+      const hits = raycaster.intersectObjects(this.wallMeshes, false);
+      if (!hits.length) return false;
+      const wp = this.wallPlacement(hits[0].point, bounds);
+      if (!wp) return false;
+      pos = wp.pos; rotY = wp.rotY; wallSide = wp.wall;
+    } else {
+      const hits = raycaster.intersectObject(this.floorMesh, false);
+      if (!hits.length) return false;
+      pos = new THREE.Vector3(hits[0].point.x, 0, hits[0].point.z);
+    }
+
     const mesh = createItemMesh(this.selectedType);
-    mesh.position.set(pt.x, 0, pt.z);
+    mesh.position.copy(pos);
+    mesh.rotation.y = rotY;
+    if (wallSide) {
+      mesh.userData.wallSide = wallSide;
+      mesh.userData.wallNormal = this.wallNormal(wallSide);
+    }
     if (this.selectedType !== ItemType.BASKING_LAMP) {
       mesh.traverse(c => { if ((c as THREE.Mesh).isMesh) (c as THREE.Mesh).castShadow = true; });
     }
@@ -133,9 +212,16 @@ export class ItemManager {
       id: this.nextId++,
       type: this.selectedType,
       mesh,
-      position: new THREE.Vector3(pt.x, 0, pt.z),
+      position: pos.clone(),
     });
     return true;
+  }
+
+  private wallNormal(side: WallSide): THREE.Vector3 {
+    if (side === 'back')  return new THREE.Vector3(0, 0, 1);
+    if (side === 'front') return new THREE.Vector3(0, 0, -1);
+    if (side === 'left')  return new THREE.Vector3(1, 0, 0);
+    return new THREE.Vector3(-1, 0, 0);
   }
 
   // ── Select item ───────────────────────────────────────────────────────────

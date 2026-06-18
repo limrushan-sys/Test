@@ -9,6 +9,7 @@ export interface EnclosureBounds {
 export class Enclosure {
   group = new THREE.Group();
   floorMesh!: THREE.Mesh;
+  wallMeshes: THREE.Mesh[] = [];
 
   private width: number;
   private depth: number;
@@ -88,12 +89,14 @@ export class Enclosure {
     });
     const wallFrameMat = new THREE.MeshLambertMaterial({ color: 0x4a6080 });
 
+    this.wallMeshes = [];
     const makeWall = (ww: number, wh: number, wd: number, x: number, y: number, z: number) => {
       // Glass panel
       const geo = new THREE.BoxGeometry(ww, wh, wd);
       const mesh = new THREE.Mesh(geo, wallMat);
       mesh.position.set(x, y, z);
       this.group.add(mesh);
+      this.wallMeshes.push(mesh);
 
       // Frame border
       const frameGeo = new THREE.EdgesGeometry(geo);
