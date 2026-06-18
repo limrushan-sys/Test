@@ -442,11 +442,11 @@ export function createItemMesh(type: ItemType): THREE.Group {
       const ridgeMat = new THREE.MeshLambertMaterial({ color: 0x5d4037 });
       const bW = 1.0, bH = 0.12, bD = 0.55;
       const bark = new THREE.Mesh(new THREE.BoxGeometry(bW, bH, bD), barkMat);
-      bark.position.set(0, bH / 2, -bD / 2);
+      bark.position.set(0, bH / 2, bD / 2);
       group.add(bark);
       for (let i = -4; i <= 4; i++) {
         const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.03, 0.055), ridgeMat);
-        ridge.position.set(0, bH + 0.005, -bD / 2 + i * 0.06);
+        ridge.position.set(0, bH + 0.005, bD / 2 + i * 0.06);
         group.add(ridge);
       }
       group.userData.wallMounted = true;

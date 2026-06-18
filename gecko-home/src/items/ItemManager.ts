@@ -90,19 +90,20 @@ export class ItemManager {
     const barkHalfW = 0.50;
     if (wall === 'back') {
       z = bounds.minZ; rotY = 0;
-      x = Math.max(bounds.minX + barkHalfW, Math.min(bounds.maxX - barkHalfW, x));
     } else if (wall === 'front') {
       z = bounds.maxZ; rotY = Math.PI;
-      x = Math.max(bounds.minX + barkHalfW, Math.min(bounds.maxX - barkHalfW, x));
     } else if (wall === 'left') {
-      x = bounds.minX; rotY = Math.PI / 2;
-      z = Math.max(bounds.minZ + barkHalfW, Math.min(bounds.maxZ - barkHalfW, z));
+      x = bounds.minX; rotY = -Math.PI / 2;
     } else {
-      x = bounds.maxX; rotY = -Math.PI / 2;
+      x = bounds.maxX; rotY = Math.PI / 2;
+    }
+    if (wall === 'back' || wall === 'front') {
+      x = Math.max(bounds.minX + barkHalfW, Math.min(bounds.maxX - barkHalfW, x));
+    } else {
       z = Math.max(bounds.minZ + barkHalfW, Math.min(bounds.maxZ - barkHalfW, z));
     }
     const barkH = 0.08;
-    const maxY = bounds.maxY * 0.7;
+    const maxY = bounds.maxY * 0.45;
     const y = Math.max(0, Math.min(maxY, hit.y - barkH / 2));
     return { pos: new THREE.Vector3(x, y, z), rotY, wall };
   }
