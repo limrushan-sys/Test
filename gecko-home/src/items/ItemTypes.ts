@@ -199,7 +199,7 @@ export function buildPlants(group: THREE.Group, style: PlantStyle) {
     }
   };
 
-  const cols = 6, rows = 5;
+  const cols = 9, rows = 7;
   let idx = 0;
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
