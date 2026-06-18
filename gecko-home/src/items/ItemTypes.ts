@@ -158,8 +158,8 @@ export function buildPlants(group: THREE.Group, style: PlantStyle) {
     }
   };
 
-  const snakeDark = new THREE.MeshLambertMaterial({ color: 0x2a5c1e, side: THREE.DoubleSide });
-  const snakeLight = new THREE.MeshLambertMaterial({ color: 0x5aaa3a, side: THREE.DoubleSide });
+  const snakeDark = new THREE.MeshLambertMaterial({ color: 0x2e7a22, side: THREE.DoubleSide });
+  const snakeLight = new THREE.MeshLambertMaterial({ color: 0x6ec44a, side: THREE.DoubleSide });
   const snakeEdge = new THREE.MeshLambertMaterial({ color: 0xc8c050, side: THREE.DoubleSide });
 
   const addGrass = (px: number, pz: number) => {
