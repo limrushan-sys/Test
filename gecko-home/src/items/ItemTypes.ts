@@ -158,16 +158,48 @@ export function buildPlants(group: THREE.Group, style: PlantStyle) {
     }
   };
 
+  const snakeDark = new THREE.MeshLambertMaterial({ color: 0x2a5c1e, side: THREE.DoubleSide });
+  const snakeLight = new THREE.MeshLambertMaterial({ color: 0x5aaa3a, side: THREE.DoubleSide });
+  const snakeEdge = new THREE.MeshLambertMaterial({ color: 0xc8c050, side: THREE.DoubleSide });
+
   const addGrass = (px: number, pz: number) => {
-    const s = 1.4 + Math.random() * 0.6;
-    for (let gi = 0; gi < 5; gi++) {
-      const gH = (0.08 + Math.random() * 0.08) * s;
-      const blade = new THREE.Mesh(new THREE.PlaneGeometry(0.015 * s, gH), darkLeaf);
-      const gx = px + (Math.random() - 0.5) * 0.06;
-      const gz = pz + (Math.random() - 0.5) * 0.06;
-      blade.position.set(gx, baseY + gH / 2, gz);
-      blade.rotation.set(0, Math.random() * Math.PI, (Math.random() - 0.5) * 0.3);
-      add(blade);
+    const s = 1.2 + Math.random() * 0.5;
+    const leafCount = 3 + Math.floor(Math.random() * 3);
+    for (let gi = 0; gi < leafCount; gi++) {
+      const lH = (0.12 + Math.random() * 0.10) * s;
+      const lW = 0.028 * s;
+      const angle = (gi / leafCount) * Math.PI * 2 + Math.random() * 0.3;
+      const spread = 0.015 * s;
+      const lx = px + Math.cos(angle) * spread;
+      const lz = pz + Math.sin(angle) * spread;
+      const tilt = 0.1 + Math.random() * 0.15;
+
+      // Tall pointed leaf shape (tapered box)
+      const leaf = new THREE.Mesh(
+        new THREE.BoxGeometry(lW, lH, 0.006 * s),
+        gi % 2 === 0 ? snakeDark : snakeLight
+      );
+      leaf.position.set(lx, baseY + lH / 2, lz);
+      leaf.rotation.set(0, angle, Math.sin(angle) * tilt);
+      add(leaf);
+
+      // Yellow edge stripe
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(lW + 0.006 * s, lH, 0.002),
+        snakeEdge
+      );
+      stripe.position.set(lx, baseY + lH / 2, lz + 0.004 * s);
+      stripe.rotation.set(0, angle, Math.sin(angle) * tilt);
+      add(stripe);
+
+      // Pointed tip
+      const tip = new THREE.Mesh(
+        new THREE.ConeGeometry(lW * 0.5, 0.03 * s, 4),
+        snakeDark
+      );
+      tip.position.set(lx, baseY + lH + 0.012 * s, lz);
+      tip.rotation.set(0, angle, Math.sin(angle) * tilt);
+      add(tip);
     }
   };
 
