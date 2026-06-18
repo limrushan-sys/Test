@@ -662,19 +662,39 @@ export function createItemMesh(type: ItemType): THREE.Group {
     }
 
     case ItemType.LEAF_DECOR: {
-      const leafMat = new THREE.MeshLambertMaterial({ color: 0x558b2f, side: THREE.DoubleSide });
-      const darkLeaf= new THREE.MeshLambertMaterial({ color: 0x33691e, side: THREE.DoubleSide });
-      const stemMat = new THREE.MeshLambertMaterial({ color: 0x2e7d32 });
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.016, 0.18, 5), stemMat);
-      stem.position.y = 0.09;
-      group.add(stem);
-      for (let i = 0; i < 5; i++) {
-        const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.10), i % 2 === 0 ? leafMat : darkLeaf);
-        const a = (i / 5) * Math.PI * 2;
-        const tilt = 0.15 + i * 0.06;
-        leaf.rotation.set(-tilt, a, 0);
-        leaf.position.set(Math.cos(a) * 0.03, 0.10 + i * 0.03, Math.sin(a) * 0.03);
-        group.add(leaf);
+      const grassMats = [
+        new THREE.MeshLambertMaterial({ color: 0x3d8b2f, side: THREE.DoubleSide }),
+        new THREE.MeshLambertMaterial({ color: 0x2e7a22, side: THREE.DoubleSide }),
+        new THREE.MeshLambertMaterial({ color: 0x4a9e35, side: THREE.DoubleSide }),
+        new THREE.MeshLambertMaterial({ color: 0x357a28, side: THREE.DoubleSide }),
+      ];
+      const clumpR = 0.22;
+      const bladeCount = 45;
+      for (let i = 0; i < bladeCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * clumpR;
+        const bx = Math.cos(angle) * dist;
+        const bz = Math.sin(angle) * dist;
+        const h = 0.12 + Math.random() * 0.16;
+        const w = 0.012 + Math.random() * 0.008;
+
+        const geo = new THREE.PlaneGeometry(w, h);
+        // Taper top vertices inward
+        const pos = geo.attributes.position;
+        for (let vi = 0; vi < pos.count; vi++) {
+          if (pos.getY(vi) > 0) {
+            pos.setX(vi, pos.getX(vi) * 0.15);
+          }
+        }
+        pos.needsUpdate = true;
+
+        const blade = new THREE.Mesh(geo, grassMats[i % grassMats.length]);
+        blade.position.set(bx, h / 2, bz);
+        // Face random direction, lean outward slightly
+        const faceAngle = Math.random() * Math.PI * 2;
+        const lean = 0.1 + (dist / clumpR) * 0.35;
+        blade.rotation.set(0, faceAngle, Math.sin(faceAngle + angle) * lean);
+        group.add(blade);
       }
       break;
     }
