@@ -59,7 +59,7 @@ export class UI {
         <label>Gecko Colours</label>
         <div class="swatch-group">
           <span class="swatch-label">Body</span>
-          <input type="color" id="gecko-body-color" value="#e8c840" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
+          <input type="color" id="gecko-body-color" value="#e87830" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
         </div>
         <div class="swatch-group">
           <span class="swatch-label">Spots</span>

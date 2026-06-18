@@ -88,7 +88,7 @@ export class Gecko {
   private legGroups: THREE.Group[] = [];
 
   private bodyGeo!: THREE.SphereGeometry;
-  private bodyTopColor  = new THREE.Color(0xe8c840); // leopard yellow
+  private bodyTopColor  = new THREE.Color(0xe87830); // leopard orange
   private bodyBotColor  = new THREE.Color(0xf5f0e0); // white belly
 
   private baseMat!: THREE.MeshLambertMaterial;
@@ -186,10 +186,10 @@ export class Gecko {
 
   // ── Build gecko mesh ───────────────────────────────────────────────────────
   private buildMesh() {
-    this.baseMat = new THREE.MeshLambertMaterial({ color: 0xe8c840 }); // yellow — head/tail
+    this.baseMat = new THREE.MeshLambertMaterial({ color: 0xe87830 }); // orange — head/tail
     this.bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.spotMat = new THREE.MeshLambertMaterial({ color: 0x2a1a08 }); // dark brown spots
-    this.darkMat = new THREE.MeshLambertMaterial({ color: 0xc0a030 }); // darker yellow legs
+    this.darkMat = new THREE.MeshLambertMaterial({ color: 0xc06020 }); // darker orange legs
     this.eyeMat     = new THREE.MeshLambertMaterial({ color: 0xd4a820 }); // gold iris
     const pupilMat  = new THREE.MeshLambertMaterial({ color: 0x080400 }); // vertical slit
     const tongueMat = new THREE.MeshLambertMaterial({ color: 0xe05070 });
