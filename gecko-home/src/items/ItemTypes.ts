@@ -222,8 +222,6 @@ export function buildPlants(group: THREE.Group, style: PlantStyle) {
     } else {
       addGrass(px, pz);
     }
-      idx++;
-    }
   }
 }
 
