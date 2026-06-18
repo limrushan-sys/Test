@@ -38,7 +38,7 @@ export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
   [ItemType.WATER_DISH]:      { radius: 0.70, height: 0,    climbable: false },
   [ItemType.FOOD_BOWL]:       { radius: 0.32, height: 0,    climbable: false },
   [ItemType.CLIMBING_BRANCH]: { radius: 0.35, height: 0.40, climbable: true  },
-  [ItemType.CORK_BARK]:       { radius: 0.10, height: 0.14, climbable: true, wallMounted: true },
+  [ItemType.CORK_BARK]:       { radius: 0.35, height: 0.14, climbable: true, wallMounted: true },
   [ItemType.RAMP]:            { radius: 0.42, height: 0.30, climbable: true  },
   [ItemType.PLATFORM]:        { radius: 0.01, height: 0,    climbable: false },
   [ItemType.STONE]:           { radius: 0.26, height: 0,    climbable: false },

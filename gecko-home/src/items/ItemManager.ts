@@ -103,7 +103,7 @@ export class ItemManager {
       z = Math.max(bounds.minZ + barkHalfW, Math.min(bounds.maxZ - barkHalfW, z));
     }
     const barkH = 0.08;
-    const maxY = bounds.maxY * 0.45;
+    const maxY = bounds.maxY * 0.30;
     const y = Math.max(0, Math.min(maxY, hit.y - barkH / 2));
     return { pos: new THREE.Vector3(x, y, z), rotY, wall };
   }

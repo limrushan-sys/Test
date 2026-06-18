@@ -559,7 +559,10 @@ export class Gecko {
           // Remember climb height so ARRIVED state can hold the gecko up
           if (arrivedItem && ITEM_COLLISION[arrivedItem.type].climbable) {
             if (arrivedItem.type === ItemType.CORK_BARK) {
-              this.perchHeight = arrivedItem.mesh.position.y + ITEM_COLLISION[arrivedItem.type].height;
+              const jumpY = arrivedItem.mesh.position.y + ITEM_COLLISION[arrivedItem.type].height;
+              this.perchHeight = jumpY;
+              this.geckoY = jumpY;
+              pos.y = jumpY;
               const wn = arrivedItem.mesh.userData.wallNormal as THREE.Vector3 | undefined;
               if (wn) {
                 const barkD = (arrivedItem.mesh.userData.barkDepth as number) ?? 0.55;
@@ -681,8 +684,9 @@ export class Gecko {
 
           // ── Generic collision ───────────────────────────────────────────────
           let colR: number;
-          if (item.type === ItemType.WATER_DISH) {
-            // Disable collision while gecko is entering, inside, or exiting this dish
+          if (item.type === ItemType.CORK_BARK && this.targetItemId === item.id) {
+            colR = 0;
+          } else if (item.type === ItemType.WATER_DISH) {
             colR = (this.waterDishItemId === item.id) ? 0 : col.radius;
           } else if (isHideType(item.type)) {
             const hc = hideConfig(item.type, 0);
