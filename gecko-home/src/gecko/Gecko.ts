@@ -559,7 +559,7 @@ export class Gecko {
           // Remember climb height so ARRIVED state can hold the gecko up
           if (arrivedItem && ITEM_COLLISION[arrivedItem.type].climbable) {
             if (arrivedItem.type === ItemType.CORK_BARK) {
-              this.perchHeight = ITEM_COLLISION[arrivedItem.type].height;
+              this.perchHeight = arrivedItem.mesh.position.y + ITEM_COLLISION[arrivedItem.type].height;
               const wn = arrivedItem.mesh.userData.wallNormal as THREE.Vector3 | undefined;
               if (wn) {
                 const alongX = -wn.z, alongZ = wn.x;

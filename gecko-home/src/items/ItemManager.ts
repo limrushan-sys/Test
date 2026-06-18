@@ -102,7 +102,10 @@ export class ItemManager {
       x = bounds.maxX - barkHalfD; rotY = Math.PI / 2;
       z = Math.max(bounds.minZ + barkHalfW, Math.min(bounds.maxZ - barkHalfW, z));
     }
-    return { pos: new THREE.Vector3(x, 0, z), rotY, wall };
+    const barkH = 0.08;
+    const maxY = bounds.maxY * 0.7;
+    const y = Math.max(0, Math.min(maxY, hit.y - barkH / 2));
+    return { pos: new THREE.Vector3(x, y, z), rotY, wall };
   }
 
   // ── Ghost preview ─────────────────────────────────────────────────────────
