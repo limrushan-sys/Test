@@ -106,6 +106,120 @@ export function createCricketMesh(): THREE.Group {
   return g;
 }
 
+// ── Plant styles for Plant House ──────────────────────────────────────────────
+export const PLANT_STYLES = ['mixed', 'succulents', 'cacti', 'ferns', 'flowers', 'grass'] as const;
+export type PlantStyle = typeof PLANT_STYLES[number];
+
+export function buildPlants(group: THREE.Group, style: PlantStyle) {
+  // Remove old plants
+  const toRemove = group.children.filter(c => c.userData.isPlant);
+  toRemove.forEach(c => group.remove(c));
+
+  const W = group.userData.plantW as number;
+  const D = group.userData.plantD as number;
+  const baseY = group.userData.plantBaseY as number;
+  group.userData.plantStyle = style;
+
+  const leafMat      = new THREE.MeshLambertMaterial({ color: 0x4a8c2a, side: THREE.DoubleSide });
+  const darkLeaf     = new THREE.MeshLambertMaterial({ color: 0x2d6618, side: THREE.DoubleSide });
+  const stemMat      = new THREE.MeshLambertMaterial({ color: 0x3a7020 });
+  const succulentMat = new THREE.MeshLambertMaterial({ color: 0x6aab5c, side: THREE.DoubleSide });
+  const cactusMat    = new THREE.MeshLambertMaterial({ color: 0x3d7a2e });
+  const fernMat      = new THREE.MeshLambertMaterial({ color: 0x2e8b3a, side: THREE.DoubleSide });
+  const flowerMat    = new THREE.MeshLambertMaterial({ color: 0xe85480 });
+  const yellowFlower = new THREE.MeshLambertMaterial({ color: 0xf0c830 });
+
+  const add = (m: THREE.Object3D) => { m.userData.isPlant = true; group.add(m); };
+
+  const addSucculent = (px: number, pz: number) => {
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), succulentMat);
+    bulb.scale.set(1, 0.6, 1);
+    bulb.position.set(px, baseY + 0.03, pz);
+    add(bulb);
+    for (let li = 0; li < 6; li++) {
+      const la = (li / 6) * Math.PI * 2;
+      const petal = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 5), succulentMat);
+      petal.scale.set(1.6, 0.4, 1);
+      petal.position.set(px + Math.cos(la) * 0.045, baseY + 0.015, pz + Math.sin(la) * 0.045);
+      petal.rotation.y = la;
+      add(petal);
+    }
+  };
+
+  const addCactus = (px: number, pz: number) => {
+    const cH = 0.10 + Math.random() * 0.06;
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.030, cH, 6), cactusMat);
+    body.position.set(px, baseY + cH / 2, pz);
+    add(body);
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.018, cH * 0.4, 5), cactusMat);
+    arm.position.set(px + 0.035, baseY + cH * 0.5, pz);
+    arm.rotation.z = -0.5;
+    add(arm);
+  };
+
+  const addFern = (px: number, pz: number, seed: number) => {
+    const fStem = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, 0.06, 4), stemMat);
+    fStem.position.set(px, baseY + 0.03, pz);
+    add(fStem);
+    for (let fi = 0; fi < 5; fi++) {
+      const fa = (fi / 5) * Math.PI * 2 + seed;
+      const frond = new THREE.Mesh(new THREE.PlaneGeometry(0.10, 0.025), fernMat);
+      frond.position.set(px + Math.cos(fa) * 0.04, baseY + 0.05 - fi * 0.005, pz + Math.sin(fa) * 0.04);
+      frond.rotation.set(-0.6 - fi * 0.1, fa, 0);
+      add(frond);
+    }
+  };
+
+  const addFlower = (px: number, pz: number, seed: number) => {
+    const fH = 0.10 + Math.random() * 0.05;
+    const fStem = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.010, fH, 4), stemMat);
+    fStem.position.set(px, baseY + fH / 2, pz);
+    add(fStem);
+    for (let li = 0; li < 3; li++) {
+      const la = (li / 3) * Math.PI * 2 + seed;
+      const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.03), leafMat);
+      leaf.position.set(px + Math.cos(la) * 0.02, baseY + fH * 0.4 + li * 0.015, pz + Math.sin(la) * 0.02);
+      leaf.rotation.set(-0.4, la, 0);
+      add(leaf);
+    }
+    const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5), seed % 2 === 0 ? flowerMat : yellowFlower);
+    bloom.position.set(px, baseY + fH + 0.01, pz);
+    add(bloom);
+  };
+
+  const addGrass = (px: number, pz: number) => {
+    for (let gi = 0; gi < 4; gi++) {
+      const gH = 0.08 + Math.random() * 0.08;
+      const blade = new THREE.Mesh(new THREE.PlaneGeometry(0.012, gH), darkLeaf);
+      const gx = px + (Math.random() - 0.5) * 0.04;
+      const gz = pz + (Math.random() - 0.5) * 0.04;
+      blade.position.set(gx, baseY + gH / 2, gz);
+      blade.rotation.set(0, Math.random() * Math.PI, (Math.random() - 0.5) * 0.3);
+      add(blade);
+    }
+  };
+
+  const count = 7;
+  for (let pi = 0; pi < count; pi++) {
+    const px = (pi / (count - 1) - 0.5) * (W - 0.22);
+    const pz = (Math.random() - 0.5) * (D - 0.28);
+
+    if (style === 'mixed') {
+      [addSucculent, addCactus, addFern, addFlower, addGrass][pi % 5](px, pz, pi);
+    } else if (style === 'succulents') {
+      addSucculent(px, pz);
+    } else if (style === 'cacti') {
+      addCactus(px, pz);
+    } else if (style === 'ferns') {
+      addFern(px, pz, pi);
+    } else if (style === 'flowers') {
+      addFlower(px, pz, pi);
+    } else {
+      addGrass(px, pz);
+    }
+  }
+}
+
 // ── Item mesh factory ─────────────────────────────────────────────────────────
 export function createItemMesh(type: ItemType): THREE.Group {
   const group = new THREE.Group();
@@ -413,84 +527,11 @@ export function createItemMesh(type: ItemType): THREE.Group {
       tray.position.y = H + 0.03 + trayH / 2;
       group.add(tray);
 
-      // Plants on the tray — varied types
-      const succulentMat = new THREE.MeshLambertMaterial({ color: 0x6aab5c, side: THREE.DoubleSide });
-      const cactusMat    = new THREE.MeshLambertMaterial({ color: 0x3d7a2e });
-      const fernMat      = new THREE.MeshLambertMaterial({ color: 0x2e8b3a, side: THREE.DoubleSide });
-      const flowerMat    = new THREE.MeshLambertMaterial({ color: 0xe85480 });
-      const yellowFlower = new THREE.MeshLambertMaterial({ color: 0xf0c830 });
-      const baseY = H + 0.03 + trayH;
-
-      for (let pi = 0; pi < 7; pi++) {
-        const px = (pi / 6 - 0.5) * (W - 0.22);
-        const pz = (Math.random() - 0.5) * (D - 0.28);
-        const plantType = pi % 5;
-
-        if (plantType === 0) {
-          // Succulent rosette
-          const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), succulentMat);
-          bulb.scale.set(1, 0.6, 1);
-          bulb.position.set(px, baseY + 0.03, pz);
-          group.add(bulb);
-          for (let li = 0; li < 6; li++) {
-            const la = (li / 6) * Math.PI * 2;
-            const petal = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 5), succulentMat);
-            petal.scale.set(1.6, 0.4, 1);
-            petal.position.set(px + Math.cos(la) * 0.045, baseY + 0.015, pz + Math.sin(la) * 0.045);
-            petal.rotation.y = la;
-            group.add(petal);
-          }
-        } else if (plantType === 1) {
-          // Small cactus
-          const cH = 0.10 + Math.random() * 0.06;
-          const body = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.030, cH, 6), cactusMat);
-          body.position.set(px, baseY + cH / 2, pz);
-          group.add(body);
-          const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.018, cH * 0.4, 5), cactusMat);
-          arm.position.set(px + 0.035, baseY + cH * 0.5, pz);
-          arm.rotation.z = -0.5;
-          group.add(arm);
-        } else if (plantType === 2) {
-          // Fern — drooping fronds
-          const fStem = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, 0.06, 4), stemMat);
-          fStem.position.set(px, baseY + 0.03, pz);
-          group.add(fStem);
-          for (let fi = 0; fi < 5; fi++) {
-            const fa = (fi / 5) * Math.PI * 2 + pi;
-            const frond = new THREE.Mesh(new THREE.PlaneGeometry(0.10, 0.025), fernMat);
-            frond.position.set(px + Math.cos(fa) * 0.04, baseY + 0.05 - fi * 0.005, pz + Math.sin(fa) * 0.04);
-            frond.rotation.set(-0.6 - fi * 0.1, fa, 0);
-            group.add(frond);
-          }
-        } else if (plantType === 3) {
-          // Flowering plant
-          const fH = 0.10 + Math.random() * 0.05;
-          const fStem = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.010, fH, 4), stemMat);
-          fStem.position.set(px, baseY + fH / 2, pz);
-          group.add(fStem);
-          for (let li = 0; li < 3; li++) {
-            const la = (li / 3) * Math.PI * 2 + pi;
-            const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.03), leafMat);
-            leaf.position.set(px + Math.cos(la) * 0.02, baseY + fH * 0.4 + li * 0.015, pz + Math.sin(la) * 0.02);
-            leaf.rotation.set(-0.4, la, 0);
-            group.add(leaf);
-          }
-          const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5), pi % 2 === 0 ? flowerMat : yellowFlower);
-          bloom.position.set(px, baseY + fH + 0.01, pz);
-          group.add(bloom);
-        } else {
-          // Tall grass blades
-          for (let gi = 0; gi < 4; gi++) {
-            const gH = 0.08 + Math.random() * 0.08;
-            const blade = new THREE.Mesh(new THREE.PlaneGeometry(0.012, gH), darkLeaf);
-            const gx = px + (Math.random() - 0.5) * 0.04;
-            const gz = pz + (Math.random() - 0.5) * 0.04;
-            blade.position.set(gx, baseY + gH / 2, gz);
-            blade.rotation.set(0, Math.random() * Math.PI, (Math.random() - 0.5) * 0.3);
-            group.add(blade);
-          }
-        }
-      }
+      group.userData.plantW = W;
+      group.userData.plantD = D;
+      group.userData.plantBaseY = H + 0.03 + trayH;
+      group.userData.plantStyle = 'mixed';
+      buildPlants(group, 'mixed');
 
       break;
     }

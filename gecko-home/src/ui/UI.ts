@@ -1,4 +1,5 @@
-import { ItemType, ITEM_EMOJIS } from '../items/ItemTypes.js';
+import { ItemType, ITEM_EMOJIS, PLANT_STYLES } from '../items/ItemTypes.js';
+import type { PlantStyle } from '../items/ItemTypes.js';
 import type { PlacedItem } from '../items/ItemManager.js';
 
 export interface UICallbacks {
@@ -13,6 +14,7 @@ export interface UICallbacks {
   onBellyColor: (hex: number) => void;
   onAddCrickets: () => void;
   onLampRadius: (radius: number) => void;
+  onPlantStyle: (style: PlantStyle) => void;
 }
 
 // null hex = "None" (hide spots)
@@ -165,6 +167,10 @@ export class UI {
         <label style="font-size:11px;display:block;margin-bottom:4px;">Light Radius</label>
         <input type="range" id="lamp-radius" min="0.2" max="2.0" step="0.05" value="0.50" style="width:100%"/>
       </div>
+      <div id="plant-section" style="display:none;padding:0 12px 8px;">
+        <label style="font-size:11px;display:block;margin-bottom:4px;">Plant Style</label>
+        <div id="plant-buttons" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+      </div>
       <button id="del-item" class="del-btn">🗑 Delete Item</button>
     `;
     root.appendChild(ctrl);
@@ -217,6 +223,25 @@ export class UI {
     (document.getElementById('lamp-radius') as HTMLInputElement).oninput = (e) => {
       this.callbacks.onLampRadius(+(e.target as HTMLInputElement).value);
     };
+
+    const plantBtns = document.getElementById('plant-buttons')!;
+    const PLANT_EMOJIS: Record<string, string> = {
+      mixed: '🌿', succulents: '🪴', cacti: '🌵', ferns: '☘️', flowers: '🌸', grass: '🌾',
+    };
+    for (const s of PLANT_STYLES) {
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.style.fontSize = '10px';
+      btn.style.padding = '4px 7px';
+      btn.textContent = `${PLANT_EMOJIS[s]} ${s}`;
+      btn.dataset.style = s;
+      btn.onclick = () => {
+        plantBtns.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.callbacks.onPlantStyle(s as PlantStyle);
+      };
+      plantBtns.appendChild(btn);
+    }
   }
 
   // ── Colour swatch builder ─────────────────────────────────────────────────
@@ -302,6 +327,14 @@ export class UI {
       if (item.type === ItemType.BASKING_LAMP) {
         const radius = item.mesh.userData.lampRadius ?? 0.50;
         (document.getElementById('lamp-radius') as HTMLInputElement).value = String(radius);
+      }
+      const plantSection = document.getElementById('plant-section')!;
+      plantSection.style.display = item.type === ItemType.PLATFORM ? 'block' : 'none';
+      if (item.type === ItemType.PLATFORM) {
+        const current = item.mesh.userData.plantStyle ?? 'mixed';
+        document.querySelectorAll('#plant-buttons button').forEach(b => {
+          b.classList.toggle('active', (b as HTMLElement).dataset.style === current);
+        });
       }
     } else {
       panel.className = 'panel';

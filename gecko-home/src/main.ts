@@ -4,7 +4,8 @@ import { SceneSetup } from './scene/SceneSetup.js';
 import { Enclosure } from './scene/Enclosure.js';
 import { Gecko } from './gecko/Gecko.js';
 import { ItemManager } from './items/ItemManager.js';
-import { ItemType } from './items/ItemTypes.js';
+import { ItemType, buildPlants } from './items/ItemTypes.js';
+import type { PlantStyle } from './items/ItemTypes.js';
 import { UI } from './ui/UI.js';
 
 class GeckoHomeApp {
@@ -97,6 +98,11 @@ class GeckoHomeApp {
           oldSpot.geometry.dispose();
           oldSpot.geometry = new THREE.CircleGeometry(radius, 24);
         }
+      },
+      onPlantStyle: (style: PlantStyle) => {
+        const item = this.itemManager.selectedItem;
+        if (!item || item.type !== ItemType.PLATFORM) return;
+        buildPlants(item.mesh, style);
       },
     });
 
