@@ -132,6 +132,12 @@ export class Gecko {
   private jumpPeakY    = 0;
   private jumpItem: PlacedItem | null = null;
 
+  // Drop animation: 0=none, 1=look, 2=crouch, 3=step-off, 4=falling, 5=land, 6=settle
+  private dropPhase = 0;
+  private dropTimer = 0;
+  private dropStartPos = new THREE.Vector3();
+  private dropLandPos  = new THREE.Vector3();
+
   private tongueMesh: THREE.Mesh | null = null;
   private tongueAnim  = 0;   // 0=off 1=extending 2=stuck 3=retracting
   private tongueTimer = 0;
@@ -490,10 +496,8 @@ export class Gecko {
     this.updateTongueAnim(delta);
     this.updateDrinkAnim(delta);
 
-    if (this.jumpPhase > 0) {
-      this.updateJump(delta);
-      return;
-    }
+    if (this.jumpPhase > 0) { this.updateJump(delta); return; }
+    if (this.dropPhase > 0) { this.updateDrop(delta); return; }
 
     // Smooth bowl/water-dish pose pitch (nose down, tail up)
     this.posePitch += (this.posePitchTarget - this.posePitch) * Math.min(2.5 * delta, 1);
@@ -912,6 +916,11 @@ export class Gecko {
             this.waterDishItemId = null;
           }
 
+          if (this.perchHeight > 0.02 && !this.sleepingInHide) {
+            this.startDrop();
+            break;
+          }
+
           this.perchHeight = 0;
           this.posePitchTarget = 0;
           this.reachMeshes.forEach(rm => { rm.visible = false; });
@@ -1216,6 +1225,148 @@ export class Gecko {
           this.posePitchTarget = 0;
           this.idleTimer = IDLE_WAIT_MIN + Math.random() * (IDLE_WAIT_MAX - IDLE_WAIT_MIN);
           this.jumpItem = null;
+          this.setStatus('🦎 Exploring…');
+        }
+        break;
+      }
+    }
+  }
+
+  // ── Drop animation (get down from platform) ────────────────────────────
+  private startDrop() {
+    this.dropPhase = 1;
+    this.dropTimer = 0;
+    this.dropStartPos.copy(this.group.position);
+
+    // Land spot: step forward (facing direction) and down to floor
+    const facingX = Math.cos(this.group.rotation.y);
+    const facingZ = -Math.sin(this.group.rotation.y);
+    this.dropLandPos.set(
+      this.group.position.x + facingX * 0.35,
+      0,
+      this.group.position.z + facingZ * 0.35,
+    );
+
+    this.idleTimer = 999;
+  }
+
+  private updateDrop(delta: number) {
+    if (this.dropPhase === 0) return;
+    this.dropTimer += delta;
+    const pos = this.group.position;
+
+    const LOOK_T    = 0.25;
+    const CROUCH_T  = 0.12;
+    const STEPOFF_T = 0.06;
+    const FALL_T    = 0.22;
+    const LAND_T    = 0.12;
+    const SETTLE_T  = 0.18;
+
+    switch (this.dropPhase) {
+      // ── 1: Look down / check the drop ──────────────────────────────────
+      case 1: {
+        const t = Math.min(this.dropTimer / LOOK_T, 1);
+        this.posePitchTarget = t * 0.10;
+        this.posePitch += (this.posePitchTarget - this.posePitch) * Math.min(4 * delta, 1);
+        this.poseGroup.rotation.z = this.posePitch;
+        if (t >= 1) { this.dropPhase = 2; this.dropTimer = 0; }
+        break;
+      }
+
+      // ── 2: Small crouch (less than jump-up) ────────────────────────────
+      case 2: {
+        const t = Math.min(this.dropTimer / CROUCH_T, 1);
+        const squash = t * 0.2;
+        this.bodyMesh.scale.set(1.55, 0.52 * (1 - squash * 0.3), 0.95);
+        this.bodyMesh.position.y = 0.075 - squash * 0.015;
+        this.legGroups.forEach(lg => { lg.position.y = -squash * 0.01; });
+        if (t >= 1) { this.dropPhase = 3; this.dropTimer = 0; }
+        break;
+      }
+
+      // ── 3: Step-off (gentle push, not a launch) ────────────────────────
+      case 3: {
+        const t = Math.min(this.dropTimer / STEPOFF_T, 1);
+        this.bodyMesh.scale.set(1.55, 0.52, 0.95);
+        this.bodyMesh.position.y = 0.075;
+        this.poseGroup.rotation.z = t * 0.08;
+        if (t >= 1) { this.dropPhase = 4; this.dropTimer = 0; }
+        break;
+      }
+
+      // ── 4: Falling (controlled, mostly vertical) ───────────────────────
+      case 4: {
+        const t = Math.min(this.dropTimer / FALL_T, 1);
+        // Accelerating fall (gravity feel)
+        const fallEase = t * t;
+
+        pos.x = this.dropStartPos.x + (this.dropLandPos.x - this.dropStartPos.x) * t;
+        pos.z = this.dropStartPos.z + (this.dropLandPos.z - this.dropStartPos.z) * t;
+        pos.y = this.dropStartPos.y + (0 - this.dropStartPos.y) * fallEase;
+        this.geckoY = pos.y;
+
+        // Forward pitch increases as it falls
+        this.poseGroup.rotation.z = 0.08 + fallEase * 0.06;
+
+        // Legs extend slightly, preparing to catch
+        const legExtend = fallEase * 0.02;
+        this.legGroups.forEach(lg => { lg.position.y = -legExtend; });
+
+        // Tail counterbalance
+        this.tailGroup.rotation.z = -fallEase * 0.12;
+
+        if (t >= 1) { this.dropPhase = 5; this.dropTimer = 0; }
+        break;
+      }
+
+      // ── 5: Land (stronger squash — gravity did the work) ───────────────
+      case 5: {
+        const t = Math.min(this.dropTimer / LAND_T, 1);
+        pos.x = this.dropLandPos.x;
+        pos.y = 0;
+        pos.z = this.dropLandPos.z;
+        this.geckoY = 0;
+
+        const squash = (1 - t) * 0.45;
+        this.bodyMesh.scale.set(
+          1.55 * (1 + squash * 0.12),
+          0.52 * (1 - squash * 0.5),
+          0.95 * (1 + squash * 0.12)
+        );
+        this.bodyMesh.position.y = 0.075 - squash * 0.025;
+        this.poseGroup.rotation.z = (1 - t) * 0.10;
+        this.legGroups.forEach(lg => { lg.position.y = -(1 - t) * 0.03; });
+        this.tailGroup.rotation.z *= 0.8;
+
+        if (t >= 1) { this.dropPhase = 6; this.dropTimer = 0; }
+        break;
+      }
+
+      // ── 6: Settle (recover posture, micro-step feel) ───────────────────
+      case 6: {
+        const t = Math.min(this.dropTimer / SETTLE_T, 1);
+        this.bodyMesh.scale.set(1.55, 0.52, 0.95);
+        this.bodyMesh.position.y = 0.075;
+        this.poseGroup.rotation.z *= (1 - t * 0.4);
+        this.tailGroup.rotation.z *= (1 - t * 0.5);
+        this.legGroups.forEach(lg => {
+          lg.position.y += (0 - lg.position.y) * 0.25;
+        });
+
+        if (t >= 1) {
+          this.dropPhase = 0;
+          this.poseGroup.rotation.z = 0;
+          this.posePitch = 0;
+          this.posePitchTarget = 0;
+          this.tailGroup.rotation.z = 0;
+          this.perchHeight = 0;
+          this.geckoY = 0;
+
+          this.reachMeshes.forEach(rm => { rm.visible = false; });
+          this.legGroups.forEach(lg => { lg.visible = true; });
+          this.hideTongue();
+          this.state = 'IDLE';
+          this.idleTimer = 1.5 + Math.random() * 2.0;
           this.setStatus('🦎 Exploring…');
         }
         break;
