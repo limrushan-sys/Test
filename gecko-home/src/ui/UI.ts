@@ -22,38 +22,6 @@ export interface UICallbacks {
   onTailBaseColor: (hex: number) => void;
 }
 
-// null hex = "None" (hide spots)
-type SwatchDef = { label: string; hex: string | null };
-
-const BODY_COLOURS: SwatchDef[] = [
-  { label: 'Wild Green',  hex: '#8fad3a' },
-  { label: 'Tangerine',   hex: '#c95f18' },
-  { label: 'Albino',      hex: '#e2c250' },
-  { label: 'Blizzard',    hex: '#d8d6cc' },
-  { label: 'Melanistic',  hex: '#3c4e1a' },
-  { label: 'Carrot Tail', hex: '#c04415' },
-  { label: 'Lavender',    hex: '#8a8ab2' },
-  { label: 'Chocolate',   hex: '#7a4218' },
-];
-
-const SPOT_COLOURS: SwatchDef[] = [
-  { label: 'Yellow',      hex: '#f0d040' },
-  { label: 'White',       hex: '#f0ece0' },
-  { label: 'Orange',      hex: '#d86820' },
-  { label: 'Cream',       hex: '#e8d490' },
-  { label: 'Brown',       hex: '#5c3614' },
-  { label: 'Red',         hex: '#c83828' },
-  { label: 'None',        hex: null      },
-];
-
-const BELLY_COLOURS: SwatchDef[] = [
-  { label: 'Cream',       hex: '#d4c078' },
-  { label: 'White',       hex: '#eae6d8' },
-  { label: 'Pale Yellow', hex: '#e0d890' },
-  { label: 'Pink',        hex: '#dcc0a8' },
-  { label: 'Light Green', hex: '#b8cc68' },
-  { label: 'Sandy',       hex: '#ccb060' },
-];
 
 export class UI {
   private placeModeActive = false;
@@ -91,15 +59,16 @@ export class UI {
         <label>Gecko Colours</label>
         <div class="swatch-group">
           <span class="swatch-label">Body</span>
-          <div class="swatch-row" id="swatches-body"></div>
+          <input type="color" id="gecko-body-color" value="#8fad3a" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
         </div>
         <div class="swatch-group">
           <span class="swatch-label">Spots</span>
-          <div class="swatch-row" id="swatches-spots"></div>
+          <input type="color" id="gecko-spot-color" value="#f0d040" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
+          <button id="spots-none-btn" style="font-size:10px;padding:2px 6px;margin-left:4px;cursor:pointer;">None</button>
         </div>
         <div class="swatch-group">
           <span class="swatch-label">Belly</span>
-          <div class="swatch-row" id="swatches-belly"></div>
+          <input type="color" id="gecko-belly-color" value="#d4c078" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
         </div>
         <div class="swatch-group">
           <span class="swatch-label">Tail Bands</span>
@@ -227,13 +196,19 @@ export class UI {
       };
     }
 
-    // ── Gecko colour swatches ─────────────────────────────────────────────────
-    this.buildSwatches('swatches-body',  BODY_COLOURS,  '#8fad3a',
-      hex => this.callbacks.onBodyColor(hex as number));
-    this.buildSwatches('swatches-spots', SPOT_COLOURS,  '#f0d040',
-      hex => this.callbacks.onSpotColor(hex));
-    this.buildSwatches('swatches-belly', BELLY_COLOURS, '#d4c078',
-      hex => this.callbacks.onBellyColor(hex as number));
+    // ── Gecko colour pickers ────────────────────────────────────────────────
+    (document.getElementById('gecko-body-color') as HTMLInputElement).oninput = (e) => {
+      this.callbacks.onBodyColor(parseInt((e.target as HTMLInputElement).value.replace('#', ''), 16));
+    };
+    (document.getElementById('gecko-spot-color') as HTMLInputElement).oninput = (e) => {
+      this.callbacks.onSpotColor(parseInt((e.target as HTMLInputElement).value.replace('#', ''), 16));
+    };
+    document.getElementById('spots-none-btn')!.onclick = () => {
+      this.callbacks.onSpotColor(null);
+    };
+    (document.getElementById('gecko-belly-color') as HTMLInputElement).oninput = (e) => {
+      this.callbacks.onBellyColor(parseInt((e.target as HTMLInputElement).value.replace('#', ''), 16));
+    };
 
     // ── Item move/rotate/delete buttons ───────────────────────────────────────
     const step = 0.14;
@@ -285,44 +260,6 @@ export class UI {
     };
   }
 
-  // ── Colour swatch builder ─────────────────────────────────────────────────
-  private buildSwatches(
-    id: string,
-    options: SwatchDef[],
-    defaultHex: string,
-    onChange: (hex: number | null) => void
-  ) {
-    const row = document.getElementById(id)!;
-    let activeBtn: HTMLButtonElement | null = null;
-
-    const setActive = (btn: HTMLButtonElement) => {
-      if (activeBtn) activeBtn.classList.remove('swatch-active');
-      activeBtn = btn;
-      btn.classList.add('swatch-active');
-    };
-
-    for (const opt of options) {
-      const btn = document.createElement('button');
-      btn.className = 'swatch';
-      btn.title = opt.label;
-
-      if (opt.hex === null) {
-        // "None" — show an X
-        btn.classList.add('swatch-none');
-        btn.textContent = '✕';
-      } else {
-        btn.style.background = opt.hex;
-        if (opt.hex === defaultHex) setActive(btn);
-      }
-
-      btn.onclick = () => {
-        setActive(btn);
-        onChange(opt.hex === null ? null : parseInt(opt.hex.replace('#', ''), 16));
-      };
-
-      row.appendChild(btn);
-    }
-  }
 
   // ── Toggle place mode ─────────────────────────────────────────────────────
   private togglePlaceMode() {
