@@ -365,8 +365,8 @@ export class ItemManager {
   // ── Overlap detection ─────────────────────────────────────────────────────
   // Radius used for item-to-item overlap (adds a small gap between items).
   private footprintR(type: ItemType): number {
-    if (type === ItemType.SLEEPING_HIDE) return 0.38; // outer shell radius
-    return ITEM_COLLISION[type].radius;
+    const col = ITEM_COLLISION[type];
+    return col.footprint ?? col.radius;
   }
 
   private overlapsAny(pos: THREE.Vector3, type: ItemType, excludeId?: number): boolean {

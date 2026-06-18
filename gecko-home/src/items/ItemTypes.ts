@@ -29,16 +29,17 @@ export interface ItemCollisionData {
   height: number;    // elevation gecko reaches when on top
   climbable: boolean; // true = gecko walks on top; false = gecko is pushed around
   wallMounted?: boolean; // true = can only be placed on enclosure walls
+  footprint?: number;    // placement overlap radius (defaults to radius if omitted)
 }
 
 export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
-  [ItemType.SLEEPING_HIDE]:   { radius: 0.01, height: 0,    climbable: false },
+  [ItemType.SLEEPING_HIDE]:   { radius: 0.01, height: 0,    climbable: false, footprint: 0.65 },
   [ItemType.WATER_DISH]:      { radius: 0.70, height: 0,    climbable: false },
   [ItemType.FOOD_BOWL]:       { radius: 0.32, height: 0,    climbable: false },
-  [ItemType.CLIMBING_BRANCH]: { radius: 0.35, height: 0.40, climbable: true  },
-  [ItemType.CORK_BARK]:       { radius: 0.35, height: 0.14, climbable: true, wallMounted: true },
-  [ItemType.PLATFORM]:        { radius: 0.01, height: 0,    climbable: false },
-  [ItemType.STONE]:           { radius: 0.26, height: 0,    climbable: false },
+  [ItemType.CLIMBING_BRANCH]: { radius: 0.35, height: 0.40, climbable: true,  footprint: 0.50 },
+  [ItemType.CORK_BARK]:       { radius: 0.35, height: 0.14, climbable: true, wallMounted: true, footprint: 0.45 },
+  [ItemType.PLATFORM]:        { radius: 0.01, height: 0,    climbable: false, footprint: 0.65 },
+  [ItemType.STONE]:           { radius: 0.26, height: 0,    climbable: false, footprint: 0.30 },
   [ItemType.LEAF_DECOR]:      { radius: 0,    height: 0,    climbable: false },
   [ItemType.BASKING_LAMP]:    { radius: 0,    height: 0,    climbable: false },
 };
