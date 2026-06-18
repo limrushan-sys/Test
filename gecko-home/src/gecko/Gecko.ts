@@ -1255,9 +1255,9 @@ export class Gecko {
     const facingX = Math.cos(this.group.rotation.y);
     const facingZ = -Math.sin(this.group.rotation.y);
     this.dropLandPos.set(
-      this.group.position.x + facingX * 0.85,
+      this.group.position.x + facingX * 1.15,
       0,
-      this.group.position.z + facingZ * 0.85,
+      this.group.position.z + facingZ * 1.15,
     );
 
     // Lock eyes open for the entire drop
