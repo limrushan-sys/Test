@@ -123,6 +123,15 @@ export class Gecko {
   private stuckTimer = 0;
   private lastStuckCheckPos = new THREE.Vector3();
 
+  // Jump animation: 0=none, 1=crouch, 2=launch, 3=airborne, 4=land, 5=settle
+  private jumpPhase = 0;
+  private jumpTimer = 0;
+  private jumpStartPos = new THREE.Vector3();
+  private jumpLandPos  = new THREE.Vector3();
+  private jumpLandY    = 0;
+  private jumpPeakY    = 0;
+  private jumpItem: PlacedItem | null = null;
+
   private tongueMesh: THREE.Mesh | null = null;
   private tongueAnim  = 0;   // 0=off 1=extending 2=stuck 3=retracting
   private tongueTimer = 0;
@@ -481,6 +490,11 @@ export class Gecko {
     this.updateTongueAnim(delta);
     this.updateDrinkAnim(delta);
 
+    if (this.jumpPhase > 0) {
+      this.updateJump(delta);
+      return;
+    }
+
     // Smooth bowl/water-dish pose pitch (nose down, tail up)
     this.posePitch += (this.posePitchTarget - this.posePitch) * Math.min(2.5 * delta, 1);
     this.poseGroup.rotation.z = this.posePitch;
@@ -559,21 +573,8 @@ export class Gecko {
           // Remember climb height so ARRIVED state can hold the gecko up
           if (arrivedItem && ITEM_COLLISION[arrivedItem.type].climbable) {
             if (arrivedItem.type === ItemType.CORK_BARK) {
-              const jumpY = arrivedItem.mesh.position.y + ITEM_COLLISION[arrivedItem.type].height;
-              this.perchHeight = jumpY;
-              this.geckoY = jumpY;
-              pos.y = jumpY;
-              const wn = arrivedItem.mesh.userData.wallNormal as THREE.Vector3 | undefined;
-              if (wn) {
-                const barkD = (arrivedItem.mesh.userData.barkDepth as number) ?? 0.55;
-                pos.x = arrivedItem.position.x + wn.x * barkD * 0.45;
-                pos.z = arrivedItem.position.z + wn.z * barkD * 0.45;
-                const alongX = -wn.z, alongZ = wn.x;
-                const dot = Math.cos(this.group.rotation.y) * alongX + (-Math.sin(this.group.rotation.y)) * alongZ;
-                const sign = dot >= 0 ? 1 : -1;
-                this.turnAroundAngle = Math.atan2(-alongZ * sign, alongX * sign);
-              }
-              this.posePitchTarget = 0;
+              this.startJump(arrivedItem);
+              break;
             } else if (arrivedItem.type === ItemType.CLIMBING_BRANCH) {
               const rot = arrivedItem.mesh.rotation.y;
               const cosR = Math.cos(rot), sinR = Math.sin(rot);
@@ -1056,6 +1057,168 @@ export class Gecko {
           this.drinkTimer = 0;
           this.drinkPhase = 1;
         }
+      }
+    }
+  }
+
+  // ── Jump animation ─────────────────────────────────────────────────────
+  private startJump(item: PlacedItem) {
+    this.jumpItem = item;
+    this.jumpPhase = 1;
+    this.jumpTimer = 0;
+    this.jumpStartPos.copy(this.group.position);
+    this.jumpLandY = item.mesh.position.y + ITEM_COLLISION[item.type].height;
+
+    const wn = item.mesh.userData.wallNormal as THREE.Vector3 | undefined;
+    if (wn) {
+      const barkD = (item.mesh.userData.barkDepth as number) ?? 0.55;
+      this.jumpLandPos.set(
+        item.position.x + wn.x * barkD * 0.45,
+        this.jumpLandY,
+        item.position.z + wn.z * barkD * 0.45,
+      );
+    } else {
+      this.jumpLandPos.set(item.position.x, this.jumpLandY, item.position.z);
+    }
+
+    this.jumpPeakY = Math.max(this.jumpLandY, this.jumpStartPos.y) + 0.35;
+
+    // Face toward the landing spot
+    const dx = this.jumpLandPos.x - this.jumpStartPos.x;
+    const dz = this.jumpLandPos.z - this.jumpStartPos.z;
+    this.group.rotation.y = Math.atan2(-dz, dx);
+
+    this.state = 'ARRIVED';
+    this.idleTimer = 999;
+  }
+
+  private updateJump(delta: number) {
+    if (this.jumpPhase === 0) return;
+    this.jumpTimer += delta;
+    const pos = this.group.position;
+
+    const CROUCH_T  = 0.15;
+    const LAUNCH_T  = 0.08;
+    const AIR_T     = 0.35;
+    const LAND_T    = 0.10;
+    const SETTLE_T  = 0.20;
+
+    switch (this.jumpPhase) {
+      // ── 1: Crouch ──────────────────────────────────────────────────────
+      case 1: {
+        const t = Math.min(this.jumpTimer / CROUCH_T, 1);
+        const squash = t * 0.4;
+        this.bodyMesh.scale.set(1.55, 0.52 * (1 - squash * 0.5), 0.95);
+        this.bodyMesh.position.y = 0.075 - squash * 0.025;
+        this.legGroups.forEach(lg => { lg.position.y = -squash * 0.02; });
+        pos.y = this.geckoY - squash * 0.015;
+        if (t >= 1) { this.jumpPhase = 2; this.jumpTimer = 0; }
+        break;
+      }
+
+      // ── 2: Launch (push-off) ───────────────────────────────────────────
+      case 2: {
+        const t = Math.min(this.jumpTimer / LAUNCH_T, 1);
+        this.bodyMesh.scale.set(1.55, 0.52 * (1 + t * 0.15), 0.95);
+        this.bodyMesh.position.y = 0.075;
+        this.poseGroup.rotation.z = -t * 0.12;
+        if (t >= 1) { this.jumpPhase = 3; this.jumpTimer = 0; }
+        break;
+      }
+
+      // ── 3: Airborne arc ────────────────────────────────────────────────
+      case 3: {
+        const t = Math.min(this.jumpTimer / AIR_T, 1);
+        const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+        // XZ lerp
+        pos.x = this.jumpStartPos.x + (this.jumpLandPos.x - this.jumpStartPos.x) * ease;
+        pos.z = this.jumpStartPos.z + (this.jumpLandPos.z - this.jumpStartPos.z) * ease;
+
+        // Y: parabolic arc through peak
+        const yStart = this.jumpStartPos.y;
+        const yEnd   = this.jumpLandY;
+        const yPeak  = this.jumpPeakY;
+        const linearY = yStart + (yEnd - yStart) * t;
+        const arcBoost = 4 * t * (1 - t);
+        pos.y = linearY + (yPeak - (yStart + yEnd) / 2) * arcBoost;
+        this.geckoY = pos.y;
+
+        // Body tilt: slight upward pitch at start, level at apex, slight forward at end
+        const pitchArc = t < 0.3 ? -0.15 * (1 - t / 0.3) : (t > 0.7 ? 0.08 * ((t - 0.7) / 0.3) : 0);
+        this.poseGroup.rotation.z = pitchArc;
+
+        // Tuck legs slightly
+        const tuck = Math.sin(t * Math.PI) * 0.03;
+        this.legGroups.forEach(lg => { lg.position.y = -tuck; });
+
+        // Tail follow-through lag
+        this.tailGroup.rotation.y += (0 - this.tailGroup.rotation.y) * 0.05;
+        this.tailGroup.rotation.z = Math.sin(t * Math.PI) * 0.15;
+
+        this.bodyMesh.scale.set(1.55, 0.52, 0.95);
+
+        if (t >= 1) { this.jumpPhase = 4; this.jumpTimer = 0; }
+        break;
+      }
+
+      // ── 4: Land (squash on impact) ─────────────────────────────────────
+      case 4: {
+        const t = Math.min(this.jumpTimer / LAND_T, 1);
+        pos.x = this.jumpLandPos.x;
+        pos.y = this.jumpLandY;
+        pos.z = this.jumpLandPos.z;
+        this.geckoY = this.jumpLandY;
+
+        const squash = (1 - t) * 0.35;
+        this.bodyMesh.scale.set(1.55 * (1 + squash * 0.1), 0.52 * (1 - squash * 0.4), 0.95 * (1 + squash * 0.1));
+        this.bodyMesh.position.y = 0.075 - squash * 0.02;
+        this.poseGroup.rotation.z = (1 - t) * 0.06;
+        this.legGroups.forEach(lg => { lg.position.y = -(1 - t) * 0.025; });
+        this.tailGroup.rotation.z *= 0.85;
+
+        if (t >= 1) { this.jumpPhase = 5; this.jumpTimer = 0; }
+        break;
+      }
+
+      // ── 5: Settle (recover to normal stance) ──────────────────────────
+      case 5: {
+        const t = Math.min(this.jumpTimer / SETTLE_T, 1);
+        this.bodyMesh.scale.set(1.55, 0.52, 0.95);
+        this.bodyMesh.position.y = 0.075;
+        this.poseGroup.rotation.z *= (1 - t * 0.3);
+        this.tailGroup.rotation.z *= (1 - t * 0.4);
+        this.legGroups.forEach(lg => {
+          lg.position.y += (0 - lg.position.y) * 0.2;
+        });
+
+        if (t >= 1) {
+          this.jumpPhase = 0;
+          this.poseGroup.rotation.z = 0;
+          this.tailGroup.rotation.z = 0;
+
+          // Now settle onto the bark
+          this.perchHeight = this.jumpLandY;
+          this.geckoY = this.jumpLandY;
+          pos.y = this.jumpLandY;
+
+          // Face along the wall
+          const item = this.jumpItem;
+          if (item) {
+            const wn = item.mesh.userData.wallNormal as THREE.Vector3 | undefined;
+            if (wn) {
+              const alongX = -wn.z, alongZ = wn.x;
+              const dot = Math.cos(this.group.rotation.y) * alongX + (-Math.sin(this.group.rotation.y)) * alongZ;
+              const sign = dot >= 0 ? 1 : -1;
+              this.turnAroundAngle = Math.atan2(-alongZ * sign, alongX * sign);
+            }
+          }
+          this.posePitchTarget = 0;
+          this.idleTimer = IDLE_WAIT_MIN + Math.random() * (IDLE_WAIT_MAX - IDLE_WAIT_MIN);
+          this.jumpItem = null;
+          this.setStatus('🦎 Exploring…');
+        }
+        break;
       }
     }
   }
