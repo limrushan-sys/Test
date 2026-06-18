@@ -132,96 +132,96 @@ export function buildPlants(group: THREE.Group, style: PlantStyle) {
   const add = (m: THREE.Object3D) => { m.userData.isPlant = true; group.add(m); };
 
   const addSucculent = (px: number, pz: number) => {
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), succulentMat);
+    const s = 1.4 + Math.random() * 0.6;
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.05 * s, 8, 6), succulentMat);
     bulb.scale.set(1, 0.6, 1);
-    bulb.position.set(px, baseY + 0.03, pz);
+    bulb.position.set(px, baseY + 0.03 * s, pz);
     add(bulb);
     for (let li = 0; li < 6; li++) {
       const la = (li / 6) * Math.PI * 2;
-      const petal = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 5), succulentMat);
+      const petal = new THREE.Mesh(new THREE.SphereGeometry(0.03 * s, 6, 5), succulentMat);
       petal.scale.set(1.6, 0.4, 1);
-      petal.position.set(px + Math.cos(la) * 0.045, baseY + 0.015, pz + Math.sin(la) * 0.045);
+      petal.position.set(px + Math.cos(la) * 0.045 * s, baseY + 0.015 * s, pz + Math.sin(la) * 0.045 * s);
       petal.rotation.y = la;
       add(petal);
     }
   };
 
   const addCactus = (px: number, pz: number) => {
-    const cH = 0.10 + Math.random() * 0.06;
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.030, cH, 6), cactusMat);
+    const s = 1.4 + Math.random() * 0.6;
+    const cH = (0.10 + Math.random() * 0.06) * s;
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.025 * s, 0.030 * s, cH, 6), cactusMat);
     body.position.set(px, baseY + cH / 2, pz);
     add(body);
-    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.018, cH * 0.4, 5), cactusMat);
-    arm.position.set(px + 0.035, baseY + cH * 0.5, pz);
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.015 * s, 0.018 * s, cH * 0.4, 5), cactusMat);
+    arm.position.set(px + 0.035 * s, baseY + cH * 0.5, pz);
     arm.rotation.z = -0.5;
     add(arm);
   };
 
   const addFern = (px: number, pz: number, seed: number) => {
-    const fStem = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, 0.06, 4), stemMat);
-    fStem.position.set(px, baseY + 0.03, pz);
+    const s = 1.4 + Math.random() * 0.6;
+    const fStem = new THREE.Mesh(new THREE.CylinderGeometry(0.008 * s, 0.012 * s, 0.06 * s, 4), stemMat);
+    fStem.position.set(px, baseY + 0.03 * s, pz);
     add(fStem);
     for (let fi = 0; fi < 5; fi++) {
       const fa = (fi / 5) * Math.PI * 2 + seed;
-      const frond = new THREE.Mesh(new THREE.PlaneGeometry(0.10, 0.025), fernMat);
-      frond.position.set(px + Math.cos(fa) * 0.04, baseY + 0.05 - fi * 0.005, pz + Math.sin(fa) * 0.04);
+      const frond = new THREE.Mesh(new THREE.PlaneGeometry(0.10 * s, 0.025 * s), fernMat);
+      frond.position.set(px + Math.cos(fa) * 0.04 * s, baseY + 0.05 * s - fi * 0.005, pz + Math.sin(fa) * 0.04 * s);
       frond.rotation.set(-0.6 - fi * 0.1, fa, 0);
       add(frond);
     }
   };
 
   const addFlower = (px: number, pz: number, seed: number) => {
-    const fH = 0.10 + Math.random() * 0.05;
-    const fStem = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.010, fH, 4), stemMat);
+    const s = 1.4 + Math.random() * 0.6;
+    const fH = (0.10 + Math.random() * 0.05) * s;
+    const fStem = new THREE.Mesh(new THREE.CylinderGeometry(0.006 * s, 0.010 * s, fH, 4), stemMat);
     fStem.position.set(px, baseY + fH / 2, pz);
     add(fStem);
     for (let li = 0; li < 3; li++) {
       const la = (li / 3) * Math.PI * 2 + seed;
-      const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.03), leafMat);
-      leaf.position.set(px + Math.cos(la) * 0.02, baseY + fH * 0.4 + li * 0.015, pz + Math.sin(la) * 0.02);
+      const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.06 * s, 0.03 * s), leafMat);
+      leaf.position.set(px + Math.cos(la) * 0.02 * s, baseY + fH * 0.4 + li * 0.015, pz + Math.sin(la) * 0.02 * s);
       leaf.rotation.set(-0.4, la, 0);
       add(leaf);
     }
-    const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5), seed % 2 === 0 ? flowerMat : yellowFlower);
+    const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.022 * s, 6, 5), seed % 2 === 0 ? flowerMat : yellowFlower);
     bloom.position.set(px, baseY + fH + 0.01, pz);
     add(bloom);
   };
 
   const addGrass = (px: number, pz: number) => {
-    for (let gi = 0; gi < 4; gi++) {
-      const gH = 0.08 + Math.random() * 0.08;
-      const blade = new THREE.Mesh(new THREE.PlaneGeometry(0.012, gH), darkLeaf);
-      const gx = px + (Math.random() - 0.5) * 0.04;
-      const gz = pz + (Math.random() - 0.5) * 0.04;
+    const s = 1.4 + Math.random() * 0.6;
+    for (let gi = 0; gi < 5; gi++) {
+      const gH = (0.08 + Math.random() * 0.08) * s;
+      const blade = new THREE.Mesh(new THREE.PlaneGeometry(0.015 * s, gH), darkLeaf);
+      const gx = px + (Math.random() - 0.5) * 0.06;
+      const gz = pz + (Math.random() - 0.5) * 0.06;
       blade.position.set(gx, baseY + gH / 2, gz);
       blade.rotation.set(0, Math.random() * Math.PI, (Math.random() - 0.5) * 0.3);
       add(blade);
     }
   };
 
-  const cols = 9, rows = 7;
-  let idx = 0;
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const px = (col / (cols - 1) - 0.5) * (W - 0.18);
-      const pz = (row / (rows - 1) - 0.5) * (D - 0.18);
-      // Slight random offset so it doesn't look like a perfect grid
-      const ox = (Math.random() - 0.5) * 0.06;
-      const oz = (Math.random() - 0.5) * 0.06;
+  const count = 25;
+  for (let i = 0; i < count; i++) {
+    const px = (Math.random() - 0.5) * (W - 0.10);
+    const pz = (Math.random() - 0.5) * (D - 0.10);
 
-      if (style === 'mixed') {
-        [addSucculent, addCactus, addFern, addFlower, addGrass][idx % 5](px + ox, pz + oz, idx);
-      } else if (style === 'succulents') {
-        addSucculent(px + ox, pz + oz);
-      } else if (style === 'cacti') {
-        addCactus(px + ox, pz + oz);
-      } else if (style === 'ferns') {
-        addFern(px + ox, pz + oz, idx);
-      } else if (style === 'flowers') {
-        addFlower(px + ox, pz + oz, idx);
-      } else {
-        addGrass(px + ox, pz + oz);
-      }
+    if (style === 'mixed') {
+      [addSucculent, addCactus, addFern, addFlower, addGrass][i % 5](px, pz, i);
+    } else if (style === 'succulents') {
+      addSucculent(px, pz);
+    } else if (style === 'cacti') {
+      addCactus(px, pz);
+    } else if (style === 'ferns') {
+      addFern(px, pz, i);
+    } else if (style === 'flowers') {
+      addFlower(px, pz, i);
+    } else {
+      addGrass(px, pz);
+    }
       idx++;
     }
   }
