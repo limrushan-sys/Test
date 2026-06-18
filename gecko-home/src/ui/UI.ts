@@ -226,7 +226,7 @@ export class UI {
 
     const plantBtns = document.getElementById('plant-buttons')!;
     const PLANT_EMOJIS: Record<string, string> = {
-      mixed: '🌿', succulents: '🪴', cacti: '🌵', ferns: '☘️', flowers: '🌸', grass: '🌾',
+      mixed: '🌿', succulents: '🪴', ferns: '☘️', grass: '🌾',
     };
     for (const s of PLANT_STYLES) {
       const btn = document.createElement('button');

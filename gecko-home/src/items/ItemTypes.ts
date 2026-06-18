@@ -107,7 +107,7 @@ export function createCricketMesh(): THREE.Group {
 }
 
 // ── Plant styles for Plant House ──────────────────────────────────────────────
-export const PLANT_STYLES = ['mixed', 'succulents', 'cacti', 'ferns', 'flowers', 'grass'] as const;
+export const PLANT_STYLES = ['mixed', 'succulents', 'ferns', 'grass'] as const;
 export type PlantStyle = typeof PLANT_STYLES[number];
 
 export function buildPlants(group: THREE.Group, style: PlantStyle) {
@@ -124,10 +124,7 @@ export function buildPlants(group: THREE.Group, style: PlantStyle) {
   const darkLeaf     = new THREE.MeshLambertMaterial({ color: 0x2d6618, side: THREE.DoubleSide });
   const stemMat      = new THREE.MeshLambertMaterial({ color: 0x3a7020 });
   const succulentMat = new THREE.MeshLambertMaterial({ color: 0x6aab5c, side: THREE.DoubleSide });
-  const cactusMat    = new THREE.MeshLambertMaterial({ color: 0x3d7a2e });
   const fernMat      = new THREE.MeshLambertMaterial({ color: 0x2e8b3a, side: THREE.DoubleSide });
-  const flowerMat    = new THREE.MeshLambertMaterial({ color: 0xe85480 });
-  const yellowFlower = new THREE.MeshLambertMaterial({ color: 0xf0c830 });
 
   const add = (m: THREE.Object3D) => { m.userData.isPlant = true; group.add(m); };
 
@@ -147,18 +144,6 @@ export function buildPlants(group: THREE.Group, style: PlantStyle) {
     }
   };
 
-  const addCactus = (px: number, pz: number) => {
-    const s = 1.4 + Math.random() * 0.6;
-    const cH = (0.10 + Math.random() * 0.06) * s;
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.025 * s, 0.030 * s, cH, 6), cactusMat);
-    body.position.set(px, baseY + cH / 2, pz);
-    add(body);
-    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.015 * s, 0.018 * s, cH * 0.4, 5), cactusMat);
-    arm.position.set(px + 0.035 * s, baseY + cH * 0.5, pz);
-    arm.rotation.z = -0.5;
-    add(arm);
-  };
-
   const addFern = (px: number, pz: number, seed: number) => {
     const s = 1.4 + Math.random() * 0.6;
     const fStem = new THREE.Mesh(new THREE.CylinderGeometry(0.008 * s, 0.012 * s, 0.06 * s, 4), stemMat);
@@ -171,24 +156,6 @@ export function buildPlants(group: THREE.Group, style: PlantStyle) {
       frond.rotation.set(-0.6 - fi * 0.1, fa, 0);
       add(frond);
     }
-  };
-
-  const addFlower = (px: number, pz: number, seed: number) => {
-    const s = 1.4 + Math.random() * 0.6;
-    const fH = (0.10 + Math.random() * 0.05) * s;
-    const fStem = new THREE.Mesh(new THREE.CylinderGeometry(0.006 * s, 0.010 * s, fH, 4), stemMat);
-    fStem.position.set(px, baseY + fH / 2, pz);
-    add(fStem);
-    for (let li = 0; li < 3; li++) {
-      const la = (li / 3) * Math.PI * 2 + seed;
-      const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.06 * s, 0.03 * s), leafMat);
-      leaf.position.set(px + Math.cos(la) * 0.02 * s, baseY + fH * 0.4 + li * 0.015, pz + Math.sin(la) * 0.02 * s);
-      leaf.rotation.set(-0.4, la, 0);
-      add(leaf);
-    }
-    const bloom = new THREE.Mesh(new THREE.SphereGeometry(0.022 * s, 6, 5), seed % 2 === 0 ? flowerMat : yellowFlower);
-    bloom.position.set(px, baseY + fH + 0.01, pz);
-    add(bloom);
   };
 
   const addGrass = (px: number, pz: number) => {
@@ -204,23 +171,26 @@ export function buildPlants(group: THREE.Group, style: PlantStyle) {
     }
   };
 
-  const count = 25;
-  for (let i = 0; i < count; i++) {
-    const px = (Math.random() - 0.5) * (W - 0.10);
-    const pz = (Math.random() - 0.5) * (D - 0.10);
+  const mixedFns = [addSucculent, addFern, addGrass];
+  const cols = 8, rows = 6;
+  let idx = 0;
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const cellW = (W - 0.08) / cols;
+      const cellD = (D - 0.08) / rows;
+      const px = (col + 0.5) * cellW - (W - 0.08) / 2 + (Math.random() - 0.5) * cellW * 0.7;
+      const pz = (row + 0.5) * cellD - (D - 0.08) / 2 + (Math.random() - 0.5) * cellD * 0.7;
 
-    if (style === 'mixed') {
-      [addSucculent, addCactus, addFern, addFlower, addGrass][i % 5](px, pz, i);
-    } else if (style === 'succulents') {
-      addSucculent(px, pz);
-    } else if (style === 'cacti') {
-      addCactus(px, pz);
-    } else if (style === 'ferns') {
-      addFern(px, pz, i);
-    } else if (style === 'flowers') {
-      addFlower(px, pz, i);
-    } else {
-      addGrass(px, pz);
+      if (style === 'mixed') {
+        mixedFns[idx % 3](px, pz, idx);
+      } else if (style === 'succulents') {
+        addSucculent(px, pz);
+      } else if (style === 'ferns') {
+        addFern(px, pz, idx);
+      } else {
+        addGrass(px, pz);
+      }
+      idx++;
     }
   }
 }
