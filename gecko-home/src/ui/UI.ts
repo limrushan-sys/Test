@@ -59,24 +59,24 @@ export class UI {
         <label>Gecko Colours</label>
         <div class="swatch-group">
           <span class="swatch-label">Body</span>
-          <input type="color" id="gecko-body-color" value="#8fad3a" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
+          <input type="color" id="gecko-body-color" value="#e8c840" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
         </div>
         <div class="swatch-group">
           <span class="swatch-label">Spots</span>
-          <input type="color" id="gecko-spot-color" value="#f0d040" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
+          <input type="color" id="gecko-spot-color" value="#2a1a08" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
           <button id="spots-none-btn" style="font-size:10px;padding:2px 6px;margin-left:4px;cursor:pointer;">None</button>
         </div>
         <div class="swatch-group">
           <span class="swatch-label">Belly</span>
-          <input type="color" id="gecko-belly-color" value="#d4c078" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
+          <input type="color" id="gecko-belly-color" value="#f5f0e0" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
         </div>
         <div class="swatch-group">
           <span class="swatch-label">Tail Bands</span>
-          <input type="color" id="tail-band-color" value="#f5e8c0" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
+          <input type="color" id="tail-band-color" value="#f0e8c8" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
         </div>
         <div class="swatch-group">
           <span class="swatch-label">Tail Base</span>
-          <input type="color" id="tail-base-color" value="#3a1a00" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
+          <input type="color" id="tail-base-color" value="#3a2810" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
         </div>
         <div class="swatch-group">
           <span class="swatch-label">Eyes</span>

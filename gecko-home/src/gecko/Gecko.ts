@@ -88,8 +88,8 @@ export class Gecko {
   private legGroups: THREE.Group[] = [];
 
   private bodyGeo!: THREE.SphereGeometry;
-  private bodyTopColor  = new THREE.Color(0xf07030); // leopard orange
-  private bodyBotColor  = new THREE.Color(0xffe8d0); // cream belly
+  private bodyTopColor  = new THREE.Color(0xe8c840); // leopard yellow
+  private bodyBotColor  = new THREE.Color(0xf5f0e0); // white belly
 
   private baseMat!: THREE.MeshLambertMaterial;
   private bodyMat!: THREE.MeshLambertMaterial;
@@ -186,15 +186,15 @@ export class Gecko {
 
   // ── Build gecko mesh ───────────────────────────────────────────────────────
   private buildMesh() {
-    this.baseMat = new THREE.MeshLambertMaterial({ color: 0xe86820 }); // orange — head/tail
+    this.baseMat = new THREE.MeshLambertMaterial({ color: 0xe8c840 }); // yellow — head/tail
     this.bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true });
-    this.spotMat = new THREE.MeshLambertMaterial({ color: 0x1a0800 }); // near-black spots
-    this.darkMat = new THREE.MeshLambertMaterial({ color: 0xc04010 }); // darker orange legs
+    this.spotMat = new THREE.MeshLambertMaterial({ color: 0x2a1a08 }); // dark brown spots
+    this.darkMat = new THREE.MeshLambertMaterial({ color: 0xc0a030 }); // darker yellow legs
     this.eyeMat     = new THREE.MeshLambertMaterial({ color: 0xd4a820 }); // gold iris
     const pupilMat  = new THREE.MeshLambertMaterial({ color: 0x080400 }); // vertical slit
     const tongueMat = new THREE.MeshLambertMaterial({ color: 0xe05070 });
-    this.bandLightMat = new THREE.MeshLambertMaterial({ color: 0xf5e8c0 }); // cream tail band
-    this.bandDarkMat  = new THREE.MeshLambertMaterial({ color: 0x3a1a00 }); // dark tail band
+    this.bandLightMat = new THREE.MeshLambertMaterial({ color: 0xf0e8c8 }); // cream/white tail band
+    this.bandDarkMat  = new THREE.MeshLambertMaterial({ color: 0x3a2810 }); // dark brown tail band
 
     // Body — vertex-coloured sphere: top half = body colour, bottom half = belly colour
     this.bodyGeo = new THREE.SphereGeometry(0.13, 16, 12);
