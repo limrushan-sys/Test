@@ -370,7 +370,7 @@ export class ItemManager {
   }
 
   private static LEAF_BLOCKED: Set<ItemType> = new Set([
-    ItemType.FOOD_BOWL, ItemType.WATER_DISH, ItemType.SLEEPING_HIDE,
+    ItemType.FOOD_BOWL, ItemType.WATER_DISH, ItemType.SLEEPING_HIDE, ItemType.PLATFORM,
   ]);
 
   private overlapsAny(pos: THREE.Vector3, type: ItemType, excludeId?: number): boolean {
