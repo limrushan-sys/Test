@@ -15,6 +15,7 @@ export interface UICallbacks {
   onAddCrickets: () => void;
   onLampRadius: (radius: number) => void;
   onPlantStyle: (style: PlantStyle) => void;
+  onItemScale: (scale: number) => void;
 }
 
 // null hex = "None" (hide spots)
@@ -171,6 +172,10 @@ export class UI {
         <label style="font-size:11px;display:block;margin-bottom:4px;">Plant Style</label>
         <div id="plant-buttons" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
       </div>
+      <div id="scale-section" style="display:none;padding:0 12px 8px;">
+        <label style="font-size:11px;display:block;margin-bottom:4px;">Size</label>
+        <input type="range" id="item-scale" min="0.5" max="2.0" step="0.05" value="1.00" style="width:100%"/>
+      </div>
       <button id="del-item" class="del-btn">🗑 Delete Item</button>
     `;
     root.appendChild(ctrl);
@@ -242,6 +247,10 @@ export class UI {
       };
       plantBtns.appendChild(btn);
     }
+
+    (document.getElementById('item-scale') as HTMLInputElement).oninput = (e) => {
+      this.callbacks.onItemScale(+(e.target as HTMLInputElement).value);
+    };
   }
 
   // ── Colour swatch builder ─────────────────────────────────────────────────
@@ -335,6 +344,13 @@ export class UI {
         document.querySelectorAll('#plant-buttons button').forEach(b => {
           b.classList.toggle('active', (b as HTMLElement).dataset.style === current);
         });
+      }
+      const scaleSection = document.getElementById('scale-section')!;
+      const scalable = item.type === ItemType.STONE || item.type === ItemType.CLIMBING_BRANCH;
+      scaleSection.style.display = scalable ? 'block' : 'none';
+      if (scalable) {
+        const s = item.mesh.userData.itemScale ?? 1.0;
+        (document.getElementById('item-scale') as HTMLInputElement).value = String(s);
       }
     } else {
       panel.className = 'panel';

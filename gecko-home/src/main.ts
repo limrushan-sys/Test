@@ -104,6 +104,12 @@ class GeckoHomeApp {
         if (!item || item.type !== ItemType.PLATFORM) return;
         buildPlants(item.mesh, style);
       },
+      onItemScale: (scale: number) => {
+        const item = this.itemManager.selectedItem;
+        if (!item) return;
+        item.mesh.scale.set(scale, scale, scale);
+        item.mesh.userData.itemScale = scale;
+      },
     });
 
     this.bindPointer(canvas);
