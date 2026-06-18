@@ -160,44 +160,84 @@ export function buildPlants(group: THREE.Group, style: PlantStyle) {
 
   const snakeDark = new THREE.MeshLambertMaterial({ color: 0x2e7a22, side: THREE.DoubleSide });
   const snakeLight = new THREE.MeshLambertMaterial({ color: 0x6ec44a, side: THREE.DoubleSide });
-  const snakeEdge = new THREE.MeshLambertMaterial({ color: 0xc8c050, side: THREE.DoubleSide });
+  const snakeEdge = new THREE.MeshLambertMaterial({ color: 0xd4c850, side: THREE.DoubleSide });
 
   const addGrass = (px: number, pz: number) => {
-    const s = 1.2 + Math.random() * 0.5;
-    const leafCount = 3 + Math.floor(Math.random() * 3);
+    const s = 1.0 + Math.random() * 0.4;
+    const leafCount = 4 + Math.floor(Math.random() * 3);
     for (let gi = 0; gi < leafCount; gi++) {
-      const lH = (0.12 + Math.random() * 0.10) * s;
-      const lW = 0.028 * s;
-      const angle = (gi / leafCount) * Math.PI * 2 + Math.random() * 0.3;
-      const spread = 0.015 * s;
+      const lH = (0.14 + Math.random() * 0.12) * s;
+      const lW = 0.055 * s;  // wide sword shape
+      const lD = 0.012 * s;  // slight thickness / curve
+      const angle = (gi / leafCount) * Math.PI * 2 + Math.random() * 0.4;
+      const spread = 0.012 * s;
       const lx = px + Math.cos(angle) * spread;
       const lz = pz + Math.sin(angle) * spread;
-      const tilt = 0.1 + Math.random() * 0.15;
+      const tilt = 0.08 + Math.random() * 0.18;
 
-      // Tall pointed leaf shape (tapered box)
-      const leaf = new THREE.Mesh(
-        new THREE.BoxGeometry(lW, lH, 0.006 * s),
-        gi % 2 === 0 ? snakeDark : snakeLight
-      );
+      // Main leaf body — wide, sword-shaped
+      const leafGeo = new THREE.BoxGeometry(lW, lH, lD);
+      // Taper the top: scale top vertices inward
+      const pos = leafGeo.attributes.position;
+      for (let vi = 0; vi < pos.count; vi++) {
+        const y = pos.getY(vi);
+        if (y > 0) {
+          const taper = 0.3 + 0.7 * (1 - y / (lH / 2));
+          pos.setX(vi, pos.getX(vi) * taper);
+        }
+      }
+      pos.needsUpdate = true;
+      leafGeo.computeVertexNormals();
+
+      const leaf = new THREE.Mesh(leafGeo, gi % 2 === 0 ? snakeDark : snakeLight);
       leaf.position.set(lx, baseY + lH / 2, lz);
       leaf.rotation.set(0, angle, Math.sin(angle) * tilt);
       add(leaf);
 
-      // Yellow edge stripe
-      const stripe = new THREE.Mesh(
-        new THREE.BoxGeometry(lW + 0.006 * s, lH, 0.002),
-        snakeEdge
-      );
-      stripe.position.set(lx, baseY + lH / 2, lz + 0.004 * s);
-      stripe.rotation.set(0, angle, Math.sin(angle) * tilt);
-      add(stripe);
+      // Yellow edge stripes on both sides
+      for (const side of [-1, 1]) {
+        const edgeH = lH * 0.92;
+        const edgeGeo = new THREE.BoxGeometry(0.006 * s, edgeH, lD + 0.002);
+        // Taper edge to match leaf
+        const ePos = edgeGeo.attributes.position;
+        for (let vi = 0; vi < ePos.count; vi++) {
+          const y = ePos.getY(vi);
+          if (y > 0) {
+            const taper = 0.3 + 0.7 * (1 - y / (edgeH / 2));
+            ePos.setX(vi, ePos.getX(vi) * taper);
+          }
+        }
+        ePos.needsUpdate = true;
+        const edge = new THREE.Mesh(edgeGeo, snakeEdge);
+        edge.position.set(
+          lx + Math.cos(angle + Math.PI / 2) * side * lW * 0.45,
+          baseY + edgeH / 2,
+          lz + Math.sin(angle + Math.PI / 2) * side * lW * 0.45
+        );
+        edge.rotation.set(0, angle, Math.sin(angle) * tilt);
+        add(edge);
+      }
+
+      // Horizontal banding — lighter green wavy stripes across the leaf
+      const bands = 2 + Math.floor(Math.random() * 2);
+      for (let bi = 0; bi < bands; bi++) {
+        const bandY = lH * (0.25 + (bi / bands) * 0.5);
+        const bandW = lW * (0.6 - bi * 0.05);
+        const band = new THREE.Mesh(
+          new THREE.BoxGeometry(bandW, 0.008 * s, lD + 0.003),
+          snakeLight
+        );
+        band.position.set(lx, baseY + bandY, lz);
+        band.rotation.set(0, angle, Math.sin(angle) * tilt);
+        add(band);
+      }
 
       // Pointed tip
       const tip = new THREE.Mesh(
-        new THREE.ConeGeometry(lW * 0.5, 0.03 * s, 4),
+        new THREE.ConeGeometry(lW * 0.2, 0.035 * s, 4),
         snakeDark
       );
-      tip.position.set(lx, baseY + lH + 0.012 * s, lz);
+      tip.position.set(lx, baseY + lH + 0.014 * s, lz);
       tip.rotation.set(0, angle, Math.sin(angle) * tilt);
       add(tip);
     }
