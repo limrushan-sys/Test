@@ -64,7 +64,7 @@ export class UI {
         <div class="swatch-group">
           <span class="swatch-label">Spots</span>
           <input type="color" id="gecko-spot-color" value="#2a1a08" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
-          <button id="spots-none-btn" style="font-size:10px;padding:2px 6px;margin-left:4px;cursor:pointer;">None</button>
+          <button id="spots-toggle-btn" style="font-size:10px;padding:2px 6px;margin-left:4px;cursor:pointer;">Off</button>
         </div>
         <div class="swatch-group">
           <span class="swatch-label">Belly</span>
@@ -203,8 +203,17 @@ export class UI {
     (document.getElementById('gecko-spot-color') as HTMLInputElement).oninput = (e) => {
       this.callbacks.onSpotColor(parseInt((e.target as HTMLInputElement).value.replace('#', ''), 16));
     };
-    document.getElementById('spots-none-btn')!.onclick = () => {
-      this.callbacks.onSpotColor(null);
+    const spotsToggle = document.getElementById('spots-toggle-btn')!;
+    const spotPicker = document.getElementById('gecko-spot-color') as HTMLInputElement;
+    let spotsOn = true;
+    spotsToggle.onclick = () => {
+      spotsOn = !spotsOn;
+      spotsToggle.textContent = spotsOn ? 'Off' : 'On';
+      if (spotsOn) {
+        this.callbacks.onSpotColor(parseInt(spotPicker.value.replace('#', ''), 16));
+      } else {
+        this.callbacks.onSpotColor(null);
+      }
     };
     (document.getElementById('gecko-belly-color') as HTMLInputElement).oninput = (e) => {
       this.callbacks.onBellyColor(parseInt((e.target as HTMLInputElement).value.replace('#', ''), 16));
