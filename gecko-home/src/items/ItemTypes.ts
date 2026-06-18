@@ -355,7 +355,7 @@ export function createItemMesh(type: ItemType): THREE.Group {
 
     // ── Platform: elevated flat surface gecko walks on ───────────────────────
     case ItemType.PLATFORM: {
-      const W = 1.10, D = 0.90, H = 0.55;
+      const W = 1.25, D = 1.00, H = 0.60;
       const WALL = 0.04;
       const blackMat = new THREE.MeshLambertMaterial({ color: 0x2a2a2a, side: THREE.DoubleSide });
       const innerMat = new THREE.MeshLambertMaterial({ color: 0x111111, side: THREE.DoubleSide });
