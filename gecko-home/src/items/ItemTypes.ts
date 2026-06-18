@@ -199,23 +199,30 @@ export function buildPlants(group: THREE.Group, style: PlantStyle) {
     }
   };
 
-  const count = 7;
-  for (let pi = 0; pi < count; pi++) {
-    const px = (pi / (count - 1) - 0.5) * (W - 0.22);
-    const pz = (Math.random() - 0.5) * (D - 0.28);
+  const cols = 6, rows = 5;
+  let idx = 0;
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const px = (col / (cols - 1) - 0.5) * (W - 0.18);
+      const pz = (row / (rows - 1) - 0.5) * (D - 0.18);
+      // Slight random offset so it doesn't look like a perfect grid
+      const ox = (Math.random() - 0.5) * 0.06;
+      const oz = (Math.random() - 0.5) * 0.06;
 
-    if (style === 'mixed') {
-      [addSucculent, addCactus, addFern, addFlower, addGrass][pi % 5](px, pz, pi);
-    } else if (style === 'succulents') {
-      addSucculent(px, pz);
-    } else if (style === 'cacti') {
-      addCactus(px, pz);
-    } else if (style === 'ferns') {
-      addFern(px, pz, pi);
-    } else if (style === 'flowers') {
-      addFlower(px, pz, pi);
-    } else {
-      addGrass(px, pz);
+      if (style === 'mixed') {
+        [addSucculent, addCactus, addFern, addFlower, addGrass][idx % 5](px + ox, pz + oz, idx);
+      } else if (style === 'succulents') {
+        addSucculent(px + ox, pz + oz);
+      } else if (style === 'cacti') {
+        addCactus(px + ox, pz + oz);
+      } else if (style === 'ferns') {
+        addFern(px + ox, pz + oz, idx);
+      } else if (style === 'flowers') {
+        addFlower(px + ox, pz + oz, idx);
+      } else {
+        addGrass(px + ox, pz + oz);
+      }
+      idx++;
     }
   }
 }
