@@ -587,13 +587,13 @@ export function createItemMesh(type: ItemType): THREE.Group {
     case ItemType.STONE: {
       const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.22, 0),
         new THREE.MeshLambertMaterial({ color: 0x78909c }));
-      stone.scale.set(1, 0.55, 0.9);
-      stone.position.y = 0.12;
+      stone.scale.set(1, 0.38, 0.9);
+      stone.position.y = 0.08;
       stone.rotation.y = Math.random() * Math.PI;
       const pebble = new THREE.Mesh(new THREE.DodecahedronGeometry(0.1, 0),
         new THREE.MeshLambertMaterial({ color: 0x90a4ae }));
-      pebble.scale.set(1, 0.5, 0.85);
-      pebble.position.set(0.22, 0.05, 0.1);
+      pebble.scale.set(1, 0.35, 0.85);
+      pebble.position.set(0.22, 0.035, 0.1);
       group.add(stone, pebble);
       break;
     }
