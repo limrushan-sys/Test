@@ -369,12 +369,19 @@ export class ItemManager {
     return col.footprint ?? col.radius;
   }
 
+  private static LEAF_BLOCKED: Set<ItemType> = new Set([
+    ItemType.FOOD_BOWL, ItemType.WATER_DISH, ItemType.SLEEPING_HIDE,
+  ]);
+
   private overlapsAny(pos: THREE.Vector3, type: ItemType, excludeId?: number): boolean {
-    if (type === ItemType.BASKING_LAMP || type === ItemType.LEAF_DECOR) return false;
+    if (type === ItemType.BASKING_LAMP) return false;
+    const isLeaf = type === ItemType.LEAF_DECOR;
     const r1 = this.footprintR(type);
     for (const item of this.items) {
       if (item.id === excludeId) continue;
-      if (item.type === ItemType.BASKING_LAMP || item.type === ItemType.LEAF_DECOR) continue;
+      if (item.type === ItemType.BASKING_LAMP) continue;
+      if (isLeaf && !ItemManager.LEAF_BLOCKED.has(item.type)) continue;
+      if (!isLeaf && item.type === ItemType.LEAF_DECOR) continue;
       const r2 = this.footprintR(item.type);
       const dx = pos.x - item.position.x;
       const dz = pos.z - item.position.z;
