@@ -562,6 +562,9 @@ export class Gecko {
               this.perchHeight = arrivedItem.mesh.position.y + ITEM_COLLISION[arrivedItem.type].height;
               const wn = arrivedItem.mesh.userData.wallNormal as THREE.Vector3 | undefined;
               if (wn) {
+                const barkD = (arrivedItem.mesh.userData.barkDepth as number) ?? 0.55;
+                pos.x = arrivedItem.position.x + wn.x * barkD * 0.45;
+                pos.z = arrivedItem.position.z + wn.z * barkD * 0.45;
                 const alongX = -wn.z, alongZ = wn.x;
                 const dot = Math.cos(this.group.rotation.y) * alongX + (-Math.sin(this.group.rotation.y)) * alongZ;
                 const sign = dot >= 0 ? 1 : -1;
@@ -1099,10 +1102,11 @@ export class Gecko {
         this.hideEntryPhase = 0;
         const wn = item.mesh.userData.wallNormal as THREE.Vector3 | undefined;
         if (wn) {
+          const barkD = (item.mesh.userData.barkDepth as number) ?? 0.55;
           this.target.set(
-            item.position.x + wn.x * 0.25,
+            item.position.x + wn.x * (barkD + 0.15),
             0,
-            item.position.z + wn.z * 0.25,
+            item.position.z + wn.z * (barkD + 0.15),
           );
         } else {
           this.target.set(item.position.x, 0, item.position.z);
