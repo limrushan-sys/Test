@@ -440,13 +440,13 @@ export function createItemMesh(type: ItemType): THREE.Group {
     case ItemType.CORK_BARK: {
       const barkMat  = new THREE.MeshLambertMaterial({ color: 0x795548 });
       const ridgeMat = new THREE.MeshLambertMaterial({ color: 0x5d4037 });
-      const bW = 0.50, bH = 0.08, bD = 0.30;
+      const bW = 0.75, bH = 0.10, bD = 0.40;
       const bark = new THREE.Mesh(new THREE.BoxGeometry(bW, bH, bD), barkMat);
-      bark.position.set(0, bH / 2, 0);
+      bark.position.set(0, bH / 2, bD / 2);
       group.add(bark);
-      for (let i = -2; i <= 2; i++) {
-        const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.025, 0.04), ridgeMat);
-        ridge.position.set(0, bH + 0.005, i * 0.06);
+      for (let i = -3; i <= 3; i++) {
+        const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.70, 0.025, 0.05), ridgeMat);
+        ridge.position.set(0, bH + 0.005, bD / 2 + i * 0.055);
         group.add(ridge);
       }
       group.userData.wallMounted = true;

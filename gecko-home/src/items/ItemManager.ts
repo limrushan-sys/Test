@@ -87,19 +87,18 @@ export class ItemManager {
     const wall = dists[0][0];
 
     let x = hit.x, z = hit.z, rotY = 0;
-    const barkHalfW = 0.25;
-    const barkHalfD = 0.15;
+    const barkHalfW = 0.375;
     if (wall === 'back') {
-      z = bounds.minZ + barkHalfD; rotY = Math.PI;
+      z = bounds.minZ; rotY = Math.PI;
       x = Math.max(bounds.minX + barkHalfW, Math.min(bounds.maxX - barkHalfW, x));
     } else if (wall === 'front') {
-      z = bounds.maxZ - barkHalfD; rotY = 0;
+      z = bounds.maxZ; rotY = 0;
       x = Math.max(bounds.minX + barkHalfW, Math.min(bounds.maxX - barkHalfW, x));
     } else if (wall === 'left') {
-      x = bounds.minX + barkHalfD; rotY = -Math.PI / 2;
+      x = bounds.minX; rotY = -Math.PI / 2;
       z = Math.max(bounds.minZ + barkHalfW, Math.min(bounds.maxZ - barkHalfW, z));
     } else {
-      x = bounds.maxX - barkHalfD; rotY = Math.PI / 2;
+      x = bounds.maxX; rotY = Math.PI / 2;
       z = Math.max(bounds.minZ + barkHalfW, Math.min(bounds.maxZ - barkHalfW, z));
     }
     const barkH = 0.08;
