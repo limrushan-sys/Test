@@ -110,6 +110,7 @@ export class Gecko {
   private targetItemId: number | null = null;
   private walkTime = 0;
   private justLeftHide = false; // skip hide on next target pick after waking
+  private justLeftPerch = false; // skip climbables on next target pick after dropping
   private sleepingInHide = false;
   private hideEntryPhase = 0; // 0=none 1=side waypoint 2=staging point 3=walking inside
   private turnAroundAngle: number | null = null; // target Y rotation after arriving at hide
@@ -835,16 +836,23 @@ export class Gecko {
         // keep rear legs on the ground.
         // legDefs: i=0,1 front (localX=0.13, localZ=±0.11), i=2,3 rear (localX=-0.08)
         if (this.perchHeight > 0) {
-          // Keep normal legs visible, position them clinging to the sides of the branch
           this.legGroups.forEach(lg => { lg.visible = true; });
           this.reachMeshes.forEach(rm => { rm.visible = false; });
 
-          // Legs wrap around the branch — paws grip the sides
-          const perchFeet = [
-            { x:  0.13, y: -0.05, z:  0.10 },  // FL — left side of branch
-            { x:  0.13, y: -0.05, z: -0.10 },  // FR — right side of branch
-            { x: -0.08, y: -0.05, z:  0.10 },  // RL — left side of branch
-            { x: -0.08, y: -0.05, z: -0.10 },  // RR — right side of branch
+          // Flat platform (cork bark): legs sit flat on surface
+          // Branch: legs wrap around sides
+          const isFlat = this.targetItemId !== null &&
+            items.find(i => i.id === this.targetItemId)?.type === ItemType.CORK_BARK;
+          const perchFeet = isFlat ? [
+            { x:  0.13, y: 0, z:  0.11 },
+            { x:  0.13, y: 0, z: -0.11 },
+            { x: -0.08, y: 0, z:  0.11 },
+            { x: -0.08, y: 0, z: -0.11 },
+          ] : [
+            { x:  0.13, y: -0.05, z:  0.10 },
+            { x:  0.13, y: -0.05, z: -0.10 },
+            { x: -0.08, y: -0.05, z:  0.10 },
+            { x: -0.08, y: -0.05, z: -0.10 },
           ];
           this.legGroups.forEach((lg, i) => {
             const t = perchFeet[i];
@@ -884,10 +892,12 @@ export class Gecko {
           if (Math.abs(diff) < 0.04) {
             this.group.rotation.y = this.turnAroundAngle;
             this.turnAroundAngle = null;
-            this.eyeMeshes.forEach(e => { e.visible = false; });
-            this.pupilMeshes.forEach(p => { p.visible = false; });
-            this.sleepEyeMeshes.forEach(s => { s.visible = true; });
-            if (this.sleepingInHide) this.setStatus('💤 Sleeping…');
+            if (this.sleepingInHide) {
+              this.eyeMeshes.forEach(e => { e.visible = false; });
+              this.pupilMeshes.forEach(p => { p.visible = false; });
+              this.sleepEyeMeshes.forEach(s => { s.visible = true; });
+              this.setStatus('💤 Sleeping…');
+            }
           }
         }
 
@@ -1415,6 +1425,7 @@ export class Gecko {
         if (t >= 1) {
           this.dropPhase = 0;
           this.dropBlinkLock = false;
+          this.justLeftPerch = true;
           this.poseGroup.rotation.z = 0;
           this.posePitch = 0;
           this.posePitchTarget = 0;
@@ -1446,11 +1457,16 @@ export class Gecko {
   private pickTarget(items: PlacedItem[], bounds: EnclosureBounds) {
     this.targetItemId = null;
 
-    // Filter out the hide right after waking so the gecko explores first
-    const pickable = this.justLeftHide
-      ? items.filter(i => !isHideType(i.type))
-      : items;
-    this.justLeftHide = false; // consume the flag
+    // Filter out recently left items so gecko explores first
+    let pickable = items;
+    if (this.justLeftHide) {
+      pickable = pickable.filter(i => !isHideType(i.type));
+    }
+    if (this.justLeftPerch) {
+      pickable = pickable.filter(i => !ITEM_COLLISION[i.type].climbable);
+    }
+    this.justLeftHide = false;
+    this.justLeftPerch = false;
 
     if (pickable.length > 0 && Math.random() < 0.88) {
       const item = pickable[Math.floor(Math.random() * pickable.length)];
