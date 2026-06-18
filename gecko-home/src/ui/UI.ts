@@ -16,6 +16,10 @@ export interface UICallbacks {
   onLampRadius: (radius: number) => void;
   onPlantStyle: (style: PlantStyle) => void;
   onItemScale: (scale: number) => void;
+  onItemColor: (hex: number) => void;
+  onTailBandColor: (hex: number) => void;
+  onEyeColor: (hex: number) => void;
+  onTailBaseColor: (hex: number) => void;
 }
 
 // null hex = "None" (hide spots)
@@ -97,6 +101,18 @@ export class UI {
           <span class="swatch-label">Belly</span>
           <div class="swatch-row" id="swatches-belly"></div>
         </div>
+        <div class="swatch-group">
+          <span class="swatch-label">Tail Bands</span>
+          <input type="color" id="tail-band-color" value="#f5e8c0" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
+        </div>
+        <div class="swatch-group">
+          <span class="swatch-label">Tail Base</span>
+          <input type="color" id="tail-base-color" value="#3a1a00" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
+        </div>
+        <div class="swatch-group">
+          <span class="swatch-label">Eyes</span>
+          <input type="color" id="eye-color" value="#d4a820" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
+        </div>
       </div>
 
       <div class="section">
@@ -176,6 +192,10 @@ export class UI {
         <label style="font-size:11px;display:block;margin-bottom:4px;">Size</label>
         <input type="range" id="item-scale" min="0.5" max="2.0" step="0.05" value="1.00" style="width:100%"/>
       </div>
+      <div id="item-color-section" style="display:none;padding:0 12px 8px;">
+        <label style="font-size:11px;display:block;margin-bottom:4px;">Colour</label>
+        <input type="color" id="item-color-picker" value="#000000" style="width:100%;height:28px;border:none;cursor:pointer;"/>
+      </div>
       <button id="del-item" class="del-btn">🗑 Delete Item</button>
     `;
     root.appendChild(ctrl);
@@ -250,6 +270,18 @@ export class UI {
 
     (document.getElementById('item-scale') as HTMLInputElement).oninput = (e) => {
       this.callbacks.onItemScale(+(e.target as HTMLInputElement).value);
+    };
+    (document.getElementById('item-color-picker') as HTMLInputElement).oninput = (e) => {
+      this.callbacks.onItemColor(parseInt((e.target as HTMLInputElement).value.replace('#', ''), 16));
+    };
+    (document.getElementById('tail-band-color') as HTMLInputElement).oninput = (e) => {
+      this.callbacks.onTailBandColor(parseInt((e.target as HTMLInputElement).value.replace('#', ''), 16));
+    };
+    (document.getElementById('tail-base-color') as HTMLInputElement).oninput = (e) => {
+      this.callbacks.onTailBaseColor(parseInt((e.target as HTMLInputElement).value.replace('#', ''), 16));
+    };
+    (document.getElementById('eye-color') as HTMLInputElement).oninput = (e) => {
+      this.callbacks.onEyeColor(parseInt((e.target as HTMLInputElement).value.replace('#', ''), 16));
     };
   }
 
@@ -352,8 +384,30 @@ export class UI {
         const s = item.mesh.userData.itemScale ?? 1.0;
         (document.getElementById('item-scale') as HTMLInputElement).value = String(s);
       }
+      const colorSection = document.getElementById('item-color-section')!;
+      const colorable = [
+        ItemType.PLATFORM, ItemType.SLEEPING_HIDE, ItemType.STONE,
+        ItemType.CORK_BARK, ItemType.FOOD_BOWL, ItemType.WATER_DISH,
+      ].includes(item.type);
+      colorSection.style.display = colorable ? 'block' : 'none';
+      if (colorable) {
+        const c = item.mesh.userData.itemColor ?? this.defaultItemColor(item.type);
+        (document.getElementById('item-color-picker') as HTMLInputElement).value = '#' + c.toString(16).padStart(6, '0');
+      }
     } else {
       panel.className = 'panel';
+    }
+  }
+
+  private defaultItemColor(type: ItemType): number {
+    switch (type) {
+      case ItemType.PLATFORM:      return 0x2a2a2a;
+      case ItemType.SLEEPING_HIDE: return 0x8b5e3c;
+      case ItemType.STONE:         return 0x78909c;
+      case ItemType.CORK_BARK:     return 0x795548;
+      case ItemType.FOOD_BOWL:     return 0xc0392b;
+      case ItemType.WATER_DISH:    return 0x78909c;
+      default:                     return 0x888888;
     }
   }
 

@@ -95,6 +95,9 @@ export class Gecko {
   private bodyMat!: THREE.MeshLambertMaterial;
   private spotMat!: THREE.MeshLambertMaterial;
   private darkMat!: THREE.MeshLambertMaterial;
+  private eyeMat!: THREE.MeshLambertMaterial;
+  private bandLightMat!: THREE.MeshLambertMaterial;
+  private bandDarkMat!: THREE.MeshLambertMaterial;
 
   private eyeMeshes: THREE.Mesh[] = [];
   private pupilMeshes: THREE.Mesh[] = [];
@@ -187,11 +190,11 @@ export class Gecko {
     this.bodyMat = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.spotMat = new THREE.MeshLambertMaterial({ color: 0x1a0800 }); // near-black spots
     this.darkMat = new THREE.MeshLambertMaterial({ color: 0xc04010 }); // darker orange legs
-    const eyeMat    = new THREE.MeshLambertMaterial({ color: 0xd4a820 }); // gold iris
+    this.eyeMat     = new THREE.MeshLambertMaterial({ color: 0xd4a820 }); // gold iris
     const pupilMat  = new THREE.MeshLambertMaterial({ color: 0x080400 }); // vertical slit
     const tongueMat = new THREE.MeshLambertMaterial({ color: 0xe05070 });
-    const bandLightMat = new THREE.MeshLambertMaterial({ color: 0xf5e8c0 }); // cream tail band
-    const bandDarkMat  = new THREE.MeshLambertMaterial({ color: 0x3a1a00 }); // dark tail band
+    this.bandLightMat = new THREE.MeshLambertMaterial({ color: 0xf5e8c0 }); // cream tail band
+    this.bandDarkMat  = new THREE.MeshLambertMaterial({ color: 0x3a1a00 }); // dark tail band
 
     // Body — vertex-coloured sphere: top half = body colour, bottom half = belly colour
     this.bodyGeo = new THREE.SphereGeometry(0.13, 16, 12);
@@ -333,7 +336,7 @@ export class Gecko {
       for (const side of [-1, 1] as const) {
         const ex   = bx + (tx - bx) * 0.45;
         const eyeY = yb + (ytB - (ytB - ytF) * 0.5) * 0.70;
-        const eye  = new THREE.Mesh(new THREE.SphereGeometry(0.050, 10, 8), eyeMat);
+        const eye  = new THREE.Mesh(new THREE.SphereGeometry(0.050, 10, 8), this.eyeMat);
         eye.position.set(ex, eyeY, side * (hw + 0.008));
         this.poseGroup.add(eye);
         this.eyeMeshes.push(eye);
@@ -438,7 +441,7 @@ export class Gecko {
       const r2 = (R_MID + (R_BASE - R_MID) * Math.max(0, 1 - (t + 1/N) * 3)) * Math.max(0, bulge - 1/N) + R_TIP * (1 - Math.max(0, bulge - 1/N));
       const p1 = pts[i], p2 = pts[i + 1];
       // Alternate bands: every 2 segments switch between cream and dark
-      const bandMat = Math.floor(i / 2) % 2 === 0 ? bandLightMat : bandDarkMat;
+      const bandMat = Math.floor(i / 2) % 2 === 0 ? this.bandLightMat : this.bandDarkMat;
       const seg = new THREE.Mesh(
         new THREE.CylinderGeometry(r2, r1, p1.distanceTo(p2), 8),
         bandMat
@@ -490,6 +493,18 @@ export class Gecko {
   setBellyColor(hex: number) {
     this.bodyBotColor.setHex(hex);
     this.refreshBodyColors();
+  }
+
+  setTailBandColor(hex: number) {
+    this.bandLightMat.color.setHex(hex);
+  }
+
+  setTailBaseColor(hex: number) {
+    this.bandDarkMat.color.setHex(hex);
+  }
+
+  setEyeColor(hex: number) {
+    this.eyeMat.color.setHex(hex);
   }
 
   // ── AI update ─────────────────────────────────────────────────────────────

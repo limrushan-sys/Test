@@ -6,7 +6,6 @@ export enum ItemType {
   FOOD_BOWL       = 'Food Bowl',
   CLIMBING_BRANCH = 'Climbing Branch',
   CORK_BARK       = 'Cork Bark',
-  RAMP            = 'Ramp',
   PLATFORM        = 'Plant House',
   STONE           = 'Stone',
   LEAF_DECOR      = 'Leaf Decor',
@@ -19,7 +18,6 @@ export const ITEM_EMOJIS: Record<ItemType, string> = {
   [ItemType.FOOD_BOWL]:       '🍽️',
   [ItemType.CLIMBING_BRANCH]: '🪵',
   [ItemType.CORK_BARK]:       '🪨',
-  [ItemType.RAMP]:            '📐',
   [ItemType.PLATFORM]:        '🌱',
   [ItemType.STONE]:           '⚫',
   [ItemType.LEAF_DECOR]:      '🌿',
@@ -39,7 +37,6 @@ export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
   [ItemType.FOOD_BOWL]:       { radius: 0.32, height: 0,    climbable: false },
   [ItemType.CLIMBING_BRANCH]: { radius: 0.35, height: 0.40, climbable: true  },
   [ItemType.CORK_BARK]:       { radius: 0.35, height: 0.14, climbable: true, wallMounted: true },
-  [ItemType.RAMP]:            { radius: 0.42, height: 0.30, climbable: true  },
   [ItemType.PLATFORM]:        { radius: 0.01, height: 0,    climbable: false },
   [ItemType.STONE]:           { radius: 0.26, height: 0,    climbable: false },
   [ItemType.LEAF_DECOR]:      { radius: 0,    height: 0,    climbable: false },
@@ -452,70 +449,6 @@ export function createItemMesh(type: ItemType): THREE.Group {
       group.userData.wallMounted = true;
       group.userData.barkWidth = bW;
       group.userData.barkDepth = bD;
-      break;
-    }
-
-    // ── Ramp: proper wedge shape with grip lines ─────────────────────────────
-    case ItemType.RAMP: {
-      const RW = 0.50, RL = 0.70, RH = 0.30;
-      const slopeAngle = Math.atan2(RH, RL);
-      const slopeLen   = Math.sqrt(RL * RL + RH * RH);
-
-      const surfMat  = new THREE.MeshLambertMaterial({ color: 0xd2b48c, side: THREE.DoubleSide });
-      const sideMat  = new THREE.MeshLambertMaterial({ color: 0xb8965a, side: THREE.DoubleSide });
-      const gripMat  = new THREE.MeshLambertMaterial({ color: 0xa07840 });
-
-      // Sloped top surface
-      const surface = new THREE.Mesh(new THREE.BoxGeometry(RW, 0.025, slopeLen), surfMat);
-      surface.rotation.x = slopeAngle;
-      surface.position.set(0, RH / 2, 0);
-      group.add(surface);
-
-      // Triangular side walls using ShapeGeometry
-      const sideShape = new THREE.Shape();
-      sideShape.moveTo(-RL / 2, 0);
-      sideShape.lineTo( RL / 2, 0);
-      sideShape.lineTo( RL / 2, RH);
-      sideShape.closePath();
-      const sideGeo = new THREE.ShapeGeometry(sideShape);
-
-      for (const sign of [-1, 1] as const) {
-        const side = new THREE.Mesh(sideGeo, sideMat);
-        side.rotation.y = sign * Math.PI / 2;
-        side.position.set(sign * RW / 2, 0, 0);
-        group.add(side);
-      }
-
-      // Back wall at high end
-      const back = new THREE.Mesh(new THREE.BoxGeometry(RW, RH, 0.025), sideMat);
-      back.position.set(0, RH / 2, RL / 2);
-      group.add(back);
-
-      // Bottom plate
-      const bottom = new THREE.Mesh(new THREE.BoxGeometry(RW, 0.02, RL), sideMat);
-      bottom.position.y = 0.01;
-      group.add(bottom);
-
-      // Grip strips across slope (evenly spaced)
-      for (let i = 1; i <= 4; i++) {
-        const t = i / 5;
-        const grip = new THREE.Mesh(new THREE.BoxGeometry(RW - 0.04, 0.018, 0.025), gripMat);
-        grip.rotation.x = slopeAngle;
-        const zPos = (t - 0.5) * RL;
-        const yPos = t * RH;
-        grip.position.set(0, yPos + 0.022, zPos);
-        group.add(grip);
-      }
-
-      // Small arrows on surface indicating up-direction
-      const arrowMat = new THREE.MeshLambertMaterial({ color: 0x8a6030 });
-      for (let i = 1; i <= 2; i++) {
-        const t = i / 3;
-        const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.07, 4), arrowMat);
-        arrow.rotation.x = slopeAngle + Math.PI / 2;
-        arrow.position.set(0, t * RH + 0.05, (t - 0.5) * RL);
-        group.add(arrow);
-      }
       break;
     }
 

@@ -112,6 +112,24 @@ class GeckoHomeApp {
         item.mesh.scale.set(scale, scale, scale);
         item.mesh.userData.itemScale = scale;
       },
+      onItemColor: (hex: number) => {
+        const item = this.itemManager.selectedItem;
+        if (!item) return;
+        item.mesh.userData.itemColor = hex;
+        const color = new THREE.Color(hex);
+        item.mesh.traverse(c => {
+          const m = c as THREE.Mesh;
+          if (!m.isMesh) return;
+          if (m.userData.isPlant) return;
+          const mat = m.material as THREE.MeshLambertMaterial;
+          if (mat && mat.color && !mat.transparent) {
+            mat.color.copy(color);
+          }
+        });
+      },
+      onTailBandColor: (hex: number) => this.gecko.setTailBandColor(hex),
+      onTailBaseColor: (hex: number) => this.gecko.setTailBaseColor(hex),
+      onEyeColor: (hex: number) => this.gecko.setEyeColor(hex),
     });
 
     this.bindPointer(canvas);
