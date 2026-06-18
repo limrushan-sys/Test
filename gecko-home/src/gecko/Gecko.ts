@@ -945,8 +945,9 @@ export class Gecko {
     const sway = Math.sin(Date.now() * 0.0012) * 0.18;
     this.tailGroup.rotation.y = sway;
 
-    // Blink: squish eye Y scale to ~0 then spring back (skip while sleeping)
+    // Blink: squish eye Y scale to ~0 then spring back (skip while sleeping or drop)
     if (this.sleepingInHide) return;
+    if (this.dropBlinkLock || this.jumpPhase > 0) return;
     this.blinkTimer -= delta;
     if (this.blinkTimer <= 0) {
       this.blinkTime  = 0;
@@ -1232,20 +1233,28 @@ export class Gecko {
     }
   }
 
-  // ── Drop animation (get down from platform) ────────────────────────────
+  // ── Drop animation (get down from platform — glitch-resistant) ──────────
+  private dropBlinkLock = false;
+
   private startDrop() {
     this.dropPhase = 1;
     this.dropTimer = 0;
     this.dropStartPos.copy(this.group.position);
 
-    // Land spot: step forward (facing direction) and down to floor
+    // Land spot: forward from facing direction, on the floor
     const facingX = Math.cos(this.group.rotation.y);
     const facingZ = -Math.sin(this.group.rotation.y);
     this.dropLandPos.set(
-      this.group.position.x + facingX * 0.35,
+      this.group.position.x + facingX * 0.40,
       0,
-      this.group.position.z + facingZ * 0.35,
+      this.group.position.z + facingZ * 0.40,
     );
+
+    // Lock eyes open for the entire drop
+    this.dropBlinkLock = true;
+    this.blinkTime = -1;
+    this.eyeMeshes.forEach(e => { e.scale.y = 1; });
+    this.pupilMeshes.forEach(p => { p.scale.y = 0.95; });
 
     this.idleTimer = 999;
   }
@@ -1254,107 +1263,158 @@ export class Gecko {
     if (this.dropPhase === 0) return;
     this.dropTimer += delta;
     const pos = this.group.position;
+    const startY = this.dropStartPos.y;
 
-    const LOOK_T    = 0.25;
-    const CROUCH_T  = 0.12;
-    const STEPOFF_T = 0.06;
-    const FALL_T    = 0.22;
-    const LAND_T    = 0.12;
-    const SETTLE_T  = 0.18;
+    const PAUSE_T   = 0.20; // 1: stable stance, pause
+    const SHIFT_T   = 0.18; // 2: weight shift toward edge
+    const CROUCH_T  = 0.12; // 3: load legs
+    const LIFT_T    = 0.08; // 4: explicit lift — feet clear platform
+    const FALL_T    = 0.25; // 5: airborne falling
+    const LAND_T    = 0.12; // 6: squash on contact
+    const SETTLE_T  = 0.20; // 7: recover stance
 
     switch (this.dropPhase) {
-      // ── 1: Look down / check the drop ──────────────────────────────────
+      // ── 1: Pause — stable stance on platform, eyes open ────────────────
       case 1: {
-        const t = Math.min(this.dropTimer / LOOK_T, 1);
-        this.posePitchTarget = t * 0.10;
-        this.posePitch += (this.posePitchTarget - this.posePitch) * Math.min(4 * delta, 1);
-        this.poseGroup.rotation.z = this.posePitch;
-        if (t >= 1) { this.dropPhase = 2; this.dropTimer = 0; }
+        if (this.dropTimer >= PAUSE_T) { this.dropPhase = 2; this.dropTimer = 0; }
         break;
       }
 
-      // ── 2: Small crouch (less than jump-up) ────────────────────────────
+      // ── 2: Weight shift toward edge, head looks down ───────────────────
       case 2: {
-        const t = Math.min(this.dropTimer / CROUCH_T, 1);
-        const squash = t * 0.2;
-        this.bodyMesh.scale.set(1.55, 0.52 * (1 - squash * 0.3), 0.95);
-        this.bodyMesh.position.y = 0.075 - squash * 0.015;
-        this.legGroups.forEach(lg => { lg.position.y = -squash * 0.01; });
+        const t = Math.min(this.dropTimer / SHIFT_T, 1);
+        // Shift body slightly forward (toward edge)
+        const facingX = Math.cos(this.group.rotation.y);
+        const facingZ = -Math.sin(this.group.rotation.y);
+        const shiftDist = t * 0.06;
+        pos.x = this.dropStartPos.x + facingX * shiftDist;
+        pos.z = this.dropStartPos.z + facingZ * shiftDist;
+        pos.y = startY;
+
+        // Head tilts down — checking the drop
+        this.poseGroup.rotation.z = t * 0.10;
+
+        // Tail counter-steadies
+        this.tailGroup.rotation.z = -t * 0.04;
+
         if (t >= 1) { this.dropPhase = 3; this.dropTimer = 0; }
         break;
       }
 
-      // ── 3: Step-off (gentle push, not a launch) ────────────────────────
+      // ── 3: Pre-drop crouch — legs compress, feet planted ───────────────
       case 3: {
-        const t = Math.min(this.dropTimer / STEPOFF_T, 1);
-        this.bodyMesh.scale.set(1.55, 0.52, 0.95);
-        this.bodyMesh.position.y = 0.075;
-        this.poseGroup.rotation.z = t * 0.08;
+        const t = Math.min(this.dropTimer / CROUCH_T, 1);
+        const squash = t * 0.2;
+        this.bodyMesh.scale.set(1.55, 0.52 * (1 - squash * 0.3), 0.95);
+        this.bodyMesh.position.y = 0.075 - squash * 0.012;
+        this.legGroups.forEach(lg => { lg.position.y = -squash * 0.01; });
         if (t >= 1) { this.dropPhase = 4; this.dropTimer = 0; }
         break;
       }
 
-      // ── 4: Falling (controlled, mostly vertical) ───────────────────────
+      // ── 4: Lift — clean push-off, explicit upward separation ───────────
+      // Feet rise ABOVE platform before airborne begins — no clipping
       case 4: {
-        const t = Math.min(this.dropTimer / FALL_T, 1);
-        // Accelerating fall (gravity feel)
-        const fallEase = t * t;
-
-        pos.x = this.dropStartPos.x + (this.dropLandPos.x - this.dropStartPos.x) * t;
-        pos.z = this.dropStartPos.z + (this.dropLandPos.z - this.dropStartPos.z) * t;
-        pos.y = this.dropStartPos.y + (0 - this.dropStartPos.y) * fallEase;
+        const t = Math.min(this.dropTimer / LIFT_T, 1);
+        const liftAmount = 0.06;
+        pos.y = startY + t * liftAmount;
         this.geckoY = pos.y;
 
-        // Forward pitch increases as it falls
-        this.poseGroup.rotation.z = 0.08 + fallEase * 0.06;
+        // Body restores from crouch, slight upward stretch
+        this.bodyMesh.scale.set(1.55, 0.52 * (1 + t * 0.08), 0.95);
+        this.bodyMesh.position.y = 0.075;
 
-        // Legs extend slightly, preparing to catch
-        const legExtend = fallEase * 0.02;
-        this.legGroups.forEach(lg => { lg.position.y = -legExtend; });
+        // Legs push straight (spring release)
+        this.legGroups.forEach(lg => { lg.position.y = t * 0.015; });
 
-        // Tail counterbalance
-        this.tailGroup.rotation.z = -fallEase * 0.12;
+        // Slight forward commit
+        this.poseGroup.rotation.z = 0.10 + t * 0.04;
 
         if (t >= 1) { this.dropPhase = 5; this.dropTimer = 0; }
         break;
       }
 
-      // ── 5: Land (stronger squash — gravity did the work) ───────────────
+      // ── 5: Airborne falling — controlled descent, eyes on landing zone ─
       case 5: {
-        const t = Math.min(this.dropTimer / LAND_T, 1);
-        pos.x = this.dropLandPos.x;
-        pos.y = 0;
-        pos.z = this.dropLandPos.z;
-        this.geckoY = 0;
+        const t = Math.min(this.dropTimer / FALL_T, 1);
+        const liftedY = startY + 0.06;
 
-        const squash = (1 - t) * 0.45;
-        this.bodyMesh.scale.set(
-          1.55 * (1 + squash * 0.12),
-          0.52 * (1 - squash * 0.5),
-          0.95 * (1 + squash * 0.12)
-        );
-        this.bodyMesh.position.y = 0.075 - squash * 0.025;
-        this.poseGroup.rotation.z = (1 - t) * 0.10;
-        this.legGroups.forEach(lg => { lg.position.y = -(1 - t) * 0.03; });
-        this.tailGroup.rotation.z *= 0.8;
+        // XZ: linear forward motion
+        const facingX = Math.cos(this.group.rotation.y);
+        const facingZ = -Math.sin(this.group.rotation.y);
+        const totalFwd = this.dropLandPos.x - this.dropStartPos.x;
+        const totalFwdZ = this.dropLandPos.z - this.dropStartPos.z;
+        pos.x = this.dropStartPos.x + totalFwd * t;
+        pos.z = this.dropStartPos.z + totalFwdZ * t;
+
+        // Y: gravity-eased fall from lifted position to floor
+        const fallCurve = t * t;
+        pos.y = liftedY + (0 - liftedY) * fallCurve;
+        this.geckoY = pos.y;
+
+        // Body normal scale, forward tilt increases
+        this.bodyMesh.scale.set(1.55, 0.52, 0.95);
+        this.bodyMesh.position.y = 0.075;
+        this.poseGroup.rotation.z = 0.14 * (0.5 + fallCurve * 0.5);
+
+        // Legs extend to catch — more extension as ground approaches
+        const legReach = fallCurve * 0.025;
+        this.legGroups.forEach(lg => { lg.position.y = -legReach; });
+
+        // Tail counterbalance opposite to body pitch
+        this.tailGroup.rotation.z = -fallCurve * 0.14;
 
         if (t >= 1) { this.dropPhase = 6; this.dropTimer = 0; }
         break;
       }
 
-      // ── 6: Settle (recover posture, micro-step feel) ───────────────────
+      // ── 6: Land — feet contact, strong squash, no sinking ─────────────
       case 6: {
+        const t = Math.min(this.dropTimer / LAND_T, 1);
+        // Lock to floor — no penetration
+        pos.x = this.dropLandPos.x;
+        pos.y = 0;
+        pos.z = this.dropLandPos.z;
+        this.geckoY = 0;
+
+        // Strong squash that decays (stronger than jump-up)
+        const squash = (1 - t) * 0.50;
+        this.bodyMesh.scale.set(
+          1.55 * (1 + squash * 0.14),
+          0.52 * (1 - squash * 0.55),
+          0.95 * (1 + squash * 0.14)
+        );
+        this.bodyMesh.position.y = 0.075 - squash * 0.03;
+
+        // Forward pitch from impact, decaying
+        this.poseGroup.rotation.z = (1 - t) * 0.12;
+
+        // Legs compressed on impact, extending back
+        this.legGroups.forEach(lg => { lg.position.y = -(1 - t) * 0.035; });
+
+        // Tail whip from landing
+        this.tailGroup.rotation.z = -(1 - t) * 0.10;
+
+        if (t >= 1) { this.dropPhase = 7; this.dropTimer = 0; }
+        break;
+      }
+
+      // ── 7: Settle — recover stance, tail damps, micro-step ────────────
+      case 7: {
         const t = Math.min(this.dropTimer / SETTLE_T, 1);
+
+        // Everything returns to neutral
         this.bodyMesh.scale.set(1.55, 0.52, 0.95);
         this.bodyMesh.position.y = 0.075;
-        this.poseGroup.rotation.z *= (1 - t * 0.4);
-        this.tailGroup.rotation.z *= (1 - t * 0.5);
+        this.poseGroup.rotation.z *= (1 - Math.min(t * 3, 1) * 0.5);
+        this.tailGroup.rotation.z *= (1 - Math.min(t * 2, 1) * 0.6);
         this.legGroups.forEach(lg => {
-          lg.position.y += (0 - lg.position.y) * 0.25;
+          lg.position.y += (0 - lg.position.y) * 0.3;
         });
 
         if (t >= 1) {
           this.dropPhase = 0;
+          this.dropBlinkLock = false;
           this.poseGroup.rotation.z = 0;
           this.posePitch = 0;
           this.posePitchTarget = 0;
