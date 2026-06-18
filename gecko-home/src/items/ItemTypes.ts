@@ -42,7 +42,7 @@ export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
   [ItemType.RAMP]:            { radius: 0.42, height: 0.30, climbable: true  },
   [ItemType.PLATFORM]:        { radius: 0.01, height: 0,    climbable: false },
   [ItemType.STONE]:           { radius: 0.26, height: 0,    climbable: false },
-  [ItemType.LEAF_DECOR]:      { radius: 0.12, height: 0,    climbable: false },
+  [ItemType.LEAF_DECOR]:      { radius: 0,    height: 0,    climbable: false },
   [ItemType.BASKING_LAMP]:    { radius: 0,    height: 0,    climbable: false },
 };
 
@@ -665,16 +665,17 @@ export function createItemMesh(type: ItemType): THREE.Group {
       const leafMat = new THREE.MeshLambertMaterial({ color: 0x558b2f, side: THREE.DoubleSide });
       const darkLeaf= new THREE.MeshLambertMaterial({ color: 0x33691e, side: THREE.DoubleSide });
       const stemMat = new THREE.MeshLambertMaterial({ color: 0x2e7d32 });
-      for (let i = 0; i < 4; i++) {
-        const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.28, 0.13), i % 2 === 0 ? leafMat : darkLeaf);
-        const a = (i / 4) * Math.PI * 2;
-        leaf.rotation.set(-Math.PI/2 + 0.3, a, 0);
-        leaf.position.set(Math.cos(a) * 0.1, 0.05 + i * 0.02, Math.sin(a) * 0.1);
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.016, 0.18, 5), stemMat);
+      stem.position.y = 0.09;
+      group.add(stem);
+      for (let i = 0; i < 5; i++) {
+        const leaf = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.10), i % 2 === 0 ? leafMat : darkLeaf);
+        const a = (i / 5) * Math.PI * 2;
+        const tilt = 0.15 + i * 0.06;
+        leaf.rotation.set(-tilt, a, 0);
+        leaf.position.set(Math.cos(a) * 0.03, 0.10 + i * 0.03, Math.sin(a) * 0.03);
         group.add(leaf);
       }
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.018, 0.14, 5), stemMat);
-      stem.position.y = 0.07;
-      group.add(stem);
       break;
     }
   }

@@ -370,11 +370,11 @@ export class ItemManager {
   }
 
   private overlapsAny(pos: THREE.Vector3, type: ItemType, excludeId?: number): boolean {
-    if (type === ItemType.BASKING_LAMP) return false;
+    if (type === ItemType.BASKING_LAMP || type === ItemType.LEAF_DECOR) return false;
     const r1 = this.footprintR(type);
     for (const item of this.items) {
       if (item.id === excludeId) continue;
-      if (item.type === ItemType.BASKING_LAMP) continue;
+      if (item.type === ItemType.BASKING_LAMP || item.type === ItemType.LEAF_DECOR) continue;
       const r2 = this.footprintR(item.type);
       const dx = pos.x - item.position.x;
       const dz = pos.z - item.position.z;
