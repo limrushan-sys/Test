@@ -585,15 +585,15 @@ export function createItemMesh(type: ItemType): THREE.Group {
 
     // ── Stone ───────────────────────────────────────────────────────────────
     case ItemType.STONE: {
-      const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.22, 0),
+      const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(0.30, 0),
         new THREE.MeshLambertMaterial({ color: 0x78909c }));
-      stone.scale.set(1, 0.38, 0.9);
-      stone.position.y = 0.08;
+      stone.scale.set(1, 0.7, 0.9);
+      stone.position.y = 0.05;
       stone.rotation.y = Math.random() * Math.PI;
-      const pebble = new THREE.Mesh(new THREE.DodecahedronGeometry(0.1, 0),
+      const pebble = new THREE.Mesh(new THREE.DodecahedronGeometry(0.14, 0),
         new THREE.MeshLambertMaterial({ color: 0x90a4ae }));
-      pebble.scale.set(1, 0.35, 0.85);
-      pebble.position.set(0.22, 0.035, 0.1);
+      pebble.scale.set(1, 0.6, 0.85);
+      pebble.position.set(0.28, 0.02, 0.12);
       group.add(stone, pebble);
       break;
     }
