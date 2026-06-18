@@ -93,9 +93,9 @@ export class ItemManager {
     } else if (wall === 'front') {
       z = bounds.maxZ; rotY = Math.PI;
     } else if (wall === 'left') {
-      x = bounds.minX; rotY = -Math.PI / 2;
+      x = bounds.minX; rotY = Math.PI / 2;
     } else {
-      x = bounds.maxX; rotY = Math.PI / 2;
+      x = bounds.maxX; rotY = -Math.PI / 2;
     }
     if (wall === 'back' || wall === 'front') {
       x = Math.max(bounds.minX + barkHalfW, Math.min(bounds.maxX - barkHalfW, x));
