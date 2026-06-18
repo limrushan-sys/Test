@@ -86,25 +86,23 @@ export class ItemManager {
     dists.sort((a, b) => a[1] - b[1]);
     const wall = dists[0][0];
 
-    const barkH = 0.35;
-    let y = Math.max(0, Math.min(bounds.maxY - barkH, hit.y));
     let x = hit.x, z = hit.z, rotY = 0;
-
     const barkHalfW = 0.25;
+    const barkHalfD = 0.15;
     if (wall === 'back') {
-      z = bounds.minZ; rotY = Math.PI;
+      z = bounds.minZ + barkHalfD; rotY = Math.PI;
       x = Math.max(bounds.minX + barkHalfW, Math.min(bounds.maxX - barkHalfW, x));
     } else if (wall === 'front') {
-      z = bounds.maxZ; rotY = 0;
+      z = bounds.maxZ - barkHalfD; rotY = 0;
       x = Math.max(bounds.minX + barkHalfW, Math.min(bounds.maxX - barkHalfW, x));
     } else if (wall === 'left') {
-      x = bounds.minX; rotY = -Math.PI / 2;
+      x = bounds.minX + barkHalfD; rotY = -Math.PI / 2;
       z = Math.max(bounds.minZ + barkHalfW, Math.min(bounds.maxZ - barkHalfW, z));
     } else {
-      x = bounds.maxX; rotY = Math.PI / 2;
+      x = bounds.maxX - barkHalfD; rotY = Math.PI / 2;
       z = Math.max(bounds.minZ + barkHalfW, Math.min(bounds.maxZ - barkHalfW, z));
     }
-    return { pos: new THREE.Vector3(x, y, z), rotY, wall };
+    return { pos: new THREE.Vector3(x, 0, z), rotY, wall };
   }
 
   // ── Ghost preview ─────────────────────────────────────────────────────────

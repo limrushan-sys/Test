@@ -38,7 +38,7 @@ export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
   [ItemType.WATER_DISH]:      { radius: 0.70, height: 0,    climbable: false },
   [ItemType.FOOD_BOWL]:       { radius: 0.32, height: 0,    climbable: false },
   [ItemType.CLIMBING_BRANCH]: { radius: 0.35, height: 0.40, climbable: true  },
-  [ItemType.CORK_BARK]:       { radius: 0.10, height: 0.20, climbable: true, wallMounted: true },
+  [ItemType.CORK_BARK]:       { radius: 0.10, height: 0.10, climbable: true, wallMounted: true },
   [ItemType.RAMP]:            { radius: 0.42, height: 0.30, climbable: true  },
   [ItemType.PLATFORM]:        { radius: 0.01, height: 0,    climbable: false },
   [ItemType.STONE]:           { radius: 0.26, height: 0,    climbable: false },
@@ -436,22 +436,22 @@ export function createItemMesh(type: ItemType): THREE.Group {
       break;
     }
 
-    // ── Cork Bark: vertical wall-mounted piece, faces local +Z ────────────
+    // ── Cork Bark: horizontal wall-mounted piece, side flush against wall ──
     case ItemType.CORK_BARK: {
       const barkMat  = new THREE.MeshLambertMaterial({ color: 0x795548 });
       const ridgeMat = new THREE.MeshLambertMaterial({ color: 0x5d4037 });
-      const bW = 0.50, bH = 0.35, bD = 0.06;
+      const bW = 0.50, bH = 0.08, bD = 0.30;
       const bark = new THREE.Mesh(new THREE.BoxGeometry(bW, bH, bD), barkMat);
-      bark.position.set(0, bH / 2, -bD / 2);
+      bark.position.set(0, bH / 2, 0);
       group.add(bark);
       for (let i = -2; i <= 2; i++) {
-        const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.03, 0.02), ridgeMat);
-        ridge.position.set(0, bH / 2 + i * 0.065, -bD - 0.005);
+        const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.025, 0.04), ridgeMat);
+        ridge.position.set(0, bH + 0.005, i * 0.06);
         group.add(ridge);
       }
       group.userData.wallMounted = true;
       group.userData.barkWidth = bW;
-      group.userData.barkHeight = bH;
+      group.userData.barkDepth = bD;
       break;
     }
 
