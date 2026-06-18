@@ -87,18 +87,18 @@ export class ItemManager {
     const wall = dists[0][0];
 
     let x = hit.x, z = hit.z, rotY = 0;
-    const barkHalfW = 0.375;
+    const barkHalfW = 0.50;
     if (wall === 'back') {
-      z = bounds.minZ; rotY = Math.PI;
+      z = bounds.minZ; rotY = 0;
       x = Math.max(bounds.minX + barkHalfW, Math.min(bounds.maxX - barkHalfW, x));
     } else if (wall === 'front') {
-      z = bounds.maxZ; rotY = 0;
+      z = bounds.maxZ; rotY = Math.PI;
       x = Math.max(bounds.minX + barkHalfW, Math.min(bounds.maxX - barkHalfW, x));
     } else if (wall === 'left') {
-      x = bounds.minX; rotY = -Math.PI / 2;
+      x = bounds.minX; rotY = Math.PI / 2;
       z = Math.max(bounds.minZ + barkHalfW, Math.min(bounds.maxZ - barkHalfW, z));
     } else {
-      x = bounds.maxX; rotY = Math.PI / 2;
+      x = bounds.maxX; rotY = -Math.PI / 2;
       z = Math.max(bounds.minZ + barkHalfW, Math.min(bounds.maxZ - barkHalfW, z));
     }
     const barkH = 0.08;
@@ -218,10 +218,10 @@ export class ItemManager {
   }
 
   private wallNormal(side: WallSide): THREE.Vector3 {
-    if (side === 'back')  return new THREE.Vector3(0, 0, 1);
-    if (side === 'front') return new THREE.Vector3(0, 0, -1);
-    if (side === 'left')  return new THREE.Vector3(1, 0, 0);
-    return new THREE.Vector3(-1, 0, 0);
+    if (side === 'back')  return new THREE.Vector3( 0, 0,  1);
+    if (side === 'front') return new THREE.Vector3( 0, 0, -1);
+    if (side === 'left')  return new THREE.Vector3( 1, 0,  0);
+    return new THREE.Vector3(-1, 0,  0);
   }
 
   // ── Select item ───────────────────────────────────────────────────────────

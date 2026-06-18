@@ -38,7 +38,7 @@ export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
   [ItemType.WATER_DISH]:      { radius: 0.70, height: 0,    climbable: false },
   [ItemType.FOOD_BOWL]:       { radius: 0.32, height: 0,    climbable: false },
   [ItemType.CLIMBING_BRANCH]: { radius: 0.35, height: 0.40, climbable: true  },
-  [ItemType.CORK_BARK]:       { radius: 0.10, height: 0.10, climbable: true, wallMounted: true },
+  [ItemType.CORK_BARK]:       { radius: 0.10, height: 0.14, climbable: true, wallMounted: true },
   [ItemType.RAMP]:            { radius: 0.42, height: 0.30, climbable: true  },
   [ItemType.PLATFORM]:        { radius: 0.01, height: 0,    climbable: false },
   [ItemType.STONE]:           { radius: 0.26, height: 0,    climbable: false },
@@ -440,13 +440,13 @@ export function createItemMesh(type: ItemType): THREE.Group {
     case ItemType.CORK_BARK: {
       const barkMat  = new THREE.MeshLambertMaterial({ color: 0x795548 });
       const ridgeMat = new THREE.MeshLambertMaterial({ color: 0x5d4037 });
-      const bW = 0.75, bH = 0.10, bD = 0.40;
+      const bW = 1.0, bH = 0.12, bD = 0.55;
       const bark = new THREE.Mesh(new THREE.BoxGeometry(bW, bH, bD), barkMat);
-      bark.position.set(0, bH / 2, bD / 2);
+      bark.position.set(0, bH / 2, -bD / 2);
       group.add(bark);
-      for (let i = -3; i <= 3; i++) {
-        const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.70, 0.025, 0.05), ridgeMat);
-        ridge.position.set(0, bH + 0.005, bD / 2 + i * 0.055);
+      for (let i = -4; i <= 4; i++) {
+        const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.03, 0.055), ridgeMat);
+        ridge.position.set(0, bH + 0.005, -bD / 2 + i * 0.06);
         group.add(ridge);
       }
       group.userData.wallMounted = true;
