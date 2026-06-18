@@ -942,7 +942,7 @@ export class Gecko {
           }
 
           if (this.perchHeight > 0.02 && !this.sleepingInHide) {
-            this.startDrop();
+            this.startDrop(items, bounds);
             break;
           }
 
@@ -1261,19 +1261,47 @@ export class Gecko {
   // ── Drop animation (get down from platform — glitch-resistant) ──────────
   private dropBlinkLock = false;
 
-  private startDrop() {
+  private startDrop(items: PlacedItem[], bounds: EnclosureBounds) {
     this.dropPhase = 1;
     this.dropTimer = 0;
     this.dropStartPos.copy(this.group.position);
 
-    // Land spot: forward from facing direction, on the floor
-    const facingX = Math.cos(this.group.rotation.y);
-    const facingZ = -Math.sin(this.group.rotation.y);
-    this.dropLandPos.set(
-      this.group.position.x + facingX * 1.15,
-      0,
-      this.group.position.z + facingZ * 1.15,
-    );
+    const DROP_DIST = 1.15;
+    const baseAngle = this.group.rotation.y;
+    const pos = this.group.position;
+
+    const isBlocked = (x: number, z: number): boolean => {
+      for (const it of items) {
+        if (it.type === ItemType.BASKING_LAMP || it.type === ItemType.LEAF_DECOR) continue;
+        const col = ITEM_COLLISION[it.type];
+        const r = (col.footprint ?? col.radius) + 0.15;
+        if (r <= 0) continue;
+        const dx = x - it.position.x;
+        const dz = z - it.position.z;
+        if (dx * dx + dz * dz < r * r) return true;
+      }
+      return false;
+    };
+
+    const inBounds = (x: number, z: number): boolean =>
+      x > bounds.minX + 0.2 && x < bounds.maxX - 0.2 &&
+      z > bounds.minZ + 0.2 && z < bounds.maxZ - 0.2;
+
+    let bestAngle = baseAngle;
+    const offsets = [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2, Math.PI];
+    for (const off of offsets) {
+      const a = baseAngle + off;
+      const lx = pos.x + Math.cos(a) * DROP_DIST;
+      const lz = pos.z - Math.sin(a) * DROP_DIST;
+      if (inBounds(lx, lz) && !isBlocked(lx, lz)) {
+        bestAngle = a;
+        break;
+      }
+    }
+
+    const fx = Math.cos(bestAngle);
+    const fz = -Math.sin(bestAngle);
+    this.dropLandPos.set(pos.x + fx * DROP_DIST, 0, pos.z + fz * DROP_DIST);
 
     // Lock eyes open for the entire drop
     this.dropBlinkLock = true;
