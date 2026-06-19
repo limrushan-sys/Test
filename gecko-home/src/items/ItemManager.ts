@@ -281,11 +281,12 @@ export class ItemManager {
   moveSelected(dx: number, dz: number, bounds: EnclosureBounds) {
     if (!this.selectedItem) return;
     const item = this.selectedItem;
+    const fp = this.footprintR(item.type);
     const reqX = item.position.x + dx;
     const reqZ = item.position.z + dz;
-    const nx = Math.max(bounds.minX, Math.min(bounds.maxX, reqX));
-    const nz = Math.max(bounds.minZ, Math.min(bounds.maxZ, reqZ));
-    const newPos = new THREE.Vector3(nx, 0, nz);
+    const nx = Math.max(bounds.minX + fp, Math.min(bounds.maxX - fp, reqX));
+    const nz = Math.max(bounds.minZ + fp, Math.min(bounds.maxZ - fp, reqZ));
+    const newPos = new THREE.Vector3(nx, item.position.y, nz);
 
     const blocked = this.overlapsAny(newPos, item.type, item.id);
     const ringMat = this.selectionRing.material as THREE.MeshBasicMaterial;
@@ -295,7 +296,8 @@ export class ItemManager {
       ringMat.color.setHex(0xffcc00);
       item.position.x = nx;
       item.position.z = nz;
-      item.mesh.position.set(nx, 0, nz);
+      item.mesh.position.x = nx;
+      item.mesh.position.z = nz;
       this.selectionRing.position.set(nx, 0.006, nz);
     }
   }
