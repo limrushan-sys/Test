@@ -113,10 +113,12 @@ class GeckoHomeApp {
         if (!item) return;
         item.mesh.userData.itemColor = hex;
         const color = new THREE.Color(hex);
+        const skip = new Set<THREE.Object3D>();
         item.mesh.traverse(c => {
+          if (c.userData.noRecolor || c.userData.isPlant) { skip.add(c); return; }
+          if (c.parent && skip.has(c.parent)) { skip.add(c); return; }
           const m = c as THREE.Mesh;
           if (!m.isMesh) return;
-          if (m.userData.isPlant) return;
           const mat = m.material as THREE.MeshLambertMaterial;
           if (mat && mat.color && !mat.transparent) {
             mat.color.copy(color);

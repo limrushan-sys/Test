@@ -65,6 +65,7 @@ export const BRANCH_SPINE_FORK: [number, number, number, number][] = [
 // ── Cricket factory ──────────────────────────────────────────────────────────
 export function createCricketMesh(): THREE.Group {
   const g = new THREE.Group();
+  g.userData.noRecolor = true;
   const bodyMat  = new THREE.MeshLambertMaterial({ color: 0x5a4a20 });
   const darkMat  = new THREE.MeshLambertMaterial({ color: 0x3a2e10 });
 
@@ -511,6 +512,7 @@ export function createItemMesh(type: ItemType): THREE.Group {
       const trayH = 0.03;
       const tray = new THREE.Mesh(new THREE.BoxGeometry(W - 0.06, trayH, D - 0.06), trayMat);
       tray.position.y = H + 0.03 + trayH / 2;
+      tray.userData.noRecolor = true;
       group.add(tray);
 
       group.userData.plantW = W;
