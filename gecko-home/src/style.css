@@ -34,7 +34,14 @@ body {
   position: fixed;
   top: 16px; left: 16px;
   width: 210px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
 }
+
+#left-panel::-webkit-scrollbar { width: 5px; }
+#left-panel::-webkit-scrollbar-track { background: transparent; }
+#left-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+#left-panel::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
 
 #left-panel h3 {
   font-size: 14px;
