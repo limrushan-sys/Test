@@ -29,19 +29,18 @@ export interface ItemCollisionData {
   height: number;    // elevation gecko reaches when on top
   climbable: boolean; // true = gecko walks on top; false = gecko is pushed around
   wallMounted?: boolean; // true = can only be placed on enclosure walls
-  footprint?: number;    // placement overlap radius for circular items
-  box?: [number, number]; // [halfWidth, halfDepth] for rectangular placement collision
+  footprint?: number;    // placement overlap radius (defaults to radius if omitted)
 }
 
 export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
-  [ItemType.SLEEPING_HIDE]:   { radius: 0.01, height: 0,    climbable: false, box: [0.65, 0.40] },
+  [ItemType.SLEEPING_HIDE]:   { radius: 0.01, height: 0,    climbable: false, footprint: 0.50 },
   [ItemType.WATER_DISH]:      { radius: 0.70, height: 0,    climbable: false, footprint: 0.70 },
   [ItemType.FOOD_BOWL]:       { radius: 0.32, height: 0,    climbable: false, footprint: 0.32 },
-  [ItemType.CLIMBING_BRANCH]: { radius: 0.35, height: 0.40, climbable: true,  box: [0.55, 0.30] },
-  [ItemType.CORK_BARK]:       { radius: 0.35, height: 0.14, climbable: true, wallMounted: true, box: [0.52, 0.30] },
-  [ItemType.PLATFORM]:        { radius: 0.55, height: 0,    climbable: false, box: [0.65, 0.52] },
-  [ItemType.STONE]:           { radius: 0.26, height: 0,    climbable: false, footprint: 0.30 },
-  [ItemType.LEAF_DECOR]:      { radius: 0,    height: 0,    climbable: false, footprint: 0.25 },
+  [ItemType.CLIMBING_BRANCH]: { radius: 0.35, height: 0.40, climbable: true,  footprint: 0.45 },
+  [ItemType.CORK_BARK]:       { radius: 0.35, height: 0.14, climbable: true, wallMounted: true, footprint: 0.40 },
+  [ItemType.PLATFORM]:        { radius: 0.55, height: 0,    climbable: false, footprint: 0.60 },
+  [ItemType.STONE]:           { radius: 0.26, height: 0,    climbable: false, footprint: 0.28 },
+  [ItemType.LEAF_DECOR]:      { radius: 0,    height: 0,    climbable: false, footprint: 0.22 },
   [ItemType.BASKING_LAMP]:    { radius: 0,    height: 0,    climbable: false },
 };
 
