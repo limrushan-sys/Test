@@ -136,7 +136,8 @@ export class ItemManager {
 
     const ghostPos = isWall ? pt : new THREE.Vector3(pt.x, 0, pt.z);
     const ghostRot = this.ghost?.rotation.y ?? wallRotY ?? 0;
-    this.ghostValid = !this.overlapsAny(ghostPos, this.selectedType, undefined, ghostRot);
+    this.ghostValid = !this.overlapsAny(ghostPos, this.selectedType, undefined, ghostRot) &&
+      (isWall || this.fitsInBounds(ghostPos, this.selectedType, ghostRot, bounds));
 
     if (!this.ghost) {
       this.ghost = createItemMesh(this.selectedType);
@@ -282,24 +283,21 @@ export class ItemManager {
   moveSelected(dx: number, dz: number, bounds: EnclosureBounds) {
     if (!this.selectedItem) return;
     const item = this.selectedItem;
-    const fp = this.footprintR(item.type);
-    const reqX = item.position.x + dx;
-    const reqZ = item.position.z + dz;
-    const nx = Math.max(bounds.minX + fp, Math.min(bounds.maxX - fp, reqX));
-    const nz = Math.max(bounds.minZ + fp, Math.min(bounds.maxZ - fp, reqZ));
-    const newPos = new THREE.Vector3(nx, item.position.y, nz);
+    const newPos = new THREE.Vector3(item.position.x + dx, item.position.y, item.position.z + dz);
+    const rotY = item.mesh.rotation.y;
 
-    const blocked = this.overlapsAny(newPos, item.type, item.id, item.mesh.rotation.y);
+    const blocked = this.overlapsAny(newPos, item.type, item.id, rotY) ||
+      !this.fitsInBounds(newPos, item.type, rotY, bounds);
     const ringMat = this.selectionRing.material as THREE.MeshBasicMaterial;
     if (blocked) {
       ringMat.color.setHex(0xff3333);
     } else {
       ringMat.color.setHex(0xffcc00);
-      item.position.x = nx;
-      item.position.z = nz;
-      item.mesh.position.x = nx;
-      item.mesh.position.z = nz;
-      this.selectionRing.position.set(nx, 0.006, nz);
+      item.position.x = newPos.x;
+      item.position.z = newPos.z;
+      item.mesh.position.x = newPos.x;
+      item.mesh.position.z = newPos.z;
+      this.selectionRing.position.set(newPos.x, 0.006, newPos.z);
     }
   }
 
@@ -463,6 +461,22 @@ export class ItemManager {
     const col = ITEM_COLLISION[type];
     if (col.box) return Math.max(col.box[0], col.box[1]);
     return col.footprint ?? col.radius;
+  }
+
+  private fitsInBounds(pos: THREE.Vector3, type: ItemType, rotY: number, bounds: EnclosureBounds): boolean {
+    const col = ITEM_COLLISION[type];
+    if (col.box) {
+      const hw = col.box[0], hd = col.box[1];
+      const c = Math.cos(rotY), s = Math.sin(rotY);
+      const extX = Math.abs(c * hw) + Math.abs(s * hd);
+      const extZ = Math.abs(s * hw) + Math.abs(c * hd);
+      if (pos.x - extX < bounds.minX || pos.x + extX > bounds.maxX) return false;
+      if (pos.z - extZ < bounds.minZ || pos.z + extZ > bounds.maxZ) return false;
+      return true;
+    }
+    const r = col.footprint ?? col.radius;
+    return pos.x - r >= bounds.minX && pos.x + r <= bounds.maxX &&
+           pos.z - r >= bounds.minZ && pos.z + r <= bounds.maxZ;
   }
 
   private overlapsAny(pos: THREE.Vector3, type: ItemType, excludeId?: number, rotY?: number): boolean {
