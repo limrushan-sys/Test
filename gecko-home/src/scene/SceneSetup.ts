@@ -45,7 +45,7 @@ export class SceneSetup {
     const sun = new THREE.DirectionalLight(0xfff5e0, 1.6);
     sun.position.set(5, 10, 5);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.near = 0.5;
     sun.shadow.camera.far = 50;
     sun.shadow.camera.left = -10;

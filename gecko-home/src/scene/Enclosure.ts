@@ -80,15 +80,11 @@ export class Enclosure {
     (gridHelper.material as THREE.Material).transparent = true;
     this.group.add(gridHelper);
 
-    // Wall material — glass-like with subtle reflections
-    const wallMat = new THREE.MeshPhysicalMaterial({
+    // Wall material — lightweight transparent glass look
+    const wallMat = new THREE.MeshLambertMaterial({
       color: 0xaaddee,
       transparent: true,
       opacity: 0.15,
-      roughness: 0.05,
-      metalness: 0,
-      transmission: 0.6,
-      thickness: 0.1,
       side: THREE.DoubleSide,
     });
     const wallFrameMat = new THREE.MeshStandardMaterial({ color: 0x4a6080, roughness: 0.4, metalness: 0.3 });
