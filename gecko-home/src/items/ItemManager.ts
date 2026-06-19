@@ -135,7 +135,8 @@ export class ItemManager {
     }
 
     const ghostPos = isWall ? pt : new THREE.Vector3(pt.x, 0, pt.z);
-    this.ghostValid = !this.overlapsAny(ghostPos, this.selectedType);
+    const ghostRot = this.ghost?.rotation.y ?? wallRotY ?? 0;
+    this.ghostValid = !this.overlapsAny(ghostPos, this.selectedType, undefined, ghostRot);
 
     if (!this.ghost) {
       this.ghost = createItemMesh(this.selectedType);
@@ -288,7 +289,7 @@ export class ItemManager {
     const nz = Math.max(bounds.minZ + fp, Math.min(bounds.maxZ - fp, reqZ));
     const newPos = new THREE.Vector3(nx, item.position.y, nz);
 
-    const blocked = this.overlapsAny(newPos, item.type, item.id);
+    const blocked = this.overlapsAny(newPos, item.type, item.id, item.mesh.rotation.y);
     const ringMat = this.selectionRing.material as THREE.MeshBasicMaterial;
     if (blocked) {
       ringMat.color.setHex(0xff3333);
@@ -388,31 +389,95 @@ export class ItemManager {
   }
 
   // ── Overlap detection ─────────────────────────────────────────────────────
-  // Radius used for item-to-item overlap (adds a small gap between items).
-  private footprintR(type: ItemType): number {
-    const col = ITEM_COLLISION[type];
-    return col.footprint ?? col.radius;
-  }
-
   private static LEAF_BLOCKED: Set<ItemType> = new Set([
     ItemType.FOOD_BOWL, ItemType.WATER_DISH, ItemType.SLEEPING_HIDE, ItemType.PLATFORM,
   ]);
 
-  private overlapsAny(pos: THREE.Vector3, type: ItemType, excludeId?: number): boolean {
+  private static GAP = 0.06;
+
+  private itemShape(type: ItemType, pos: THREE.Vector3, rotY: number):
+    { kind: 'circle'; cx: number; cz: number; r: number } |
+    { kind: 'box'; cx: number; cz: number; hw: number; hd: number; cos: number; sin: number } {
+    const col = ITEM_COLLISION[type];
+    if (col.box) {
+      const c = Math.cos(rotY), s = Math.sin(rotY);
+      return { kind: 'box', cx: pos.x, cz: pos.z, hw: col.box[0], hd: col.box[1], cos: c, sin: s };
+    }
+    return { kind: 'circle', cx: pos.x, cz: pos.z, r: col.footprint ?? col.radius };
+  }
+
+  private shapesOverlap(
+    a: ReturnType<typeof ItemManager.prototype.itemShape>,
+    b: ReturnType<typeof ItemManager.prototype.itemShape>,
+  ): boolean {
+    const gap = ItemManager.GAP;
+    if (a.kind === 'circle' && b.kind === 'circle') {
+      const dx = a.cx - b.cx, dz = a.cz - b.cz;
+      const sr = a.r + b.r + gap;
+      return dx * dx + dz * dz < sr * sr;
+    }
+    if (a.kind === 'box' && b.kind === 'box') {
+      return this.obbOverlap(a, b, gap);
+    }
+    const circle = a.kind === 'circle' ? a : b as { kind: 'circle'; cx: number; cz: number; r: number };
+    const box = a.kind === 'box' ? a : b as { kind: 'box'; cx: number; cz: number; hw: number; hd: number; cos: number; sin: number };
+    return this.circleBoxOverlap(circle, box, gap);
+  }
+
+  private obbOverlap(
+    a: { cx: number; cz: number; hw: number; hd: number; cos: number; sin: number },
+    b: { cx: number; cz: number; hw: number; hd: number; cos: number; sin: number },
+    gap: number,
+  ): boolean {
+    const dx = b.cx - a.cx, dz = b.cz - a.cz;
+    const axes = [
+      [a.cos, a.sin], [-a.sin, a.cos],
+      [b.cos, b.sin], [-b.sin, b.cos],
+    ];
+    for (const [ax, az] of axes) {
+      const projD = Math.abs(dx * ax + dz * az);
+      const projA = Math.abs(a.cos * a.hw * ax + a.sin * a.hw * az) + Math.abs(-a.sin * a.hd * ax + a.cos * a.hd * az);
+      const projB = Math.abs(b.cos * b.hw * ax + b.sin * b.hw * az) + Math.abs(-b.sin * b.hd * ax + b.cos * b.hd * az);
+      if (projD > projA + projB + gap) return false;
+    }
+    return true;
+  }
+
+  private circleBoxOverlap(
+    c: { cx: number; cz: number; r: number },
+    b: { cx: number; cz: number; hw: number; hd: number; cos: number; sin: number },
+    gap: number,
+  ): boolean {
+    const dx = c.cx - b.cx, dz = c.cz - b.cz;
+    const localX = dx * b.cos + dz * b.sin;
+    const localZ = -dx * b.sin + dz * b.cos;
+    const clampX = Math.max(-b.hw, Math.min(b.hw, localX));
+    const clampZ = Math.max(-b.hd, Math.min(b.hd, localZ));
+    const ex = localX - clampX, ez = localZ - clampZ;
+    const r = c.r + gap;
+    return ex * ex + ez * ez < r * r;
+  }
+
+  // footprintR kept for move-clamping to bounds
+  private footprintR(type: ItemType): number {
+    const col = ITEM_COLLISION[type];
+    if (col.box) return Math.max(col.box[0], col.box[1]);
+    return col.footprint ?? col.radius;
+  }
+
+  private overlapsAny(pos: THREE.Vector3, type: ItemType, excludeId?: number, rotY?: number): boolean {
     if (type === ItemType.BASKING_LAMP) return false;
     const isLeaf = type === ItemType.LEAF_DECOR;
-    const r1 = this.footprintR(type);
+    const myRot = rotY ?? 0;
+    const shapeA = this.itemShape(type, pos, myRot);
     for (const item of this.items) {
       if (item.id === excludeId) continue;
       if (item.type === ItemType.BASKING_LAMP) continue;
       if (isLeaf && !ItemManager.LEAF_BLOCKED.has(item.type)) continue;
       if (!isLeaf && item.type === ItemType.LEAF_DECOR) continue;
-      const r2 = this.footprintR(item.type);
-      const dx = pos.x - item.position.x;
-      const dz = pos.z - item.position.z;
-      if (dx * dx + dz * dz < (r1 + r2) * (r1 + r2)) return true;
+      const shapeB = this.itemShape(item.type, item.position, item.mesh.rotation.y);
+      if (this.shapesOverlap(shapeA, shapeB)) return true;
     }
-    // Check against gecko barrier — fixed radius around gecko centre, independent of item size
     if (this.geckoPositionGetter) {
       const gp = this.geckoPositionGetter();
       const gr = ItemManager.GECKO_BARRIER_R;
