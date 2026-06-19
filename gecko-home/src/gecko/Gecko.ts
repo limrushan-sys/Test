@@ -457,6 +457,7 @@ export class Gecko {
     }
     this.poseGroup.add(this.tailGroup);
     this.group.add(this.poseGroup);
+    this.group.traverse(c => { if ((c as THREE.Mesh).isMesh) { (c as THREE.Mesh).castShadow = true; } });
   }
 
   // ── Vertex colour gradient: top = body, bottom = belly ────────────────────

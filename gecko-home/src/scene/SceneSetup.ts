@@ -13,7 +13,7 @@ export class SceneSetup {
     // Scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x1a1a2e);
-    this.scene.fog = new THREE.Fog(0x1a1a2e, 15, 40);
+    this.scene.fog = new THREE.FogExp2(0x1a1a2e, 0.035);
 
     // Camera
     this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -26,6 +26,8 @@ export class SceneSetup {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.1;
 
     // OrbitControls
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -36,11 +38,11 @@ export class SceneSetup {
     this.controls.maxPolarAngle = Math.PI / 2.1;
     this.controls.target.set(0, 0, 0);
 
-    // Lighting
-    const ambient = new THREE.AmbientLight(0xffeedd, 0.6);
-    this.scene.add(ambient);
+    // Lighting — warm key light + cool fill + rim + hemisphere
+    const hemi = new THREE.HemisphereLight(0xffeedd, 0x303050, 0.5);
+    this.scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xfff5e0, 1.4);
+    const sun = new THREE.DirectionalLight(0xfff5e0, 1.6);
     sun.position.set(5, 10, 5);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
@@ -50,12 +52,26 @@ export class SceneSetup {
     sun.shadow.camera.right = 10;
     sun.shadow.camera.top = 10;
     sun.shadow.camera.bottom = -10;
-    sun.shadow.bias = -0.001;
+    sun.shadow.bias = -0.0015;
+    sun.shadow.normalBias = 0.02;
     this.scene.add(sun);
 
-    const fill = new THREE.DirectionalLight(0xaaddff, 0.3);
+    const fill = new THREE.DirectionalLight(0x8ab4f8, 0.35);
     fill.position.set(-5, 3, -5);
     this.scene.add(fill);
+
+    const rim = new THREE.DirectionalLight(0xffd4a0, 0.25);
+    rim.position.set(-3, 8, -8);
+    this.scene.add(rim);
+
+    // Ground plane to catch shadows beneath enclosure
+    const groundGeo = new THREE.PlaneGeometry(60, 60);
+    const groundMat = new THREE.ShadowMaterial({ opacity: 0.35 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.04;
+    ground.receiveShadow = true;
+    this.scene.add(ground);
 
     // Resize
     window.addEventListener('resize', () => {

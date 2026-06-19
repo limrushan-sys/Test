@@ -64,9 +64,9 @@ export class Enclosure {
   private build() {
     const w = this.width, d = this.depth, h = this.height, t = this.wallThickness;
 
-    // Floor — sand-like material
+    // Floor — sandy substrate with roughness
     const floorGeo = new THREE.BoxGeometry(w, 0.06, d);
-    const floorMat = new THREE.MeshLambertMaterial({ color: 0xc8a96e });
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0xc8a96e, roughness: 0.95, metalness: 0 });
     this.floorMesh = new THREE.Mesh(floorGeo, floorMat);
     this.floorMesh.position.y = -0.03;
     this.floorMesh.receiveShadow = true;
@@ -76,18 +76,22 @@ export class Enclosure {
     // Grid lines on floor
     const gridHelper = new THREE.GridHelper(Math.max(w, d), Math.max(w, d) * 2, 0xb89a5e, 0xb89a5e);
     gridHelper.position.y = 0.001;
-    (gridHelper.material as THREE.Material).opacity = 0.3;
+    (gridHelper.material as THREE.Material).opacity = 0.2;
     (gridHelper.material as THREE.Material).transparent = true;
     this.group.add(gridHelper);
 
-    // Wall material — glass-like transparent
-    const wallMat = new THREE.MeshLambertMaterial({
-      color: 0x88ccee,
+    // Wall material — glass-like with subtle reflections
+    const wallMat = new THREE.MeshPhysicalMaterial({
+      color: 0xaaddee,
       transparent: true,
-      opacity: 0.18,
+      opacity: 0.15,
+      roughness: 0.05,
+      metalness: 0,
+      transmission: 0.6,
+      thickness: 0.1,
       side: THREE.DoubleSide,
     });
-    const wallFrameMat = new THREE.MeshLambertMaterial({ color: 0x4a6080 });
+    const wallFrameMat = new THREE.MeshStandardMaterial({ color: 0x4a6080, roughness: 0.4, metalness: 0.3 });
 
     this.wallMeshes = [];
     const makeWall = (ww: number, wh: number, wd: number, x: number, y: number, z: number) => {
@@ -106,7 +110,7 @@ export class Enclosure {
     };
 
     // Corner posts
-    const postMat = new THREE.MeshLambertMaterial({ color: 0x3a5068 });
+    const postMat = new THREE.MeshStandardMaterial({ color: 0x3a5068, roughness: 0.3, metalness: 0.4 });
     const corners = [[-w/2, w/2], [-d/2, d/2]].reduce<[number,number][]>((acc, _, i, arr) =>
       i === 0 ? arr[0].flatMap(x => arr[1].map(z => [x, z] as [number,number])) : acc, []);
     [[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2]].forEach(([px,pz]) => {
@@ -124,7 +128,7 @@ export class Enclosure {
     makeWall(t, h, d - t*3, w/2, h/2, 0);
 
     // Floor rim
-    const rimMat = new THREE.MeshLambertMaterial({ color: 0x3a5068 });
+    const rimMat = new THREE.MeshStandardMaterial({ color: 0x3a5068, roughness: 0.3, metalness: 0.4 });
     [
       [w, 0, t, 0, t/2, -d/2],
       [w, 0, t, 0, t/2, d/2],
