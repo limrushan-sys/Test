@@ -127,7 +127,15 @@ export class Gecko {
   private perchHeight = 0;   // held Y while resting at a climbable item
   // Stuck detection
   private stuckTimer = 0;
+  private stuckCount = 0;
   private lastStuckCheckPos = new THREE.Vector3();
+
+  // Obstacle hop animation
+  private hopPhase = 0; // 0=none, 1=up, 2=over, 3=down
+  private hopTimer = 0;
+  private hopStartPos = new THREE.Vector3();
+  private hopEndPos = new THREE.Vector3();
+  private hopPeakY = 0.35;
 
   // Jump animation: 0=none, 1=crouch, 2=launch, 3=airborne, 4=land, 5=settle
   private jumpPhase = 0;
@@ -531,6 +539,7 @@ export class Gecko {
 
     if (this.jumpPhase > 0) { this.updateJump(delta); return; }
     if (this.dropPhase > 0) { this.updateDrop(delta); return; }
+    if (this.hopPhase > 0) { this.updateHop(delta, items, bounds); return; }
 
     // Smooth bowl/water-dish pose pitch (nose down, tail up)
     this.posePitch += (this.posePitchTarget - this.posePitch) * Math.min(2.5 * delta, 1);
@@ -825,16 +834,23 @@ export class Gecko {
         pos.x = nx;
         pos.z = nz;
 
-        // Stuck detection — if gecko barely moves for 0.8s, abandon target and pick a new one
+        // Stuck detection — if gecko barely moves, try hop then retarget
         this.stuckTimer += delta;
-        if (this.stuckTimer > 0.8) {
+        if (this.stuckTimer > 0.6) {
           const moved = pos.distanceTo(this.lastStuckCheckPos);
-          if (moved < 0.15) {
-            // Reset water dish state too in case it got stuck trying to enter
-            this.waterDishPhase  = 0;
-            this.waterDishItemId = null;
-            this.hideEntryPhase  = 0;
-            this.pickTarget(items, bounds);
+          if (moved < 0.12) {
+            this.stuckCount++;
+            if (this.stuckCount >= 2) {
+              this.stuckCount = 0;
+              this.startHop(items, bounds);
+            } else {
+              this.waterDishPhase  = 0;
+              this.waterDishItemId = null;
+              this.hideEntryPhase  = 0;
+              this.pickTarget(items, bounds);
+            }
+          } else {
+            this.stuckCount = 0;
           }
           this.stuckTimer = 0;
           this.lastStuckCheckPos.copy(pos);
@@ -1625,6 +1641,56 @@ export class Gecko {
   private hideTongue() {
     const t = this.group.getObjectByName('tongue');
     if (t) t.visible = false;
+  }
+
+  private startHop(items: PlacedItem[], bounds: EnclosureBounds) {
+    const pos = this.group.position;
+    const fx = Math.cos(this.group.rotation.y);
+    const fz = -Math.sin(this.group.rotation.y);
+
+    // Try to hop toward the target, or forward if no clear path
+    const hopDist = 1.2;
+    let bestX = pos.x + fx * hopDist;
+    let bestZ = pos.z + fz * hopDist;
+
+    // Clamp to bounds
+    bestX = Math.max(bounds.minX + 0.2, Math.min(bounds.maxX - 0.2, bestX));
+    bestZ = Math.max(bounds.minZ + 0.2, Math.min(bounds.maxZ - 0.2, bestZ));
+
+    this.hopPhase = 1;
+    this.hopTimer = 0;
+    this.hopStartPos.copy(pos);
+    this.hopEndPos.set(bestX, 0, bestZ);
+    this.hopPeakY = 0.40;
+    this.waterDishPhase = 0;
+    this.waterDishItemId = null;
+    this.hideEntryPhase = 0;
+  }
+
+  private updateHop(delta: number, items: PlacedItem[], bounds: EnclosureBounds) {
+    if (this.hopPhase === 0) return;
+    this.hopTimer += delta;
+    const totalT = 0.45;
+    const t = Math.min(this.hopTimer / totalT, 1);
+    const pos = this.group.position;
+
+    pos.x = this.hopStartPos.x + (this.hopEndPos.x - this.hopStartPos.x) * t;
+    pos.z = this.hopStartPos.z + (this.hopEndPos.z - this.hopStartPos.z) * t;
+
+    const arcT = t * 2 - 1;
+    pos.y = this.hopPeakY * (1 - arcT * arcT);
+
+    const stretchY = t < 0.3 ? 1 + (0.3 - t) * 0.5 : (t > 0.8 ? 1 - (t - 0.8) * 1.5 : 1);
+    this.group.scale.set(1, Math.max(0.7, stretchY), 1);
+
+    if (t >= 1) {
+      this.hopPhase = 0;
+      pos.y = 0;
+      this.group.scale.set(1, 1, 1);
+      this.geckoY = 0;
+      this.targetY = 0;
+      this.pickTarget(items, bounds);
+    }
   }
 
   private setStatus(text: string) {
