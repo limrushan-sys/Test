@@ -23,6 +23,7 @@ export interface UICallbacks {
   onAddGecko: () => void;
   onSelectGecko: (index: number) => void;
   onRenameGecko: (name: string) => void;
+  onShare: () => void;
 }
 
 
@@ -121,6 +122,10 @@ export class UI {
         Select item: Click (place mode OFF)<br/>
         Move: Arrow keys &nbsp; Rotate: Q / E<br/>
         Delete: Del / Backspace &nbsp; Exit: Esc
+      </div>
+
+      <div class="section">
+        <button id="share-btn" class="btn" style="background:rgba(108,99,255,0.2);border-color:#6c63ff;">📋 Copy Share Link</button>
       </div>
     `;
     root.appendChild(left);
@@ -242,6 +247,11 @@ export class UI {
     // ── Add gecko button ─────────────────────────────────────────────────────
     document.getElementById('add-gecko-btn')!.onclick = () => {
       this.callbacks.onAddGecko();
+    };
+
+    // ── Share button ─────────────────────────────────────────────────────────
+    document.getElementById('share-btn')!.onclick = () => {
+      this.callbacks.onShare();
     };
 
     // ── Item move/rotate/delete buttons ───────────────────────────────────────

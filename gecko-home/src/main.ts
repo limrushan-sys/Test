@@ -149,8 +149,19 @@ class GeckoHomeApp {
       onRenameGecko: (name: string) => {
         this.gecko.name = name;
       },
+      onShare: () => {
+        const state = this.serializeState();
+        const encoded = btoa(JSON.stringify(state));
+        const url = `${location.origin}${location.pathname}#${encoded}`;
+        navigator.clipboard.writeText(url).then(() => {
+          this.ui.showTip('Share link copied to clipboard!', 2500);
+        }).catch(() => {
+          prompt('Copy this share link:', url);
+        });
+      },
     });
 
+    this.loadFromHash();
     this.bindPointer(canvas);
     this.animate();
   }
@@ -226,6 +237,98 @@ class GeckoHomeApp {
         }
       }
     });
+  }
+
+  private serializeState() {
+    const items = this.itemManager.getItems().map(it => ({
+      t: it.type,
+      x: +it.position.x.toFixed(3),
+      y: +it.position.y.toFixed(3),
+      z: +it.position.z.toFixed(3),
+      r: +it.mesh.rotation.y.toFixed(3),
+      ws: it.mesh.userData.wallSide || undefined,
+      ud: {
+        lampRadius: it.mesh.userData.lampRadius,
+        itemScale: it.mesh.userData.itemScale,
+        itemColor: it.mesh.userData.itemColor,
+        plantStyle: it.mesh.userData.plantStyle,
+      },
+    }));
+    const geckoData = this.geckos.map(g => ({
+      name: g.name,
+      colors: g.getColors(),
+    }));
+    return {
+      enc: { w: +(this.enclosure.bounds.maxX * 2 + 0.16).toFixed(1), d: +(this.enclosure.bounds.maxZ * 2 + 0.16).toFixed(1), h: this.enclosure.bounds.maxY },
+      items,
+      geckos: geckoData,
+    };
+  }
+
+  private loadFromHash() {
+    const hash = location.hash.slice(1);
+    if (!hash) return;
+    try {
+      const state = JSON.parse(atob(hash));
+      if (state.enc) {
+        const { w, d, h } = state.enc;
+        this.enclosure.resize(w, d, h);
+        this.itemManager.setFloor(this.enclosure.floorMesh);
+        this.itemManager.setWalls(this.enclosure.wallMeshes);
+        const wSlider = document.getElementById('enc-w') as HTMLInputElement;
+        const dSlider = document.getElementById('enc-d') as HTMLInputElement;
+        const hSlider = document.getElementById('enc-h') as HTMLInputElement;
+        if (wSlider) { wSlider.value = String(w); document.getElementById('enc-w-val')!.textContent = String(w); }
+        if (dSlider) { dSlider.value = String(d); document.getElementById('enc-d-val')!.textContent = String(d); }
+        if (hSlider) { hSlider.value = String(h); document.getElementById('enc-h-val')!.textContent = String(h); }
+      }
+      if (state.items) {
+        this.itemManager.clearAll();
+        for (const it of state.items) {
+          const ud: Record<string, unknown> = {};
+          if (it.ud?.lampRadius) ud.lampRadius = it.ud.lampRadius;
+          if (it.ud?.itemScale) ud.itemScale = it.ud.itemScale;
+          if (it.ud?.itemColor !== undefined) ud.itemColor = it.ud.itemColor;
+          if (it.ud?.plantStyle) ud.plantStyle = it.ud.plantStyle;
+          this.itemManager.placeItemDirect(it.t, it.x, it.y, it.z, it.r, it.ws, Object.keys(ud).length ? ud : undefined);
+        }
+      }
+      if (state.geckos) {
+        for (let i = 0; i < state.geckos.length; i++) {
+          const gd = state.geckos[i];
+          let g: Gecko;
+          if (i === 0) {
+            g = this.geckos[0];
+          } else if (this.geckos.length < 2) {
+            g = new Gecko(this.sceneSetup.scene);
+            const b = this.enclosure.bounds;
+            g.group.position.set((b.minX + b.maxX) / 2 + 0.5, 0, (b.minZ + b.maxZ) / 2);
+            this.geckos.push(g);
+            this.setupGeckoCallbacks(g);
+            this.ui.addGeckoTab(i, gd.name);
+          } else {
+            g = this.geckos[i];
+          }
+          g.name = gd.name;
+          if (gd.colors) {
+            g.setBodyColor(gd.colors.body);
+            g.setSpotColor(gd.colors.spot);
+            g.setBellyColor(gd.colors.belly);
+            g.setTailBandColor(gd.colors.tailBand);
+            g.setTailBaseColor(gd.colors.tailBase);
+            g.setEyeColor(gd.colors.eye);
+          }
+        }
+        this.activeGeckoIndex = 0;
+        const g = this.geckos[0];
+        this.ui.selectGeckoTab(0, g.name, g.getColors());
+        const tab = document.querySelector('.gecko-tab[data-index="0"]');
+        if (tab) tab.textContent = g.name;
+      }
+      this.ui.showTip('Build loaded from shared link!', 3000);
+    } catch {
+      // invalid hash, ignore
+    }
   }
 
   private animate() {

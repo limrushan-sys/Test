@@ -218,6 +218,29 @@ export class ItemManager {
     return true;
   }
 
+  placeItemDirect(type: ItemType, x: number, y: number, z: number, rotY: number, wallSide?: string, userData?: Record<string, unknown>) {
+    const mesh = createItemMesh(type);
+    const pos = new THREE.Vector3(x, y, z);
+    mesh.position.copy(pos);
+    mesh.rotation.y = rotY;
+    if (wallSide) {
+      mesh.userData.wallSide = wallSide;
+      mesh.userData.wallNormal = this.wallNormal(wallSide as WallSide);
+    }
+    if (userData) Object.assign(mesh.userData, userData);
+    if (type !== ItemType.BASKING_LAMP) {
+      mesh.traverse(c => { if ((c as THREE.Mesh).isMesh) (c as THREE.Mesh).castShadow = true; });
+    }
+    this.scene.add(mesh);
+    this.items.push({ id: this.nextId++, type, mesh, position: pos.clone() });
+  }
+
+  clearAll() {
+    for (const item of this.items) this.scene.remove(item.mesh);
+    this.items = [];
+    this.selectedItem = null;
+  }
+
   private wallNormal(side: WallSide): THREE.Vector3 {
     if (side === 'back')  return new THREE.Vector3( 0, 0,  1);
     if (side === 'front') return new THREE.Vector3( 0, 0, -1);
