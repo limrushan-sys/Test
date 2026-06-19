@@ -245,6 +245,13 @@ export class UI {
     };
 
     // ── Add gecko button ─────────────────────────────────────────────────────
+    const firstTab = document.querySelector('.gecko-tab[data-index="0"]') as HTMLElement;
+    firstTab.onclick = () => {
+      document.querySelectorAll('.gecko-tab').forEach(b => b.classList.remove('active'));
+      firstTab.classList.add('active');
+      this.callbacks.onSelectGecko(0);
+    };
+
     document.getElementById('add-gecko-btn')!.onclick = () => {
       this.callbacks.onAddGecko();
     };
