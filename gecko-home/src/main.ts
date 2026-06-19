@@ -11,7 +11,8 @@ import { UI } from './ui/UI.js';
 class GeckoHomeApp {
   private sceneSetup: SceneSetup;
   private enclosure: Enclosure;
-  private gecko: Gecko;
+  private geckos: Gecko[] = [];
+  private activeGeckoIndex = 0;
   private itemManager: ItemManager;
   private ui: UI;
 
@@ -20,31 +21,24 @@ class GeckoHomeApp {
   private pointerDownPos = new THREE.Vector2();
   private isPointerDown = false;
 
+  private get gecko(): Gecko {
+    return this.geckos[this.activeGeckoIndex];
+  }
+
   constructor() {
     const canvas = document.getElementById('app-canvas') as HTMLCanvasElement;
     this.sceneSetup = new SceneSetup(canvas);
 
     this.enclosure = new Enclosure(this.sceneSetup.scene, 6, 4, 2);
 
-    this.gecko = new Gecko(this.sceneSetup.scene);
+    const firstGecko = new Gecko(this.sceneSetup.scene);
+    this.geckos.push(firstGecko);
 
     this.itemManager = new ItemManager(this.sceneSetup.scene, this.enclosure.floorMesh);
     this.itemManager.setWalls(this.enclosure.wallMeshes);
     this.itemManager.setGeckoPositionGetter(() => this.gecko.group.position);
 
-    // When gecko reaches a food bowl, play tongue-shoot eating animation
-    this.gecko.onArrivedAtFoodBowl = (id) => {
-      const item = this.itemManager.getItem(id);
-      const cricket = this.itemManager.peekTopCricket(id);
-      if (item && cricket) {
-        this.gecko.startEatAnimation(
-          id,
-          cricket,
-          item.position,
-          () => this.itemManager.eatCricket(id)
-        );
-      }
-    };
+    this.setupGeckoCallbacks(firstGecko);
 
     this.itemManager.onSelectionChange = (item) => {
       this.ui?.showItemControls(item);
@@ -62,10 +56,12 @@ class GeckoHomeApp {
         this.itemManager.setFloor(this.enclosure.floorMesh);
         this.itemManager.setWalls(this.enclosure.wallMeshes);
         this.itemManager.clampAllToBounds(this.enclosure.placementBounds);
-        const pos = this.gecko.group.position;
-        const b   = this.enclosure.bounds;
-        pos.x = Math.max(b.minX + 0.2, Math.min(b.maxX - 0.2, pos.x));
-        pos.z = Math.max(b.minZ + 0.2, Math.min(b.maxZ - 0.2, pos.z));
+        for (const g of this.geckos) {
+          const pos = g.group.position;
+          const b   = this.enclosure.bounds;
+          pos.x = Math.max(b.minX + 0.2, Math.min(b.maxX - 0.2, pos.x));
+          pos.z = Math.max(b.minZ + 0.2, Math.min(b.maxZ - 0.2, pos.z));
+        }
       },
       onMoveItem: (dx, dz) => {
         this.itemManager.moveSelected(dx, dz, this.enclosure.placementBounds);
@@ -130,10 +126,48 @@ class GeckoHomeApp {
       onTailBandColor: (hex: number) => this.gecko.setTailBandColor(hex),
       onTailBaseColor: (hex: number) => this.gecko.setTailBaseColor(hex),
       onEyeColor: (hex: number) => this.gecko.setEyeColor(hex),
+      onAddGecko: () => {
+        if (this.geckos.length >= 2) return;
+        const g = new Gecko(this.sceneSetup.scene);
+        g.name = 'Gecko 2';
+        const b = this.enclosure.bounds;
+        g.group.position.set(
+          (b.minX + b.maxX) / 2 + 0.5,
+          0,
+          (b.minZ + b.maxZ) / 2
+        );
+        this.geckos.push(g);
+        this.setupGeckoCallbacks(g);
+        this.activeGeckoIndex = this.geckos.length - 1;
+        this.ui.addGeckoTab(this.activeGeckoIndex, g.name);
+      },
+      onSelectGecko: (index: number) => {
+        this.activeGeckoIndex = index;
+        const g = this.gecko;
+        this.ui.selectGeckoTab(index, g.name, g.getColors());
+      },
+      onRenameGecko: (name: string) => {
+        this.gecko.name = name;
+      },
     });
 
     this.bindPointer(canvas);
     this.animate();
+  }
+
+  private setupGeckoCallbacks(gecko: Gecko) {
+    gecko.onArrivedAtFoodBowl = (id) => {
+      const item = this.itemManager.getItem(id);
+      const cricket = this.itemManager.peekTopCricket(id);
+      if (item && cricket) {
+        gecko.startEatAnimation(
+          id,
+          cricket,
+          item.position,
+          () => this.itemManager.eatCricket(id)
+        );
+      }
+    };
   }
 
   private bindPointer(canvas: HTMLCanvasElement) {
@@ -166,16 +200,41 @@ class GeckoHomeApp {
           this.ui.showTip('Click inside the enclosure boundary', 1500);
         }
       } else {
-        this.itemManager.trySelect(this.mouse, this.sceneSetup.camera);
+        // Try clicking a gecko first
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(this.mouse, this.sceneSetup.camera);
+        let clickedGecko = false;
+        for (let i = 0; i < this.geckos.length; i++) {
+          const hits = raycaster.intersectObjects(this.geckos[i].group.children, true);
+          if (hits.length > 0) {
+            this.activeGeckoIndex = i;
+            this.ui.selectGeckoTab(i, this.geckos[i].name, this.geckos[i].getColors());
+            const name = this.geckos[i].name || 'Gecko';
+            const newName = prompt('Rename gecko:', name);
+            if (newName !== null && newName.trim()) {
+              this.geckos[i].name = newName.trim();
+              this.ui.selectGeckoTab(i, newName.trim(), this.geckos[i].getColors());
+              const tab = document.querySelector(`.gecko-tab[data-index="${i}"]`);
+              if (tab) tab.textContent = newName.trim();
+            }
+            clickedGecko = true;
+            break;
+          }
+        }
+        if (!clickedGecko) {
+          this.itemManager.trySelect(this.mouse, this.sceneSetup.camera);
+        }
       }
     });
   }
 
   private animate() {
     requestAnimationFrame(() => this.animate());
-    const delta = Math.min(this.clock.getDelta(), 0.05); // cap at 50ms
+    const delta = Math.min(this.clock.getDelta(), 0.05);
 
-    this.gecko.update(delta, this.itemManager.getItems(), this.enclosure.bounds);
+    for (const g of this.geckos) {
+      g.update(delta, this.itemManager.getItems(), this.enclosure.bounds);
+    }
     this.itemManager.update(delta, this.mouse, this.sceneSetup.camera, this.enclosure.placementBounds);
     this.sceneSetup.update();
   }

@@ -20,6 +20,9 @@ export interface UICallbacks {
   onTailBandColor: (hex: number) => void;
   onEyeColor: (hex: number) => void;
   onTailBaseColor: (hex: number) => void;
+  onAddGecko: () => void;
+  onSelectGecko: (index: number) => void;
+  onRenameGecko: (name: string) => void;
 }
 
 
@@ -56,7 +59,16 @@ export class UI {
       </div>
 
       <div class="section">
-        <label>Gecko Colours</label>
+        <label>Geckos</label>
+        <div id="gecko-tabs" style="display:flex;gap:4px;margin-bottom:6px;flex-wrap:wrap;">
+          <button class="btn active gecko-tab" data-index="0" style="font-size:10px;padding:3px 8px;">Gecko</button>
+        </div>
+        <button id="add-gecko-btn" class="btn" style="font-size:10px;padding:3px 8px;margin-bottom:6px;">+ Add Gecko</button>
+        <div style="margin-bottom:6px;">
+          <span class="swatch-label">Name</span>
+          <input type="text" id="gecko-name" value="Gecko" maxlength="20" style="width:90px;font-size:11px;padding:2px 4px;border:1px solid #555;border-radius:3px;background:#1e293b;color:#e2e8f0;"/>
+        </div>
+        <label style="font-size:11px;color:#8890a4;">Colours</label>
         <div class="swatch-group">
           <span class="swatch-label">Body</span>
           <input type="color" id="gecko-body-color" value="#e87830" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
@@ -219,6 +231,19 @@ export class UI {
       this.callbacks.onBellyColor(parseInt((e.target as HTMLInputElement).value.replace('#', ''), 16));
     };
 
+    // ── Gecko name input ────────────────────────────────────────────────────
+    (document.getElementById('gecko-name') as HTMLInputElement).oninput = (e) => {
+      const name = (e.target as HTMLInputElement).value;
+      this.callbacks.onRenameGecko(name);
+      const tab = document.querySelector('.gecko-tab.active') as HTMLElement;
+      if (tab) tab.textContent = name || 'Gecko';
+    };
+
+    // ── Add gecko button ─────────────────────────────────────────────────────
+    document.getElementById('add-gecko-btn')!.onclick = () => {
+      this.callbacks.onAddGecko();
+    };
+
     // ── Item move/rotate/delete buttons ───────────────────────────────────────
     const step = 0.14;
     document.getElementById('move-up')!.onclick    = () => this.callbacks.onMoveItem(0, -step);
@@ -354,6 +379,46 @@ export class UI {
       case ItemType.FOOD_BOWL:     return 0xc0392b;
       case ItemType.WATER_DISH:    return 0x78909c;
       default:                     return 0x888888;
+    }
+  }
+
+  addGeckoTab(index: number, name: string) {
+    const tabs = document.getElementById('gecko-tabs')!;
+    const btn = document.createElement('button');
+    btn.className = 'btn gecko-tab';
+    btn.dataset.index = String(index);
+    btn.style.cssText = 'font-size:10px;padding:3px 8px;';
+    btn.textContent = name;
+    btn.onclick = () => {
+      tabs.querySelectorAll('.gecko-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      this.callbacks.onSelectGecko(index);
+    };
+    tabs.appendChild(btn);
+    btn.click();
+    const addBtn = document.getElementById('add-gecko-btn')!;
+    if (tabs.children.length >= 2) addBtn.style.display = 'none';
+  }
+
+  selectGeckoTab(index: number, name: string, colors: { body: number; spot: number | null; belly: number; tailBand: number; tailBase: number; eye: number }) {
+    const tabs = document.getElementById('gecko-tabs')!;
+    tabs.querySelectorAll('.gecko-tab').forEach(b => {
+      b.classList.toggle('active', (b as HTMLElement).dataset.index === String(index));
+    });
+    (document.getElementById('gecko-name') as HTMLInputElement).value = name;
+    const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
+    (document.getElementById('gecko-body-color') as HTMLInputElement).value = hex(colors.body);
+    (document.getElementById('gecko-belly-color') as HTMLInputElement).value = hex(colors.belly);
+    (document.getElementById('tail-band-color') as HTMLInputElement).value = hex(colors.tailBand);
+    (document.getElementById('tail-base-color') as HTMLInputElement).value = hex(colors.tailBase);
+    (document.getElementById('eye-color') as HTMLInputElement).value = hex(colors.eye);
+    const spotPicker = document.getElementById('gecko-spot-color') as HTMLInputElement;
+    const spotsBtn = document.getElementById('spots-toggle-btn')!;
+    if (colors.spot !== null) {
+      spotPicker.value = hex(colors.spot);
+      spotsBtn.textContent = 'Off';
+    } else {
+      spotsBtn.textContent = 'On';
     }
   }
 

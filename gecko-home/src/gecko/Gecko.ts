@@ -77,6 +77,8 @@ function hideConfig(type: ItemType, rotY: number) {
 
 export class Gecko {
   group = new THREE.Group();
+  name = 'Gecko';
+  id: number;
 
   // Inner group that pitches when eating/drinking (nose down, tail up)
   private poseGroup = new THREE.Group();
@@ -176,7 +178,10 @@ export class Gecko {
     if (this.tongueMesh) this.tongueMesh.visible = true;
   }
 
+  private static nextId = 0;
+
   constructor(scene: THREE.Scene) {
+    this.id = Gecko.nextId++;
     this.buildMesh();
     this.group.position.set(0, 0, 0);
     scene.add(this.group);
@@ -505,6 +510,17 @@ export class Gecko {
 
   setEyeColor(hex: number) {
     this.eyeMat.color.setHex(hex);
+  }
+
+  getColors() {
+    return {
+      body: this.bodyTopColor.getHex(),
+      spot: this.spotMeshes[0]?.visible ? this.spotMat.color.getHex() : null,
+      belly: this.bodyBotColor.getHex(),
+      tailBand: this.bandLightMat.color.getHex(),
+      tailBase: this.bandDarkMat.color.getHex(),
+      eye: this.eyeMat.color.getHex(),
+    };
   }
 
   // ── AI update ─────────────────────────────────────────────────────────────
