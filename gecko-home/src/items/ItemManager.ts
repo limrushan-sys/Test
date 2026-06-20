@@ -136,8 +136,8 @@ export class ItemManager {
 
     const ghostPos = isWall ? pt : new THREE.Vector3(pt.x, 0, pt.z);
     const ghostRot = this.ghost?.rotation.y ?? wallRotY ?? 0;
-    this.ghostValid = !this.overlapsAny(ghostPos, this.selectedType) &&
-      (isWall || this.fitsInBounds(ghostPos, this.selectedType, bounds));
+    this.ghostValid = !this.overlapsAny(ghostPos, this.selectedType, undefined, ghostRot) &&
+      (isWall || this.fitsInBounds(ghostPos, this.selectedType, bounds, ghostRot));
 
     if (!this.ghost) {
       this.ghost = createItemMesh(this.selectedType);
@@ -285,8 +285,9 @@ export class ItemManager {
     const item = this.selectedItem;
     const newPos = new THREE.Vector3(item.position.x + dx, item.position.y, item.position.z + dz);
 
-    const blocked = this.overlapsAny(newPos, item.type, item.id) ||
-      !this.fitsInBounds(newPos, item.type, bounds);
+    const rotY = item.mesh.rotation.y;
+    const blocked = this.overlapsAny(newPos, item.type, item.id, rotY) ||
+      !this.fitsInBounds(newPos, item.type, bounds, rotY);
     const ringMat = this.selectionRing.material as THREE.MeshBasicMaterial;
     if (blocked) {
       ringMat.color.setHex(0xff3333);
@@ -392,22 +393,47 @@ export class ItemManager {
 
   private footprintR(type: ItemType): number {
     const col = ITEM_COLLISION[type];
+    if (col.circles) {
+      let maxR = 0;
+      for (const [lx, lz, cr] of col.circles) {
+        maxR = Math.max(maxR, Math.sqrt(lx * lx + lz * lz) + cr);
+      }
+      return maxR;
+    }
     return col.footprint ?? col.radius;
   }
 
-  private overlapsAny(pos: THREE.Vector3, type: ItemType, excludeId?: number): boolean {
+  private getWorldCircles(type: ItemType, pos: THREE.Vector3, rotY: number): [number, number, number][] {
+    const col = ITEM_COLLISION[type];
+    if (col.circles) {
+      const c = Math.cos(rotY), s = Math.sin(rotY);
+      return col.circles.map(([lx, lz, r]) => [
+        pos.x + lx * c - lz * s,
+        pos.z + lx * s + lz * c,
+        r,
+      ] as [number, number, number]);
+    }
+    const r = col.footprint ?? col.radius;
+    return [[pos.x, pos.z, r]];
+  }
+
+  private overlapsAny(pos: THREE.Vector3, type: ItemType, excludeId?: number, rotY = 0): boolean {
     if (type === ItemType.BASKING_LAMP) return false;
     const isLeaf = type === ItemType.LEAF_DECOR;
-    const r1 = this.footprintR(type);
+    const myCircles = this.getWorldCircles(type, pos, rotY);
     for (const item of this.items) {
       if (item.id === excludeId) continue;
       if (item.type === ItemType.BASKING_LAMP) continue;
       if (isLeaf && !ItemManager.LEAF_BLOCKED.has(item.type)) continue;
       if (!isLeaf && item.type === ItemType.LEAF_DECOR) continue;
-      const r2 = this.footprintR(item.type);
-      const dx = pos.x - item.position.x;
-      const dz = pos.z - item.position.z;
-      if (dx * dx + dz * dz < (r1 + r2) * (r1 + r2)) return true;
+      const otherCircles = this.getWorldCircles(item.type, item.position, item.mesh.rotation.y);
+      for (const [ax, az, ar] of myCircles) {
+        for (const [bx, bz, br] of otherCircles) {
+          const dx = ax - bx, dz = az - bz;
+          const sr = ar + br;
+          if (dx * dx + dz * dz < sr * sr) return true;
+        }
+      }
     }
     if (this.geckoPositionGetter) {
       const gp = this.geckoPositionGetter();
@@ -419,10 +445,13 @@ export class ItemManager {
     return false;
   }
 
-  private fitsInBounds(pos: THREE.Vector3, type: ItemType, bounds: EnclosureBounds): boolean {
-    const r = this.footprintR(type);
-    return pos.x - r >= bounds.minX && pos.x + r <= bounds.maxX &&
-           pos.z - r >= bounds.minZ && pos.z + r <= bounds.maxZ;
+  private fitsInBounds(pos: THREE.Vector3, type: ItemType, bounds: EnclosureBounds, rotY = 0): boolean {
+    const circles = this.getWorldCircles(type, pos, rotY);
+    for (const [cx, cz, r] of circles) {
+      if (cx - r < bounds.minX || cx + r > bounds.maxX) return false;
+      if (cz - r < bounds.minZ || cz + r > bounds.maxZ) return false;
+    }
+    return true;
   }
 
   private destroyGhost() {

@@ -792,28 +792,43 @@ export class Gecko {
             continue;
           }
 
-          const r2 = colR * colR;
+          // Build world-space collision circles for this item
+          const itemCircles: [number, number, number][] = [];
+          if (col.circles && colR === col.radius) {
+            const ic = Math.cos(item.mesh.rotation.y), is = Math.sin(item.mesh.rotation.y);
+            for (const [lx, lz, cr] of col.circles) {
+              itemCircles.push([
+                item.position.x + lx * ic - lz * is,
+                item.position.z + lx * is + lz * ic,
+                cr,
+              ]);
+            }
+          } else {
+            itemCircles.push([item.position.x, item.position.z, colR]);
+          }
 
-          // Test body centre, head-tip, and rear probe; accumulate the deepest penetration
           let worstPush = 0, pushDx = 0, pushDz = 0;
           for (const [px, pz] of [
             [nx,                        nz                       ],
             [nx + facingX * HEAD_REACH, nz + facingZ * HEAD_REACH],
             [nx - facingX * 0.38,       nz - facingZ * 0.38      ],
           ] as [number, number][]) {
-            const cdx = px - item.position.x;
-            const cdz = pz - item.position.z;
-            const d2  = cdx * cdx + cdz * cdz;
-            if (d2 < r2) {
-              if (col.climbable) {
-                const d = Math.sqrt(d2);
-                const t = Math.min(1, 1 - d / colR);
-                this.targetY = Math.max(this.targetY, col.height * Math.min(t * 2.5, 1));
-              } else {
-                const d = Math.sqrt(d2) || 0.001;
-                const push = colR - d + 0.02;
-                if (push > worstPush) {
-                  worstPush = push; pushDx = (cdx / d) * push; pushDz = (cdz / d) * push;
+            for (const [cx, cz, cr] of itemCircles) {
+              const cdx = px - cx;
+              const cdz = pz - cz;
+              const d2  = cdx * cdx + cdz * cdz;
+              const r2 = cr * cr;
+              if (d2 < r2) {
+                if (col.climbable) {
+                  const d = Math.sqrt(d2);
+                  const t = Math.min(1, 1 - d / cr);
+                  this.targetY = Math.max(this.targetY, col.height * Math.min(t * 2.5, 1));
+                } else {
+                  const d = Math.sqrt(d2) || 0.001;
+                  const push = cr - d + 0.02;
+                  if (push > worstPush) {
+                    worstPush = push; pushDx = (cdx / d) * push; pushDz = (cdz / d) * push;
+                  }
                 }
               }
             }
