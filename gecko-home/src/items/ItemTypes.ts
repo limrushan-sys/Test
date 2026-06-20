@@ -36,16 +36,17 @@ export interface ItemCollisionData {
 
 export const ITEM_COLLISION: Record<ItemType, ItemCollisionData> = {
   [ItemType.SLEEPING_HIDE]:   { radius: 0.45, height: 0,    climbable: false, footprint: 0.50,
-    circles: [[-0.45, 0, 0.36], [0, 0, 0.36], [0.45, 0, 0.36]] },
+    circles: [[-0.50, 0, 0.38], [-0.15, 0, 0.38], [0.15, 0, 0.38], [0.50, 0, 0.38]] },
   [ItemType.WATER_DISH]:      { radius: 0.70, height: 0,    climbable: false, footprint: 0.70 },
   [ItemType.FOOD_BOWL]:       { radius: 0.32, height: 0,    climbable: false, footprint: 0.32 },
   [ItemType.CLIMBING_BRANCH]: { radius: 0.35, height: 0.40, climbable: true,  footprint: 0.45,
-    circles: [[0.40, 0, 0.20], [0.10, 0, 0.20], [-0.20, 0, 0.20], [-0.45, 0, 0.18]] },
+    circles: [[0.45, 0, 0.18], [0.15, 0.02, 0.18], [-0.15, 0, 0.18], [-0.40, -0.02, 0.16]] },
   [ItemType.CORK_BARK]:       { radius: 0.35, height: 0.14, climbable: true, wallMounted: true, footprint: 0.40,
-    circles: [[-0.30, 0.20, 0.22], [0, 0.20, 0.22], [0.30, 0.20, 0.22]] },
+    circles: [[-0.35, 0.28, 0.25], [0, 0.28, 0.25], [0.35, 0.28, 0.25]] },
   [ItemType.PLATFORM]:        { radius: 0.55, height: 0,    climbable: false, footprint: 0.60,
-    circles: [[-0.35, -0.25, 0.35], [0.35, -0.25, 0.35], [-0.35, 0.25, 0.35], [0.35, 0.25, 0.35]] },
-  [ItemType.STONE]:           { radius: 0.30, height: 0,    climbable: false, footprint: 0.30 },
+    circles: [[-0.32, -0.28, 0.38], [0.32, -0.28, 0.38], [-0.32, 0.28, 0.38], [0.32, 0.28, 0.38], [0, 0, 0.38]] },
+  [ItemType.STONE]:           { radius: 0.30, height: 0,    climbable: false, footprint: 0.30,
+    circles: [[0, 0, 0.30], [0.28, 0.12, 0.15]] },
   [ItemType.LEAF_DECOR]:      { radius: 0,    height: 0,    climbable: false, footprint: 0.22 },
   [ItemType.BASKING_LAMP]:    { radius: 0,    height: 0,    climbable: false },
 };
