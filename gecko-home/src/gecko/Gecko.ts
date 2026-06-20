@@ -80,6 +80,8 @@ export class Gecko {
   name = 'Gecko';
   id: number;
 
+  static allGeckos: Gecko[] = [];
+
   // Inner group that pitches when eating/drinking (nose down, tail up)
   private poseGroup = new THREE.Group();
   private posePitch = 0;
@@ -195,6 +197,17 @@ export class Gecko {
     scene.add(this.group);
     this.statusEl = document.getElementById('gecko-status');
     this.setStatus('🦎 Exploring…');
+    Gecko.allGeckos.push(this);
+  }
+
+  isOccupyingItem(itemId: number): boolean {
+    return this.targetItemId === itemId && (
+      this.sleepingInHide ||
+      this.hideEntryPhase >= 1 ||
+      this.waterDishPhase >= 1 ||
+      this.perchHeight > 0.02 ||
+      this.jumpPhase > 0
+    );
   }
 
   // ── Build gecko mesh ───────────────────────────────────────────────────────
@@ -825,6 +838,22 @@ export class Gecko {
             // Apply steering as a fraction of the step so it blends with normal movement
             const steerStr = Math.min(worstPush * 1.5, step * 0.8);
             nx += steerX * steerStr; nz += steerZ * steerStr;
+          }
+        }
+
+        // Gecko-to-gecko collision
+        const GECKO_R = 0.35;
+        for (const other of Gecko.allGeckos) {
+          if (other === this) continue;
+          const odx = nx - other.group.position.x;
+          const odz = nz - other.group.position.z;
+          const od2 = odx * odx + odz * odz;
+          const minDist = GECKO_R * 2;
+          if (od2 < minDist * minDist && od2 > 0.0001) {
+            const od = Math.sqrt(od2);
+            const push = minDist - od + 0.02;
+            nx += (odx / od) * push;
+            nz += (odz / od) * push;
           }
         }
 
@@ -1533,7 +1562,7 @@ export class Gecko {
   private pickTarget(items: PlacedItem[], bounds: EnclosureBounds) {
     this.targetItemId = null;
 
-    // Filter out recently left items so gecko explores first
+    // Filter out recently left items and items occupied by other geckos
     let pickable = items;
     if (this.justLeftHide) {
       pickable = pickable.filter(i => !isHideType(i.type));
@@ -1541,6 +1570,13 @@ export class Gecko {
     if (this.justLeftPerch) {
       pickable = pickable.filter(i => !ITEM_COLLISION[i.type].climbable);
     }
+    pickable = pickable.filter(i => {
+      for (const other of Gecko.allGeckos) {
+        if (other === this) continue;
+        if (other.isOccupyingItem(i.id)) return false;
+      }
+      return true;
+    });
     this.justLeftHide = false;
     this.justLeftPerch = false;
 
