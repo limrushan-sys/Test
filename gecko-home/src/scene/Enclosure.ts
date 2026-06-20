@@ -14,7 +14,7 @@ export class Enclosure {
   private width: number;
   private depth: number;
   private height: number;
-  private wallThickness = 0.08;
+  private wallThickness = 0.12;
 
   constructor(scene: THREE.Scene, width = 6, depth = 4, height = 2) {
     this.width = width;

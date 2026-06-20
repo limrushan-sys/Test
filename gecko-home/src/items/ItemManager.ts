@@ -379,10 +379,13 @@ export class ItemManager {
   }
 
   clampAllToBounds(bounds: EnclosureBounds) {
+    const pad = ItemManager.WALL_PAD;
     for (const item of this.items) {
-      item.position.x = Math.max(bounds.minX, Math.min(bounds.maxX, item.position.x));
-      item.position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, item.position.z));
-      item.mesh.position.set(item.position.x, 0, item.position.z);
+      if (ITEM_COLLISION[item.type].wallMounted) continue;
+      const r = this.footprintR(item.type);
+      item.position.x = Math.max(bounds.minX + r + pad, Math.min(bounds.maxX - r - pad, item.position.x));
+      item.position.z = Math.max(bounds.minZ + r + pad, Math.min(bounds.maxZ - r - pad, item.position.z));
+      item.mesh.position.set(item.position.x, item.position.y, item.position.z);
     }
   }
 
@@ -445,11 +448,14 @@ export class ItemManager {
     return false;
   }
 
+  private static readonly WALL_PAD = 0.06;
+
   private fitsInBounds(pos: THREE.Vector3, type: ItemType, bounds: EnclosureBounds, rotY = 0): boolean {
+    const pad = ItemManager.WALL_PAD;
     const circles = this.getWorldCircles(type, pos, rotY);
     for (const [cx, cz, r] of circles) {
-      if (cx - r < bounds.minX || cx + r > bounds.maxX) return false;
-      if (cz - r < bounds.minZ || cz + r > bounds.maxZ) return false;
+      if (cx - r < bounds.minX + pad || cx + r > bounds.maxX - pad) return false;
+      if (cz - r < bounds.minZ + pad || cz + r > bounds.maxZ - pad) return false;
     }
     return true;
   }
