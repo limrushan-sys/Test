@@ -448,10 +448,19 @@ export class ItemManager {
   }
 
   private fitsInBounds(pos: THREE.Vector3, type: ItemType, bounds: EnclosureBounds, rotY = 0): boolean {
-    const circles = this.getWorldCircles(type, pos, rotY);
-    for (const [cx, cz, r] of circles) {
-      if (cx - r < bounds.minX || cx + r > bounds.maxX) return false;
-      if (cz - r < bounds.minZ || cz + r > bounds.maxZ) return false;
+    const col = ITEM_COLLISION[type];
+    if (!col.circles) {
+      const r = col.footprint ?? col.radius;
+      if (pos.x - r < bounds.minX || pos.x + r > bounds.maxX) return false;
+      if (pos.z - r < bounds.minZ || pos.z + r > bounds.maxZ) return false;
+      return true;
+    }
+    const c = Math.cos(rotY), s = Math.sin(rotY);
+    for (const [lx, lz, r] of col.circles) {
+      const wx = pos.x + lx * c - lz * s;
+      const wz = pos.z + lx * s + lz * c;
+      if (wx - r < bounds.minX || wx + r > bounds.maxX) return false;
+      if (wz - r < bounds.minZ || wz + r > bounds.maxZ) return false;
     }
     return true;
   }
