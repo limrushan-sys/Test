@@ -55,7 +55,7 @@ class GeckoHomeApp {
         this.enclosure.resize(w, d, h);
         this.itemManager.setFloor(this.enclosure.floorMesh);
         this.itemManager.setWalls(this.enclosure.wallMeshes);
-        this.itemManager.clampAllToBounds(this.enclosure.bounds);
+        this.itemManager.clampAllToBounds(this.enclosure.placementBounds);
         for (const g of this.geckos) {
           const pos = g.group.position;
           const b   = this.enclosure.bounds;
@@ -64,7 +64,7 @@ class GeckoHomeApp {
         }
       },
       onMoveItem: (dx, dz) => {
-        this.itemManager.moveSelected(dx, dz, this.enclosure.bounds);
+        this.itemManager.moveSelected(dx, dz, this.enclosure.placementBounds);
       },
       onRotateItem: (angle) => {
         this.itemManager.rotateSelected(angle);
@@ -206,7 +206,7 @@ class GeckoHomeApp {
       this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
       if (this.itemManager.placeModeActive) {
-        const placed = this.itemManager.tryPlace(this.mouse, this.sceneSetup.camera, this.enclosure.bounds);
+        const placed = this.itemManager.tryPlace(this.mouse, this.sceneSetup.camera, this.enclosure.placementBounds);
         if (placed) {
           this.ui.showTip('Placed! Click again to place more, or press Esc to exit.', 2200);
         } else {
@@ -340,7 +340,7 @@ class GeckoHomeApp {
     for (const g of this.geckos) {
       g.update(delta, this.itemManager.getItems(), this.enclosure.bounds);
     }
-    this.itemManager.update(delta, this.mouse, this.sceneSetup.camera, this.enclosure.bounds);
+    this.itemManager.update(delta, this.mouse, this.sceneSetup.camera, this.enclosure.placementBounds);
     this.sceneSetup.update();
   }
 }
