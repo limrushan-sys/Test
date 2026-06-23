@@ -157,6 +157,24 @@ class GeckoHomeApp {
         (this.sceneSetup.scene.fog as THREE.FogExp2).color = color;
         document.body.style.background = '#' + hex.toString(16).padStart(6, '0');
       },
+      onBgGradient: (stops: string[]) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 2;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d')!;
+        const grad = ctx.createLinearGradient(0, 0, 0, 512);
+        for (let i = 0; i < stops.length; i++) {
+          grad.addColorStop(i / (stops.length - 1), stops[i]);
+        }
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 2, 512);
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.mapping = THREE.EquirectangularReflectionMapping;
+        this.sceneSetup.scene.background = tex;
+        const midColor = new THREE.Color(stops[Math.floor(stops.length / 2)]);
+        (this.sceneSetup.scene.fog as THREE.FogExp2).color = midColor;
+        document.body.style.background = stops[Math.floor(stops.length / 2)];
+      },
       onGlassColor: (hex: number) => {
         this.enclosure.setGlassColor(hex);
       },

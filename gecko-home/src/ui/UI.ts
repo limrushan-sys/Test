@@ -24,6 +24,7 @@ export interface UICallbacks {
   onSelectGecko: (index: number) => void;
   onRenameGecko: (name: string) => void;
   onBgColor: (hex: number) => void;
+  onBgGradient: (stops: string[]) => void;
   onGlassColor: (hex: number) => void;
   onFloorColor: (hex: number) => void;
   onShare: () => void;
@@ -354,13 +355,13 @@ export class UI {
     // ── Customise: theme buttons ────────────────────────────────────────────
     const themeBtns = document.querySelectorAll('.theme-btn');
     const panelEls = () => document.querySelectorAll('#left-panel, #item-controls, #top-bar, #info-tip');
-    const themeSceneColors: Record<string, { bg: string; glass: string; floor: string }> = {
+    const themeSceneColors: Record<string, { bg: string; gradient?: [string, string]; glass: string; floor: string }> = {
       dark:    { bg: '#1a1a2e', glass: '#aaddee', floor: '#c8a96e' },
       light:   { bg: '#d0d8e8', glass: '#cceeff', floor: '#c8a96e' },
-      nature:  { bg: '#1a2e1a', glass: '#aaddbb', floor: '#6b8a3a' },
+      nature:  { bg: '#1a2e1a', gradient: ['#87ceeb', '#2d5a1e'], glass: '#aaddbb', floor: '#6b8a3a' },
       neon:    { bg: '#0a0a14', glass: '#00ffff', floor: '#1a1a2a' },
-      sunset:  { bg: '#ff6b35', glass: '#ffaa44', floor: '#e8a050' },
-      ocean:   { bg: '#0a1932', glass: '#4488cc', floor: '#3a6070' },
+      sunset:  { bg: '#ff6b35', gradient: ['#ff4500', '#ff8c00', '#ffd700', '#4a0033'], glass: '#ffaa44', floor: '#e8a050' },
+      ocean:   { bg: '#0a1932', gradient: ['#0a1628', '#0d3b66', '#1a6e8a', '#2a9d8f'], glass: '#4488cc', floor: '#3a6070' },
     };
     themeBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -377,7 +378,11 @@ export class UI {
           (document.getElementById('bg-color') as HTMLInputElement).value = colors.bg;
           (document.getElementById('glass-color') as HTMLInputElement).value = colors.glass;
           (document.getElementById('floor-color') as HTMLInputElement).value = colors.floor;
-          this.callbacks.onBgColor(parse(colors.bg));
+          if (colors.gradient) {
+            this.callbacks.onBgGradient(colors.gradient);
+          } else {
+            this.callbacks.onBgColor(parse(colors.bg));
+          }
           this.callbacks.onGlassColor(parse(colors.glass));
           this.callbacks.onFloorColor(parse(colors.floor));
         }
