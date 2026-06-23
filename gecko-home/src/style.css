@@ -265,6 +265,38 @@ body {
 .panel.theme-neon .resize-row span { color: #ff80ab; }
 .panel.theme-neon .resize-row .val { color: #00e5ff; }
 
+.panel.theme-sunset {
+  background: rgba(60, 20, 30, 0.9);
+  color: #fde8d0;
+  border-color: rgba(255,140,60,0.25);
+}
+.panel.theme-sunset h3,
+.panel.theme-sunset h4 { color: #ff8c42; }
+.panel.theme-sunset .section label { color: #c97a5a; }
+.panel.theme-sunset .swatch-label { color: #b07060; }
+.panel.theme-sunset .btn { background: rgba(255,140,60,0.1); color: #fde8d0; border-color: rgba(255,140,60,0.2); }
+.panel.theme-sunset .btn:hover { background: rgba(255,140,60,0.2); }
+.panel.theme-sunset .btn.active { background: #e65100; border-color: #e65100; color: #fff; }
+.panel.theme-sunset .item-btn { background: rgba(255,140,60,0.08); color: #f0c8a0; border-color: rgba(255,140,60,0.15); }
+.panel.theme-sunset .resize-row span { color: #c97a5a; }
+.panel.theme-sunset .resize-row .val { color: #ff8c42; }
+
+.panel.theme-ocean {
+  background: rgba(5, 25, 50, 0.9);
+  color: #c0e0f0;
+  border-color: rgba(60,160,220,0.25);
+}
+.panel.theme-ocean h3,
+.panel.theme-ocean h4 { color: #42a5f5; }
+.panel.theme-ocean .section label { color: #5a8aaa; }
+.panel.theme-ocean .swatch-label { color: #4a7a9a; }
+.panel.theme-ocean .btn { background: rgba(60,160,220,0.1); color: #c0e0f0; border-color: rgba(60,160,220,0.2); }
+.panel.theme-ocean .btn:hover { background: rgba(60,160,220,0.2); }
+.panel.theme-ocean .btn.active { background: #0277bd; border-color: #0277bd; color: #fff; }
+.panel.theme-ocean .item-btn { background: rgba(60,160,220,0.08); color: #90caf9; border-color: rgba(60,160,220,0.15); }
+.panel.theme-ocean .resize-row span { color: #5a8aaa; }
+.panel.theme-ocean .resize-row .val { color: #42a5f5; }
+
 .theme-btn {
   padding: 3px 8px;
   font-size: 10px;

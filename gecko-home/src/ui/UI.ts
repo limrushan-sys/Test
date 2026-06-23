@@ -140,6 +140,8 @@ export class UI {
             <button class="theme-btn" data-theme="light">Light</button>
             <button class="theme-btn" data-theme="nature">Nature</button>
             <button class="theme-btn" data-theme="neon">Neon</button>
+            <button class="theme-btn" data-theme="sunset">Sunset</button>
+            <button class="theme-btn" data-theme="ocean">Ocean</button>
           </div>
         </div>
       </div>
