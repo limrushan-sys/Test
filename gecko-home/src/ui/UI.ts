@@ -359,7 +359,7 @@ export class UI {
       light:   { bg: '#d0d8e8', glass: '#cceeff', floor: '#c8a96e' },
       nature:  { bg: '#1a2e1a', glass: '#aaddbb', floor: '#6b8a3a' },
       neon:    { bg: '#0a0a14', glass: '#00ffff', floor: '#1a1a2a' },
-      sunset:  { bg: '#2e1520', glass: '#ff9966', floor: '#c47a4a' },
+      sunset:  { bg: '#ff6b35', glass: '#ffaa44', floor: '#e8a050' },
       ocean:   { bg: '#0a1932', glass: '#4488cc', floor: '#3a6070' },
     };
     themeBtns.forEach(btn => {
