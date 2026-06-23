@@ -360,7 +360,7 @@ export class UI {
       light:   { bg: '#d0d8e8', glass: '#cceeff', floor: '#c8a96e' },
       nature:  { bg: '#1a2e1a', gradient: ['#87ceeb', '#2d5a1e'], glass: '#aaddbb', floor: '#6b8a3a' },
       neon:    { bg: '#0a0a14', glass: '#00ffff', floor: '#1a1a2a' },
-      sunset:  { bg: '#f08050', gradient: ['#580880', '#c050a0', '#e85060', '#f08050', '#e8a848'], glass: '#f08050', floor: '#e8a848' },
+      sunset:  { bg: '#e85060', gradient: ['#e8a848', '#f08050', '#e85060', '#c050a0', '#580880'], glass: '#e8a848', floor: '#c87838' },
       ocean:   { bg: '#0a1932', gradient: ['#0a1628', '#0d3b66', '#1a6e8a', '#2a9d8f'], glass: '#4488cc', floor: '#3a6070' },
     };
     themeBtns.forEach(btn => {
