@@ -143,6 +143,7 @@ export class UI {
             <button class="theme-btn" data-theme="neon">Neon</button>
             <button class="theme-btn" data-theme="sunset">Sunset</button>
             <button class="theme-btn" data-theme="ocean">Ocean</button>
+            <button class="theme-btn" data-theme="candy">Candy</button>
           </div>
         </div>
       </div>
@@ -360,8 +361,9 @@ export class UI {
       light:   { bg: '#d0d8e8', glass: '#cceeff', floor: '#c8a96e' },
       nature:  { bg: '#1a2e1a', gradient: ['#87ceeb', '#2d5a1e'], glass: '#aaddbb', floor: '#6b8a3a' },
       neon:    { bg: '#0a0a14', glass: '#00ffff', floor: '#1a1a2a' },
-      sunset:  { bg: '#e85060', gradient: ['#e8a848', '#f08050', '#e85060', '#c050a0', '#580880'], glass: '#e8a848', floor: '#c87838' },
+      sunset:  { bg: '#1a0a05', gradient: ['#0d0a1a', '#4a1028', '#8b2010', '#c45820', '#d4944a'], glass: '#c06030', floor: '#8a5a30' },
       ocean:   { bg: '#0a1932', gradient: ['#0a1628', '#0d3b66', '#1a6e8a', '#2a9d8f'], glass: '#4488cc', floor: '#3a6070' },
+      candy:   { bg: '#f8c8e0', gradient: ['#a8d8f0', '#c8b8f0', '#f0a0c8', '#f8c8e0', '#ffe0f0'], glass: '#f0a0c8', floor: '#e8c0d0' },
     };
     themeBtns.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -369,7 +371,7 @@ export class UI {
         btn.classList.add('active');
         const theme = (btn as HTMLElement).dataset.theme!;
         panelEls().forEach(el => {
-          el.classList.remove('theme-dark', 'theme-light', 'theme-nature', 'theme-neon', 'theme-sunset', 'theme-ocean');
+          el.classList.remove('theme-dark', 'theme-light', 'theme-nature', 'theme-neon', 'theme-sunset', 'theme-ocean', 'theme-candy');
           if (theme !== 'dark') el.classList.add(`theme-${theme}`);
         });
         const colors = themeSceneColors[theme];
