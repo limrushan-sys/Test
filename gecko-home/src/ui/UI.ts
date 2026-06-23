@@ -360,7 +360,7 @@ export class UI {
         btn.classList.add('active');
         const theme = (btn as HTMLElement).dataset.theme!;
         panelEls().forEach(el => {
-          el.classList.remove('theme-dark', 'theme-light', 'theme-nature', 'theme-neon');
+          el.classList.remove('theme-dark', 'theme-light', 'theme-nature', 'theme-neon', 'theme-sunset', 'theme-ocean');
           if (theme !== 'dark') el.classList.add(`theme-${theme}`);
         });
       });
