@@ -49,6 +49,17 @@ export class Enclosure {
     return x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ;
   }
 
+  setGlassColor(hex: number) {
+    const color = new THREE.Color(hex);
+    for (const wall of this.wallMeshes) {
+      (wall.material as THREE.MeshLambertMaterial).color.copy(color);
+    }
+  }
+
+  setFloorColor(hex: number) {
+    (this.floorMesh.material as THREE.MeshStandardMaterial).color.set(hex);
+  }
+
   resize(width: number, depth: number, height: number) {
     this.width = width;
     this.depth = depth;

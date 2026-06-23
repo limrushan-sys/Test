@@ -23,6 +23,9 @@ export interface UICallbacks {
   onAddGecko: () => void;
   onSelectGecko: (index: number) => void;
   onRenameGecko: (name: string) => void;
+  onBgColor: (hex: number) => void;
+  onGlassColor: (hex: number) => void;
+  onFloorColor: (hex: number) => void;
   onShare: () => void;
 }
 
@@ -113,6 +116,31 @@ export class UI {
           <span>H</span>
           <input type="range" id="enc-h" min="1" max="4" step="0.5" value="${this.encH}" />
           <span class="val" id="enc-h-val">${this.encH}</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <label>Customise</label>
+        <div class="swatch-group">
+          <span class="swatch-label">Background</span>
+          <input type="color" id="bg-color" value="#1a1a2e" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
+        </div>
+        <div class="swatch-group">
+          <span class="swatch-label">Glass Tint</span>
+          <input type="color" id="glass-color" value="#aaddee" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
+        </div>
+        <div class="swatch-group">
+          <span class="swatch-label">Floor</span>
+          <input type="color" id="floor-color" value="#c8a96e" style="width:50px;height:22px;border:none;cursor:pointer;vertical-align:middle;"/>
+        </div>
+        <div class="swatch-group">
+          <span class="swatch-label">Panel Theme</span>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <button class="theme-btn active" data-theme="dark">Dark</button>
+            <button class="theme-btn" data-theme="light">Light</button>
+            <button class="theme-btn" data-theme="nature">Nature</button>
+            <button class="theme-btn" data-theme="neon">Neon</button>
+          </div>
         </div>
       </div>
 
@@ -309,6 +337,32 @@ export class UI {
     (document.getElementById('eye-color') as HTMLInputElement).oninput = (e) => {
       this.callbacks.onEyeColor(parseInt((e.target as HTMLInputElement).value.replace('#', ''), 16));
     };
+
+    // ── Customise: color pickers ────────────────────────────────────────────
+    (document.getElementById('bg-color') as HTMLInputElement).oninput = (e) => {
+      this.callbacks.onBgColor(parseInt((e.target as HTMLInputElement).value.replace('#', ''), 16));
+    };
+    (document.getElementById('glass-color') as HTMLInputElement).oninput = (e) => {
+      this.callbacks.onGlassColor(parseInt((e.target as HTMLInputElement).value.replace('#', ''), 16));
+    };
+    (document.getElementById('floor-color') as HTMLInputElement).oninput = (e) => {
+      this.callbacks.onFloorColor(parseInt((e.target as HTMLInputElement).value.replace('#', ''), 16));
+    };
+
+    // ── Customise: theme buttons ────────────────────────────────────────────
+    const themeBtns = document.querySelectorAll('.theme-btn');
+    const panelEls = () => document.querySelectorAll('#left-panel, #item-controls, #top-bar, #info-tip');
+    themeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        themeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const theme = (btn as HTMLElement).dataset.theme!;
+        panelEls().forEach(el => {
+          el.classList.remove('theme-dark', 'theme-light', 'theme-nature', 'theme-neon');
+          if (theme !== 'dark') el.classList.add(`theme-${theme}`);
+        });
+      });
+    });
   }
 
 

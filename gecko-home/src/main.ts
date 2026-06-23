@@ -151,6 +151,18 @@ class GeckoHomeApp {
       onRenameGecko: (name: string) => {
         this.gecko.name = name;
       },
+      onBgColor: (hex: number) => {
+        const color = new THREE.Color(hex);
+        this.sceneSetup.scene.background = color;
+        (this.sceneSetup.scene.fog as THREE.FogExp2).color = color;
+        document.body.style.background = '#' + hex.toString(16).padStart(6, '0');
+      },
+      onGlassColor: (hex: number) => {
+        this.enclosure.setGlassColor(hex);
+      },
+      onFloorColor: (hex: number) => {
+        this.enclosure.setFloorColor(hex);
+      },
       onShare: () => {
         const state = this.serializeState();
         const encoded = btoa(JSON.stringify(state));
