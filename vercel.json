@@ -1,0 +1,4 @@
+{
+  "buildCommand": "cd gecko-home && npm run build",
+  "outputDirectory": "gecko-home/dist"
+}
