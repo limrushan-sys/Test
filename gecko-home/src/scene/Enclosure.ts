@@ -107,21 +107,23 @@ export class Enclosure {
 
     // Corner posts
     const postMat = new THREE.MeshStandardMaterial({ color: 0x3a5068, roughness: 0.3, metalness: 0.4 });
-    const corners = [[-w/2, w/2], [-d/2, d/2]].reduce<[number,number][]>((acc, _, i, arr) =>
-      i === 0 ? arr[0].flatMap(x => arr[1].map(z => [x, z] as [number,number])) : acc, []);
+    const postW = t * 1.5;
     [[-w/2,-d/2],[w/2,-d/2],[w/2,d/2],[-w/2,d/2]].forEach(([px,pz]) => {
-      const post = new THREE.Mesh(new THREE.BoxGeometry(t*1.5, h, t*1.5), postMat);
+      const post = new THREE.Mesh(new THREE.BoxGeometry(postW, h, postW), postMat);
       post.position.set(px, h/2, pz);
       post.castShadow = true;
       this.group.add(post);
     });
 
+    // Glass panels sized to fit between corner posts
+    const glassW = w - postW;  // front/back panel width
+    const glassD = d - postW;  // left/right panel depth
     // Front & back walls
-    makeWall(w - t*3, h, t, 0, h/2, -d/2);
-    makeWall(w - t*3, h, t, 0, h/2, d/2);
+    makeWall(glassW, h, t, 0, h/2, -d/2);
+    makeWall(glassW, h, t, 0, h/2, d/2);
     // Left & right walls
-    makeWall(t, h, d - t*3, -w/2, h/2, 0);
-    makeWall(t, h, d - t*3, w/2, h/2, 0);
+    makeWall(t, h, glassD, -w/2, h/2, 0);
+    makeWall(t, h, glassD, w/2, h/2, 0);
 
     // Floor rim
     const rimMat = new THREE.MeshStandardMaterial({ color: 0x3a5068, roughness: 0.3, metalness: 0.4 });
