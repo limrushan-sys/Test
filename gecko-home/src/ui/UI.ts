@@ -354,6 +354,14 @@ export class UI {
     // ── Customise: theme buttons ────────────────────────────────────────────
     const themeBtns = document.querySelectorAll('.theme-btn');
     const panelEls = () => document.querySelectorAll('#left-panel, #item-controls, #top-bar, #info-tip');
+    const themeSceneColors: Record<string, { bg: string; glass: string; floor: string }> = {
+      dark:    { bg: '#1a1a2e', glass: '#aaddee', floor: '#c8a96e' },
+      light:   { bg: '#d0d8e8', glass: '#cceeff', floor: '#c8a96e' },
+      nature:  { bg: '#1a2e1a', glass: '#aaddbb', floor: '#6b8a3a' },
+      neon:    { bg: '#0a0a14', glass: '#00ffff', floor: '#1a1a2a' },
+      sunset:  { bg: '#2e1520', glass: '#ff9966', floor: '#c47a4a' },
+      ocean:   { bg: '#0a1932', glass: '#4488cc', floor: '#3a6070' },
+    };
     themeBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         themeBtns.forEach(b => b.classList.remove('active'));
@@ -363,6 +371,16 @@ export class UI {
           el.classList.remove('theme-dark', 'theme-light', 'theme-nature', 'theme-neon', 'theme-sunset', 'theme-ocean');
           if (theme !== 'dark') el.classList.add(`theme-${theme}`);
         });
+        const colors = themeSceneColors[theme];
+        if (colors) {
+          const parse = (hex: string) => parseInt(hex.replace('#', ''), 16);
+          (document.getElementById('bg-color') as HTMLInputElement).value = colors.bg;
+          (document.getElementById('glass-color') as HTMLInputElement).value = colors.glass;
+          (document.getElementById('floor-color') as HTMLInputElement).value = colors.floor;
+          this.callbacks.onBgColor(parse(colors.bg));
+          this.callbacks.onGlassColor(parse(colors.glass));
+          this.callbacks.onFloorColor(parse(colors.floor));
+        }
       });
     });
   }
