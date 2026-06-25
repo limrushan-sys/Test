@@ -1,5 +1,0 @@
-{
-  "installCommand": "cd gecko-home && npm install",
-  "buildCommand": "cd gecko-home && npx tsc && npx vite build",
-  "outputDirectory": "gecko-home/dist"
-}
