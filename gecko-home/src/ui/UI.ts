@@ -356,7 +356,7 @@ export class UI {
     // ── Customise: theme buttons ────────────────────────────────────────────
     const themeBtns = document.querySelectorAll('.theme-btn');
     const panelEls = () => document.querySelectorAll('#left-panel, #item-controls, #top-bar, #info-tip');
-    const themeSceneColors: Record<string, { bg: string; gradient?: [string, string]; glass: string; floor: string }> = {
+    const themeSceneColors: Record<string, { bg: string; gradient?: string[]; glass: string; floor: string }> = {
       dark:    { bg: '#1a1a2e', glass: '#aaddee', floor: '#c8a96e' },
       light:   { bg: '#d0d8e8', glass: '#cceeff', floor: '#c8a96e' },
       nature:  { bg: '#1a2e1a', gradient: ['#87ceeb', '#2d5a1e'], glass: '#aaddbb', floor: '#6b8a3a' },
