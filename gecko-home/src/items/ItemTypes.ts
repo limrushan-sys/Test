@@ -16,10 +16,10 @@ export const ITEM_EMOJIS: Record<ItemType, string> = {
   [ItemType.SLEEPING_HIDE]:   '🏠',
   [ItemType.WATER_DISH]:      '💧',
   [ItemType.FOOD_BOWL]:       '🍽️',
-  [ItemType.CLIMBING_BRANCH]: '🪵',
-  [ItemType.CORK_BARK]:       '🪨',
+  [ItemType.CLIMBING_BRANCH]: '🪾',
+  [ItemType.CORK_BARK]:       '🪵',
   [ItemType.PLATFORM]:        '🌱',
-  [ItemType.STONE]:           '⚫',
+  [ItemType.STONE]:           '🪨',
   [ItemType.LEAF_DECOR]:      '🌿',
   [ItemType.BASKING_LAMP]:    '💡',
 };
