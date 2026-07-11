@@ -572,9 +572,9 @@ export class Gecko {
     this.poseGroup.rotation.z = this.posePitch;
 
     // Neck pitch: tilt head up when approaching a branch to avoid clipping
-    // headPitchTarget is set negative (pitch up) by the branch collision probe
-    this.headPitchTarget += (0 - this.headPitchTarget) * Math.min(6 * delta, 1); // decay toward 0
-    this.headPitch += (this.headPitchTarget - this.headPitch) * Math.min(14 * delta, 1);
+    // headPitchTarget is driven negative each frame a clip is detected, decays to 0 when clear
+    this.headPitchTarget += (0 - this.headPitchTarget) * Math.min(1.5 * delta, 1); // slow decay
+    this.headPitch += (this.headPitchTarget - this.headPitch) * Math.min(18 * delta, 1); // fast follow
     this.neckPivot.rotation.z = this.headPitch;
     // Compensate group Y so rear legs stay near ground when pitched
     // Rear leg pivot at local x ≈ -0.08: rises by 0.08*sin(-pitch) with negative pitch
@@ -798,12 +798,14 @@ export class Gecko {
               if (probe.dist < margin) {
                 const surfaceY = probe.height + probe.radius * 0.6;
                 this.targetY = Math.max(this.targetY, surfaceY);
-                // When head tip is about to clip into the branch, tilt head up
-                if (isHead && isTargeting) {
+                // When head tip would clip into branch surface, tilt head up
+                if (isHead) {
                   const headWorldY = this.geckoY + 0.13;
                   const clipDepth = surfaceY - headWorldY;
                   if (clipDepth > 0) {
-                    this.headPitchTarget = Math.min(-clipDepth * 4.0, -0.60);
+                    // Drive headPitchTarget directly each frame it's clipping
+                    const tilt = Math.min(-clipDepth * 5.0, -0.65);
+                    if (tilt < this.headPitchTarget) this.headPitchTarget = tilt;
                   }
                 }
                 // Push horizontally away if not climbing this branch
