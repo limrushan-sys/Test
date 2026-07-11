@@ -87,6 +87,11 @@ export class Gecko {
   private posePitch = 0;
   private posePitchTarget = 0;
 
+  // Neck pivot — rotates head up when head tip clips into branch geometry
+  private neckPivot = new THREE.Group();
+  private headPitch = 0;
+  private headPitchTarget = 0;
+
   private bodyMesh!: THREE.Mesh;
   private tailGroup = new THREE.Group();
   private legGroups: THREE.Group[] = [];
@@ -347,14 +352,20 @@ export class Gecko {
       geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posArr), 3));
       geo.setIndex(idxArr);
       geo.computeVertexNormals();
-      this.poseGroup.add(new THREE.Mesh(geo, this.baseMat));
+      // All head parts go into neckPivot (offset by -bx so pivot is at neck joint)
+      const NX = bx; // neck pivot X in poseGroup space
+      this.neckPivot.position.set(NX, 0, 0);
+
+      const headMesh = new THREE.Mesh(geo, this.baseMat);
+      headMesh.position.x = -NX;
+      this.neckPivot.add(headMesh);
 
       // Nostrils
       const nostMat = new THREE.MeshLambertMaterial({ color: 0x3a5010 });
       for (const side of [-1, 1] as const) {
         const n = new THREE.Mesh(new THREE.SphereGeometry(0.007, 5, 4), nostMat);
-        n.position.set(tx + r * 0.65, cy + r * 0.55, side * 0.014);
-        this.poseGroup.add(n);
+        n.position.set(tx + r * 0.65 - NX, cy + r * 0.55, side * 0.014);
+        this.neckPivot.add(n);
       }
 
       // Eyes — gold iris with vertical slit pupil
@@ -363,8 +374,8 @@ export class Gecko {
         const ex   = bx + (tx - bx) * 0.45;
         const eyeY = yb + (ytB - (ytB - ytF) * 0.5) * 0.70;
         const eye  = new THREE.Mesh(new THREE.SphereGeometry(0.050, 10, 8), this.eyeMat);
-        eye.position.set(ex, eyeY, side * (hw + 0.008));
-        this.poseGroup.add(eye);
+        eye.position.set(ex - NX, eyeY, side * (hw + 0.008));
+        this.neckPivot.add(eye);
         this.eyeMeshes.push(eye);
         // Big cute pupil — nearly fills the whole eye, wider
         const pupil = new THREE.Mesh(
@@ -372,8 +383,8 @@ export class Gecko {
           pupilMat
         );
         pupil.scale.set(1.1, 0.95, 0.5);
-        pupil.position.set(ex, eyeY, side * (hw + 0.046));
-        this.poseGroup.add(pupil);
+        pupil.position.set(ex - NX, eyeY, side * (hw + 0.046));
+        this.neckPivot.add(pupil);
         this.pupilMeshes.push(pupil);
 
         // U-shaped sleep eye — shown only when sleeping
@@ -384,21 +395,23 @@ export class Gecko {
         );
         const sleepGeo = new THREE.TubeGeometry(uCurve, 16, 0.012, 6, false);
         const sleepEye = new THREE.Mesh(sleepGeo, pupilMat);
-        sleepEye.position.set(ex, eyeY - 0.018, side * (hw + 0.025));
+        sleepEye.position.set(ex - NX, eyeY - 0.018, side * (hw + 0.025));
         sleepEye.visible = false;
-        this.poseGroup.add(sleepEye);
+        this.neckPivot.add(sleepEye);
         this.sleepEyeMeshes.push(sleepEye);
       }
+
+      this.poseGroup.add(this.neckPivot);
     }
 
-    // Tongue — BoxGeometry translated so base is at x=0, tip at x=1; scale.x = length
+    // Tongue — base at snout tip, offset by -NX since it lives in neckPivot
     const tongueGeo = new THREE.BoxGeometry(1, 0.009, 0.010);
     tongueGeo.translate(0.5, 0, 0);  // shift base to x=0 (not centered)
     this.tongueMesh = new THREE.Mesh(tongueGeo, tongueMat);
-    this.tongueMesh.position.set(0.408, 0.048, 0); // base at snout tip
+    this.tongueMesh.position.set(0.408 - 0.185, 0.048, 0); // base at snout tip, offset for pivot
     this.tongueMesh.scale.set(0, 1, 1);
     this.tongueMesh.visible = false;
-    this.poseGroup.add(this.tongueMesh);
+    this.neckPivot.add(this.tongueMesh);
 
     // ── Legs: hemispheres, dome pointing up, flat bottom on ground ───────────
     const LEG_R = 0.058; // chunkier leopard gecko legs
@@ -557,6 +570,12 @@ export class Gecko {
     // Smooth bowl/water-dish pose pitch (nose down, tail up)
     this.posePitch += (this.posePitchTarget - this.posePitch) * Math.min(2.5 * delta, 1);
     this.poseGroup.rotation.z = this.posePitch;
+
+    // Neck pitch: tilt head up when approaching a branch to avoid clipping
+    // headPitchTarget is set negative (pitch up) by the branch collision probe
+    this.headPitchTarget += (0 - this.headPitchTarget) * Math.min(6 * delta, 1); // decay toward 0
+    this.headPitch += (this.headPitchTarget - this.headPitch) * Math.min(14 * delta, 1);
+    this.neckPivot.rotation.z = this.headPitch;
     // Compensate group Y so rear legs stay near ground when pitched
     // Rear leg pivot at local x ≈ -0.08: rises by 0.08*sin(-pitch) with negative pitch
     const poseY = 0.08 * Math.sin(-this.posePitch);
@@ -769,15 +788,24 @@ export class Gecko {
             const isTargeting = this.targetItemId === item.id;
 
             // Check body centre, head, and rear against the branch spine
-            for (const [px, pz] of [
-              [nx, nz],
-              [nx + facingX * HEAD_REACH, nz + facingZ * HEAD_REACH],
-              [nx - facingX * 0.38, nz - facingZ * 0.38],
-            ] as [number, number][]) {
+            for (const [px, pz, isHead] of [
+              [nx, nz, false],
+              [nx + facingX * HEAD_REACH, nz + facingZ * HEAD_REACH, true],
+              [nx - facingX * 0.38, nz - facingZ * 0.38, false],
+            ] as [number, number, boolean][]) {
               const probe = branchProbe(spines, item.position.x, item.position.z, rot, px, pz);
               const margin = probe.radius + 0.10;
               if (probe.dist < margin) {
-                this.targetY = Math.max(this.targetY, probe.height);
+                const surfaceY = probe.height + probe.radius * 0.6;
+                this.targetY = Math.max(this.targetY, surfaceY);
+                // When head tip is about to clip into the branch, tilt head up
+                if (isHead && isTargeting) {
+                  const headWorldY = this.geckoY + 0.13;
+                  const clipDepth = surfaceY - headWorldY;
+                  if (clipDepth > 0) {
+                    this.headPitchTarget = Math.min(-clipDepth * 4.0, -0.60);
+                  }
+                }
                 // Push horizontally away if not climbing this branch
                 if (!isTargeting) {
                   const pushAmt = margin - probe.dist + 0.02;
