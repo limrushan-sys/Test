@@ -777,7 +777,9 @@ export class Gecko {
               const probe = branchProbe(spines, item.position.x, item.position.z, rot, px, pz);
               const margin = probe.radius + 0.10;
               if (probe.dist < margin) {
-                this.targetY = Math.max(this.targetY, probe.height);
+                // Apply same belly-sink offset as arrival so there's no pop
+                const surfaceY = probe.height + probe.radius * 0.6;
+                this.targetY = Math.max(this.targetY, surfaceY);
                 // Push horizontally away if not climbing this branch
                 if (!isTargeting) {
                   const pushAmt = margin - probe.dist + 0.02;
@@ -900,8 +902,12 @@ export class Gecko {
           this.lastStuckCheckPos.copy(pos);
         }
 
-        // Smooth Y for climbing
-        this.geckoY += (this.targetY - this.geckoY) * Math.min(9 * delta, 1);
+        // Smooth Y for climbing — snap up fast to avoid clipping, ease down gently
+        const yDiff = this.targetY - this.geckoY;
+        const yRate = yDiff > 0 ? Math.min(22 * delta, 1) : Math.min(9 * delta, 1);
+        this.geckoY += yDiff * yRate;
+        // Hard floor: never let geckoY lag more than 0.04 below target (prevents head clipping)
+        if (this.geckoY < this.targetY - 0.04) this.geckoY = this.targetY - 0.04;
 
         // Whole-body vertical bob only (no side sway)
         const bob = Math.abs(Math.sin(this.walkTime * BODY_BOB_SPEED)) * 0.018;
