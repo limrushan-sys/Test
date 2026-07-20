@@ -3,14 +3,16 @@ import type { PlacedItem } from '../items/ItemManager.js';
 import type { EnclosureBounds } from '../scene/Enclosure.js';
 import { ITEM_COLLISION, ItemType, BRANCH_SPINE, BRANCH_SPINE_FORK } from '../items/ItemTypes.js';
 
-const WALK_SPEED      = 0.85;
+const WALK_SPEED      = 0.60;  // slightly slower, more deliberate
 const ARRIVE_DIST     = 0.15;
 const IDLE_WAIT_MIN   = 1.5;
 const IDLE_WAIT_MAX   = 4.5;
-const ROTATE_SPEED    = 6.0;
+const MAX_TURN_RATE   = 2.8;   // rad/s — gradual curving turns
 const LEG_SWING_SPEED = 9.0;
 const BODY_BOB_AMP    = 0.010;
 const BODY_BOB_SPEED  = 5.0; // one gentle bob per stride
+const UNDULATE_AMP    = 0.10; // lateral body sway amplitude (rad)
+const UNDULATE_SPEED  = 5.0; // matches leg frequency
 
 type GeckoState = 'IDLE' | 'WALKING' | 'ARRIVED';
 
@@ -115,6 +117,13 @@ export class Gecko {
   private blinkTimer = 3.5;
   private blinkTime  = -1;
   private spotMeshes: THREE.Mesh[] = [];
+
+  // Body undulation & tail follow
+  private bodySway = 0;       // current lateral sway angle
+  private swayHistory: number[] = new Array(40).fill(0); // ring buffer for tail lag
+
+  // Leg stride tracking (fore-aft displacement)
+  private legStridePhase = 0;
 
   private state: GeckoState = 'IDLE';
   private idleTimer = 1.0;
@@ -736,14 +745,13 @@ export class Gecko {
         const inv = 1 / dist;
         const ndx = dx * inv, ndz = dz * inv;
 
-        // Rotate to face movement direction
-        // Head is at local +X. Rotation matrix: local +X → world (cos θ, 0, -sin θ)
-        // So for head to face (ndx, ndz): cos θ = ndx, -sin θ = ndz → θ = atan2(-ndz, ndx)
+        // Rotate to face movement direction — capped turn rate for gradual curving
         const wantAngle = Math.atan2(-ndz, ndx);
         let angleDiff   = wantAngle - this.group.rotation.y;
         while (angleDiff >  Math.PI) angleDiff -= 2 * Math.PI;
         while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-        this.group.rotation.y += angleDiff * Math.min(ROTATE_SPEED * delta, 1);
+        const turnStep = Math.sign(angleDiff) * Math.min(Math.abs(angleDiff), MAX_TURN_RATE * delta);
+        this.group.rotation.y += turnStep;
 
         // Compute new XZ position
         const step = Math.min(WALK_SPEED * delta, dist);
@@ -933,19 +941,36 @@ export class Gecko {
         // Smooth Y for climbing
         this.geckoY += (this.targetY - this.geckoY) * Math.min(9 * delta, 1);
 
-        // Whole-body vertical bob only (no side sway)
-        const bob = Math.abs(Math.sin(this.walkTime * BODY_BOB_SPEED)) * 0.018;
+        // Vertical body bob
+        const bob = Math.abs(Math.sin(this.walkTime * BODY_BOB_SPEED)) * 0.016;
         pos.y = this.geckoY + bob;
-        this.group.rotation.z += (0 - this.group.rotation.z) * 0.15;
 
-        // Leg animation — trot gait, diagonal pairs lift together
-        // Subtract bob so feet stay grounded as the body rises
+        // Lateral body undulation — sinuous S-curve through the spine
+        this.bodySway = Math.sin(this.walkTime * UNDULATE_SPEED) * UNDULATE_AMP;
+        this.poseGroup.rotation.y = this.bodySway;
+
+        // Bank into turns: lean the body into the curve
+        const bankTarget = -angleDiff * 0.25;
+        this.group.rotation.z += (bankTarget - this.group.rotation.z) * 0.08;
+
+        // Push sway into history ring buffer (index 0 = newest)
+        this.swayHistory.unshift(this.bodySway);
+        this.swayHistory.pop();
+
+        // Counter-sway on neck so head stays more stable
+        this.neckPivot.rotation.y = -this.bodySway * 0.45;
+
+        // Leg animation — trot gait with fore-aft stride for realistic footfalls
         const phases = [0, Math.PI, Math.PI, 0];
         const defaultLegZ = [0.11, -0.11, 0.11, -0.11];
+        const defaultLegX = [0.0, 0.0, 0.0, 0.0];
         this.legGroups.forEach((lg, i) => {
-          const lift = Math.max(0, Math.sin(this.walkTime * LEG_SWING_SPEED + phases[i])) * 0.04;
+          const phase = this.walkTime * LEG_SWING_SPEED + phases[i];
+          const lift = Math.max(0, Math.sin(phase)) * 0.045;
+          const stride = Math.cos(phase) * 0.055; // fore-aft swing
           lg.position.y = lift - bob;
-          lg.position.z += (defaultLegZ[i] - lg.position.z) * 0.10; // return to default Z
+          lg.position.x += (defaultLegX[i] + stride - lg.position.x) * 0.18;
+          lg.position.z += (defaultLegZ[i] - lg.position.z) * 0.10;
         });
 
         this.setStatus('🦎 Exploring…');
@@ -1073,9 +1098,32 @@ export class Gecko {
         break;
     }
 
-    // Gentle tail sway (always)
-    const sway = Math.sin(Date.now() * 0.0012) * 0.18;
-    this.tailGroup.rotation.y = sway;
+    // Decay body sway and neck counter-sway when not walking
+    if (this.state !== 'WALKING') {
+      this.bodySway += (0 - this.bodySway) * Math.min(3 * delta, 1);
+      this.poseGroup.rotation.y += (0 - this.poseGroup.rotation.y) * Math.min(3 * delta, 1);
+      this.neckPivot.rotation.y += (0 - this.neckPivot.rotation.y) * Math.min(3 * delta, 1);
+      // Let leg X stride return to neutral
+      const defaultLegZ2 = [0.11, -0.11, 0.11, -0.11];
+      this.legGroups.forEach((lg, i) => {
+        lg.position.x += (0 - lg.position.x) * Math.min(5 * delta, 1);
+        lg.position.z += (defaultLegZ2[i] - lg.position.z) * 0.10;
+      });
+      // Shift history toward zero
+      this.swayHistory = this.swayHistory.map(v => v * 0.92);
+    }
+
+    // Tail follows body path with lag — sampled at different delays for S-curve
+    // tailGroup drives the base of the tail; delayed sway gives a whip effect
+    const tailDelay = Math.min(18, this.swayHistory.length - 1);
+    const tailSway = -(this.swayHistory[tailDelay] ?? 0) * 1.4;
+    this.tailGroup.rotation.y += (tailSway - this.tailGroup.rotation.y) * Math.min(8 * delta, 1);
+
+    // Idle gentle sway when still (very subtle)
+    if (this.state !== 'WALKING') {
+      const idleSway = Math.sin(Date.now() * 0.0008) * 0.06;
+      this.tailGroup.rotation.y += (idleSway - this.tailGroup.rotation.y) * Math.min(1.5 * delta, 1);
+    }
 
     // Blink: squish eye Y scale to ~0 then spring back (skip while sleeping or drop)
     if (this.sleepingInHide) return;
