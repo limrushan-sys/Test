@@ -3,16 +3,16 @@ import type { PlacedItem } from '../items/ItemManager.js';
 import type { EnclosureBounds } from '../scene/Enclosure.js';
 import { ITEM_COLLISION, ItemType, BRANCH_SPINE, BRANCH_SPINE_FORK } from '../items/ItemTypes.js';
 
-const WALK_SPEED      = 0.60;  // slightly slower, more deliberate
+const WALK_SPEED      = 0.50;  // deliberate leopard gecko pace
 const ARRIVE_DIST     = 0.15;
 const IDLE_WAIT_MIN   = 1.5;
 const IDLE_WAIT_MAX   = 4.5;
-const MAX_TURN_RATE   = 2.8;   // rad/s — gradual curving turns
-const LEG_SWING_SPEED = 9.0;
-const BODY_BOB_AMP    = 0.010;
-const BODY_BOB_SPEED  = 5.0; // one gentle bob per stride
-const UNDULATE_AMP    = 0.55; // lateral body sway amplitude (rad) — TEST: exaggerated
-const UNDULATE_SPEED  = 5.0; // matches leg frequency
+const MAX_TURN_RATE   = 2.2;   // rad/s — slow gradual turns
+const LEG_SWING_SPEED = 8.0;
+const BODY_BOB_AMP    = 0.008;
+const BODY_BOB_SPEED  = 4.0;
+const UNDULATE_AMP    = 0.13;  // subtle spine flex — leopard geckos aren't very sinuous
+const UNDULATE_SPEED  = 4.0;
 
 type GeckoState = 'IDLE' | 'WALKING' | 'ARRIVED';
 
@@ -245,8 +245,8 @@ export class Gecko {
     this.refreshBodyColors();
 
     this.bodyMesh = new THREE.Mesh(this.bodyGeo, this.bodyMat);
-    this.bodyMesh.scale.set(1.55, 0.52, 0.95);
-    this.bodyMesh.position.y = 0.075;
+    this.bodyMesh.scale.set(1.55, 0.46, 0.95);  // flatter, lower-slung
+    this.bodyMesh.position.y = 0.058;
     this.bodyMesh.castShadow = true;
     this.poseGroup.add(this.bodyMesh);
 
@@ -961,16 +961,17 @@ export class Gecko {
         this.neckPivot.rotation.y = -this.bodySway * 0.45;
 
         // Leg animation — trot gait with fore-aft stride for realistic footfalls
+        // Diagonal trot: FL+RR together (phase 0), FR+RL together (phase π)
         const phases = [0, Math.PI, Math.PI, 0];
         const defaultLegZ = [0.19, -0.19, 0.17, -0.17];
-        const defaultLegX = [0.0, 0.0, 0.0, 0.0];
         this.legGroups.forEach((lg, i) => {
           const phase = this.walkTime * LEG_SWING_SPEED + phases[i];
-          const lift = Math.max(0, Math.sin(phase)) * 0.045;
-          const stride = Math.cos(phase) * 0.055; // fore-aft swing
-          lg.position.y = lift - bob;
-          lg.position.x += (defaultLegX[i] + stride - lg.position.x) * 0.18;
-          lg.position.z += (defaultLegZ[i] - lg.position.z) * 0.10;
+          // lift only on upswing (sin > 0); keep heel drag on downswing
+          const lift = Math.max(0, Math.sin(phase)) * 0.06;
+          const stride = Math.cos(phase) * 0.07; // fore-aft footfall
+          lg.position.y = lift;
+          lg.position.x += (stride - lg.position.x) * 0.22;
+          lg.position.z += (defaultLegZ[i] - lg.position.z) * 0.12;
         });
 
         this.setStatus('🦎 Exploring…');
@@ -1113,19 +1114,19 @@ export class Gecko {
       this.swayHistory = this.swayHistory.map(v => v * 0.92);
     }
 
-    // Tail follows body path with lag — sampled at different delays for S-curve
-    const tailDelay = Math.min(22, this.swayHistory.length - 1);
-    const tailSway = -(this.swayHistory[tailDelay] ?? 0) * 1.8;
-    this.tailGroup.rotation.y += (tailSway - this.tailGroup.rotation.y) * Math.min(6 * delta, 1);
+    // Fat leopard gecko tail — very little sway, lags far behind
+    const tailDelay = Math.min(30, this.swayHistory.length - 1);
+    const tailSway = -(this.swayHistory[tailDelay] ?? 0) * 0.7;
+    this.tailGroup.rotation.y += (tailSway - this.tailGroup.rotation.y) * Math.min(3 * delta, 1);
 
-    // Leopard gecko tail raise when walking — they often carry tail slightly elevated
-    const tailRaiseTarget = this.state === 'WALKING' ? -0.18 : 0;
-    this.tailGroup.rotation.x += (tailRaiseTarget - this.tailGroup.rotation.x) * Math.min(3 * delta, 1);
+    // Slight raise while walking, drops to rest when idle
+    const tailRaiseTarget = this.state === 'WALKING' ? -0.08 : 0;
+    this.tailGroup.rotation.x += (tailRaiseTarget - this.tailGroup.rotation.x) * Math.min(2 * delta, 1);
 
-    // Idle gentle sway when still
+    // Idle: very subtle slow breathing-like tail movement
     if (this.state !== 'WALKING') {
-      const idleSway = Math.sin(Date.now() * 0.0008) * 0.08;
-      this.tailGroup.rotation.y += (idleSway - this.tailGroup.rotation.y) * Math.min(1.5 * delta, 1);
+      const idleSway = Math.sin(Date.now() * 0.0005) * 0.04;
+      this.tailGroup.rotation.y += (idleSway - this.tailGroup.rotation.y) * Math.min(0.8 * delta, 1);
     }
 
     // Blink: squish eye Y scale to ~0 then spring back (skip while sleeping or drop)
