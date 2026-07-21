@@ -98,7 +98,7 @@ export class Gecko {
   private tailGroup = new THREE.Group();
   private legGroups: THREE.Group[] = [];
 
-  private bodyGeo!: THREE.SphereGeometry;
+  private bodyGeo!: THREE.BufferGeometry;
   private bodyTopColor  = new THREE.Color(0xe87830); // leopard orange
   private bodyBotColor  = new THREE.Color(0xf5f0e0); // white belly
 
@@ -236,27 +236,81 @@ export class Gecko {
     this.bandLightMat = new THREE.MeshLambertMaterial({ color: 0xf0e8c8 }); // cream/white tail band
     this.bandDarkMat  = new THREE.MeshLambertMaterial({ color: 0x3a2810 }); // dark brown tail band
 
-    // Body — vertex-coloured sphere: top half = body colour, bottom half = belly colour
-    this.bodyGeo = new THREE.SphereGeometry(0.13, 16, 12);
-    const colAttr = new THREE.BufferAttribute(
-      new Float32Array(this.bodyGeo.attributes.position.count * 3), 3
-    );
-    this.bodyGeo.setAttribute('color', colAttr);
-    this.refreshBodyColors();
+    // Body — procedural ring mesh for organic leopard gecko shape
+    // [x, rz (half-width), ry (half-height), cy (center Y)]
+    const bodySections: [number, number, number, number][] = [
+      [ 0.162, 0.052, 0.032, 0.058],  // neck pinch (just behind head)
+      [ 0.108, 0.078, 0.044, 0.044],  // shoulder
+      [ 0.048, 0.108, 0.050, 0.038],  // upper body
+      [-0.008, 0.120, 0.052, 0.036],  // widest
+      [-0.062, 0.114, 0.050, 0.036],  // lower body
+      [-0.115, 0.100, 0.048, 0.036],  // hips
+      [-0.162, 0.085, 0.052, 0.038],  // tail base
+    ];
+    const RING = 16;
+    const NS   = bodySections.length;
+    {
+      const bPosArr: number[] = [];
+      const bColArr: number[] = [];
+      const bIdxArr: number[] = [];
+      const topC = this.bodyTopColor, botC = this.bodyBotColor;
+      for (let si = 0; si < NS; si++) {
+        const [sx, rz, ry, cy] = bodySections[si];
+        for (let vi = 0; vi < RING; vi++) {
+          const theta = (vi / RING) * Math.PI * 2;
+          bPosArr.push(sx, cy + ry * Math.sin(theta), rz * Math.cos(theta));
+          const sinT = Math.sin(theta);
+          const t = (1 - sinT) * 0.5;
+          const sm = t < 0.35 ? 0 : Math.pow((t - 0.35) / 0.65, 2);
+          const c = topC.clone().lerp(botC, sm);
+          bColArr.push(c.r, c.g, c.b);
+        }
+      }
+      for (let si = 0; si < NS - 1; si++) {
+        for (let vi = 0; vi < RING; vi++) {
+          const a = si * RING + vi, b = si * RING + (vi + 1) % RING;
+          const c = (si + 1) * RING + vi, d = (si + 1) * RING + (vi + 1) % RING;
+          bIdxArr.push(a, c, b, b, c, d);
+        }
+      }
+      // Neck cap (+X face)
+      const nCapIdx = NS * RING;
+      bPosArr.push(bodySections[0][0], bodySections[0][3], 0);
+      bColArr.push(topC.r, topC.g, topC.b);
+      for (let vi = 0; vi < RING; vi++) bIdxArr.push(nCapIdx, (vi + 1) % RING, vi);
+      // Tail base cap (-X face)
+      const tCapIdx = NS * RING + 1;
+      bPosArr.push(bodySections[NS - 1][0], bodySections[NS - 1][3], 0);
+      bColArr.push(topC.r, topC.g, topC.b);
+      const lastBase = (NS - 1) * RING;
+      for (let vi = 0; vi < RING; vi++) bIdxArr.push(tCapIdx, lastBase + vi, lastBase + (vi + 1) % RING);
 
+      this.bodyGeo = new THREE.BufferGeometry();
+      this.bodyGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(bPosArr), 3));
+      this.bodyGeo.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(bColArr), 3));
+      this.bodyGeo.setIndex(bIdxArr);
+      this.bodyGeo.computeVertexNormals();
+    }
     this.bodyMesh = new THREE.Mesh(this.bodyGeo, this.bodyMat);
-    this.bodyMesh.scale.set(1.80, 0.38, 1.00);  // elongated, very flat belly
-    this.bodyMesh.position.y = 0.038;
     this.bodyMesh.castShadow = true;
     this.poseGroup.add(this.bodyMesh);
 
-    // Spots along back — irregular positions, flattened to sit on body surface.
-    // Body ellipsoid: centre (0, 0.075, 0), semi-axes ax=0.2015, ay=0.0676, az=0.1235.
-    // surfY(x,z) = bodyCY + ay * sqrt(max(0, 1 - (x/ax)² - (z/az)²)) + tiny lift
+    // Spots along back — sit on the ring-mesh body surface
     this.spotMeshes = [];
-    const ax = 0.13 * 1.80, ay = 0.13 * 0.38, az = 0.13 * 1.00, bcy = 0.038;
-    const surfY = (x: number, z: number) =>
-      bcy + ay * Math.sqrt(Math.max(0, 1 - (x/ax)**2 - (z/az)**2)) + 0.003;
+    // Surface Y helper: interpolates between body sections to find top-of-body at (x,z)
+    const bodySurf = (x: number, z: number): number => {
+      let si = 0;
+      for (; si < NS - 1; si++) { if (x >= bodySections[si + 1][0]) break; }
+      const [x0, rz0, ry0, cy0] = bodySections[si];
+      const [x1, rz1, ry1, cy1] = bodySections[Math.min(si + 1, NS - 1)];
+      const frac = x0 === x1 ? 0 : Math.max(0, Math.min(1, (x - x0) / (x1 - x0)));
+      const rz = rz0 + frac * (rz1 - rz0);
+      const ry = ry0 + frac * (ry1 - ry0);
+      const cy = cy0 + frac * (cy1 - cy0);
+      const zn = rz > 0 ? z / rz : 0;
+      return cy + ry * Math.sqrt(Math.max(0, 1 - zn * zn)) + 0.003;
+    };
+    const surfY = bodySurf;
     const spotDefs: [number, number, number][] = [
       // x,      z,      radius  — leopard gecko blotch pattern
       [-0.17,  0.00,  0.038],
@@ -422,67 +476,59 @@ export class Gecko {
     this.tongueMesh.visible = false;
     this.neckPivot.add(this.tongueMesh);
 
-    // ── Legs: anatomically correct sprawled lizard limbs ──────────────────────
-    // Viewed from above: thigh goes straight sideways, elbow sticks out wide,
-    // lower leg angles forward (front) or backward (rear) down to foot on ground.
+    // ── Legs: smooth tube curves for organic lizard limbs ──────────────────
     const legDefs: [number, number, number][] = [
       [ 0.10, 0,  0.120],  // FL
       [ 0.10, 0, -0.120],  // FR
       [-0.05, 0,  0.110],  // RL
       [-0.05, 0, -0.110],  // RR
     ];
-    const _up = new THREE.Vector3(0, 1, 0);
-
-    const addCyl = (
-      grp: THREE.Group,
-      from: THREE.Vector3, to: THREE.Vector3,
-      rFrom: number, rTo: number,
-    ) => {
-      const dir = to.clone().sub(from);
-      const len = dir.length();
-      if (len < 0.001) return;
-      const cyl = new THREE.Mesh(
-        new THREE.CylinderGeometry(rTo, rFrom, len, 8),
-        this.darkMat
-      );
-      cyl.position.copy(from.clone().add(to).multiplyScalar(0.5));
-      cyl.quaternion.setFromUnitVectors(_up, dir.normalize());
-      grp.add(cyl);
-    };
 
     for (let li = 0; li < 4; li++) {
       const [lx, , lz] = legDefs[li];
-      const zs       = lz > 0 ? 1 : -1; // +1=left, -1=right
-      const isFront  = lx > 0;
-      const lgGroup  = new THREE.Group();
+      const zs      = lz > 0 ? 1 : -1;
+      const isFront = lx > 0;
+      const lgGroup = new THREE.Group();
       lgGroup.position.set(lx, 0, lz);
 
-      // ── Three anatomy points in lgGroup-local space ──────────────────────
-      // shoulderPt: where leg meets body side, elevated
-      const shoulderPt = new THREE.Vector3(0,                          0.030, 0);
-      // elbowPt: elbow/knee sticks out sideways — the widest point
+      const shoulderPt = new THREE.Vector3(0, 0.030, 0);
       const elbowPt    = new THREE.Vector3(isFront ?  0.008 : -0.006, 0.012, zs * 0.062);
-      // footPt: on the ground, foot reaches forward (front) or backward (rear)
       const footPt     = new THREE.Vector3(isFront ?  0.058 : -0.055, 0.002, zs * 0.010);
 
-      // Thigh: shoulder → elbow (chunky, slightly tapered)
-      addCyl(lgGroup, shoulderPt, elbowPt, 0.026, 0.019);
+      // Thigh — smooth curved tube (3 control pts for gentle arc)
+      const thighCurve = new THREE.CatmullRomCurve3([
+        shoulderPt,
+        shoulderPt.clone().lerp(elbowPt, 0.5).add(new THREE.Vector3(0, -0.003, 0)),
+        elbowPt,
+      ]);
+      lgGroup.add(new THREE.Mesh(
+        new THREE.TubeGeometry(thighCurve, 8, 0.024, 8, false),
+        this.darkMat
+      ));
 
-      // Elbow joint sphere
-      const kn = new THREE.Mesh(new THREE.SphereGeometry(0.020, 7, 5), this.darkMat);
+      // Elbow blend sphere
+      const kn = new THREE.Mesh(new THREE.SphereGeometry(0.023, 7, 5), this.darkMat);
       kn.position.copy(elbowPt);
       lgGroup.add(kn);
 
-      // Lower leg: elbow → foot (slender, tapers to ankle)
-      addCyl(lgGroup, elbowPt, footPt, 0.019, 0.012);
+      // Lower leg — smooth curved tube
+      const lowerCurve = new THREE.CatmullRomCurve3([
+        elbowPt,
+        elbowPt.clone().lerp(footPt, 0.5).add(new THREE.Vector3(0, -0.003, 0)),
+        footPt,
+      ]);
+      lgGroup.add(new THREE.Mesh(
+        new THREE.TubeGeometry(lowerCurve, 8, 0.015, 7, false),
+        this.darkMat
+      ));
 
-      // Ankle/wrist sphere
+      // Ankle sphere
       const ft = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 4), this.darkMat);
       ft.position.copy(footPt);
       lgGroup.add(ft);
 
-      // 5 toes — fan forward (front legs) or backward (rear legs)
-      const toeDir = isFront ? 0 : Math.PI; // 0=+X(fwd), π=-X(back)
+      // 5 toes
+      const toeDir = isFront ? 0 : Math.PI;
       for (let ti = 0; ti < 5; ti++) {
         const a   = toeDir + (ti / 4 - 0.5) * 1.15;
         const toe = new THREE.Mesh(new THREE.SphereGeometry(0.007, 5, 4), this.darkMat);
@@ -497,12 +543,6 @@ export class Gecko {
       this.poseGroup.add(lgGroup);
       this.legGroups.push(lgGroup);
     }
-
-    // Neck — narrow bridge between broad head and body
-    const neckMesh = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 7), this.baseMat);
-    neckMesh.scale.set(0.55, 0.46, 0.62);
-    neckMesh.position.set(0.168, 0.045, 0);
-    this.poseGroup.add(neckMesh);
 
     // ── Perch reach legs: 4 cylinders that connect hip→foot when on a tree ───
     const reachMat = new THREE.MeshLambertMaterial({ color: 0xc04010 });
@@ -554,17 +594,21 @@ export class Gecko {
 
   // ── Vertex colour gradient: top = body, bottom = belly ────────────────────
   private refreshBodyColors() {
-    const pos = this.bodyGeo.attributes.position;
-    const col = this.bodyGeo.attributes.color as THREE.BufferAttribute;
-    const R   = 0.13; // sphere radius
-
-    for (let i = 0; i < pos.count; i++) {
-      const y = pos.getY(i);            // -R … +R
-      const t = (R - y) / (2 * R);     // 0 = top, 1 = bottom
-      // smooth transition starting at 40% down, reaching belly at 100%
-      const raw    = Math.max(0, (t - 0.35) / 0.65);
-      const smooth = raw * raw * (3 - 2 * raw); // smoothstep
-      const c = this.bodyTopColor.clone().lerp(this.bodyBotColor, smooth);
+    const col  = this.bodyGeo.attributes.color as THREE.BufferAttribute;
+    const RING = 16;
+    const NS   = 7; // must match bodySections.length in buildMesh
+    const ringVerts = NS * RING;
+    for (let i = 0; i < col.count; i++) {
+      if (i >= ringVerts) {
+        col.setXYZ(i, this.bodyTopColor.r, this.bodyTopColor.g, this.bodyTopColor.b);
+        continue;
+      }
+      const vi    = i % RING;
+      const theta = (vi / RING) * Math.PI * 2;
+      const sinT  = Math.sin(theta);
+      const t  = (1 - sinT) * 0.5;     // 0=top, 1=bottom
+      const sm = t < 0.35 ? 0 : Math.pow((t - 0.35) / 0.65, 2);
+      const c  = this.bodyTopColor.clone().lerp(this.bodyBotColor, sm);
       col.setXYZ(i, c.r, c.g, c.b);
     }
     col.needsUpdate = true;
@@ -1354,8 +1398,8 @@ export class Gecko {
       case 1: {
         const t = Math.min(this.jumpTimer / CROUCH_T, 1);
         const squash = t * 0.4;
-        this.bodyMesh.scale.set(1.55, 0.52 * (1 - squash * 0.5), 0.95);
-        this.bodyMesh.position.y = 0.075 - squash * 0.025;
+        this.bodyMesh.scale.set(1 + squash * 0.04, 1 - squash * 0.30, 1 + squash * 0.04);
+        this.bodyMesh.position.y = -squash * 0.008;
         this.legGroups.forEach(lg => { lg.position.y = -squash * 0.02; });
         pos.y = this.geckoY - squash * 0.015;
         if (t >= 1) { this.jumpPhase = 2; this.jumpTimer = 0; }
@@ -1365,8 +1409,8 @@ export class Gecko {
       // ── 2: Launch (push-off) ───────────────────────────────────────────
       case 2: {
         const t = Math.min(this.jumpTimer / LAUNCH_T, 1);
-        this.bodyMesh.scale.set(1.55, 0.52 * (1 + t * 0.15), 0.95);
-        this.bodyMesh.position.y = 0.075;
+        this.bodyMesh.scale.set(1.01, 1 + t * 0.08, 1.01);
+        this.bodyMesh.position.y = 0;
         this.poseGroup.rotation.z = -t * 0.12;
         if (t >= 1) { this.jumpPhase = 3; this.jumpTimer = 0; }
         break;
@@ -1402,7 +1446,7 @@ export class Gecko {
         this.tailGroup.rotation.y += (0 - this.tailGroup.rotation.y) * 0.05;
         this.tailGroup.rotation.z = Math.sin(t * Math.PI) * 0.15;
 
-        this.bodyMesh.scale.set(1.55, 0.52, 0.95);
+        this.bodyMesh.scale.set(1, 1, 1);
 
         if (t >= 1) { this.jumpPhase = 4; this.jumpTimer = 0; }
         break;
@@ -1417,8 +1461,8 @@ export class Gecko {
         this.geckoY = this.jumpLandY;
 
         const squash = (1 - t) * 0.35;
-        this.bodyMesh.scale.set(1.55 * (1 + squash * 0.1), 0.52 * (1 - squash * 0.4), 0.95 * (1 + squash * 0.1));
-        this.bodyMesh.position.y = 0.075 - squash * 0.02;
+        this.bodyMesh.scale.set(1 + squash * 0.10, 1 - squash * 0.40, 1 + squash * 0.10);
+        this.bodyMesh.position.y = -squash * 0.008;
         this.poseGroup.rotation.z = (1 - t) * 0.06;
         this.legGroups.forEach(lg => { lg.position.y = -(1 - t) * 0.025; });
         this.tailGroup.rotation.z *= 0.85;
@@ -1430,8 +1474,8 @@ export class Gecko {
       // ── 5: Settle (recover to normal stance) ──────────────────────────
       case 5: {
         const t = Math.min(this.jumpTimer / SETTLE_T, 1);
-        this.bodyMesh.scale.set(1.55, 0.52, 0.95);
-        this.bodyMesh.position.y = 0.075;
+        this.bodyMesh.scale.set(1, 1, 1);
+        this.bodyMesh.position.y = 0;
         this.poseGroup.rotation.z *= (1 - t * 0.3);
         this.tailGroup.rotation.z *= (1 - t * 0.4);
         this.legGroups.forEach(lg => {
@@ -1569,8 +1613,8 @@ export class Gecko {
       case 3: {
         const t = Math.min(this.dropTimer / CROUCH_T, 1);
         const squash = t * 0.2;
-        this.bodyMesh.scale.set(1.55, 0.52 * (1 - squash * 0.3), 0.95);
-        this.bodyMesh.position.y = 0.075 - squash * 0.012;
+        this.bodyMesh.scale.set(1 + squash * 0.03, 1 - squash * 0.20, 1 + squash * 0.03);
+        this.bodyMesh.position.y = -squash * 0.005;
         this.legGroups.forEach(lg => { lg.position.y = -squash * 0.01; });
         if (t >= 1) { this.dropPhase = 4; this.dropTimer = 0; }
         break;
@@ -1585,8 +1629,8 @@ export class Gecko {
         this.geckoY = pos.y;
 
         // Body restores from crouch, slight upward stretch
-        this.bodyMesh.scale.set(1.55, 0.52 * (1 + t * 0.08), 0.95);
-        this.bodyMesh.position.y = 0.075;
+        this.bodyMesh.scale.set(1.01, 1 + t * 0.05, 1.01);
+        this.bodyMesh.position.y = 0;
 
         // Legs push straight (spring release)
         this.legGroups.forEach(lg => { lg.position.y = t * 0.015; });
@@ -1617,8 +1661,8 @@ export class Gecko {
         this.geckoY = pos.y;
 
         // Body normal scale, forward tilt increases
-        this.bodyMesh.scale.set(1.55, 0.52, 0.95);
-        this.bodyMesh.position.y = 0.075;
+        this.bodyMesh.scale.set(1, 1, 1);
+        this.bodyMesh.position.y = 0;
         this.poseGroup.rotation.z = 0.14 * (0.5 + fallCurve * 0.5);
 
         // Legs extend to catch — more extension as ground approaches
@@ -1644,11 +1688,11 @@ export class Gecko {
         // Strong squash that decays (stronger than jump-up)
         const squash = (1 - t) * 0.50;
         this.bodyMesh.scale.set(
-          1.55 * (1 + squash * 0.14),
-          0.52 * (1 - squash * 0.55),
-          0.95 * (1 + squash * 0.14)
+          1 + squash * 0.14,
+          1 - squash * 0.55,
+          1 + squash * 0.14
         );
-        this.bodyMesh.position.y = 0.075 - squash * 0.03;
+        this.bodyMesh.position.y = -squash * 0.010;
 
         // Forward pitch from impact, decaying
         this.poseGroup.rotation.z = (1 - t) * 0.12;
@@ -1668,8 +1712,8 @@ export class Gecko {
         const t = Math.min(this.dropTimer / SETTLE_T, 1);
 
         // Everything returns to neutral
-        this.bodyMesh.scale.set(1.55, 0.52, 0.95);
-        this.bodyMesh.position.y = 0.075;
+        this.bodyMesh.scale.set(1, 1, 1);
+        this.bodyMesh.position.y = 0;
         this.poseGroup.rotation.z *= (1 - Math.min(t * 3, 1) * 0.5);
         this.tailGroup.rotation.z *= (1 - Math.min(t * 2, 1) * 0.6);
         this.legGroups.forEach(lg => {
