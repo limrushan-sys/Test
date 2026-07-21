@@ -245,8 +245,8 @@ export class Gecko {
     this.refreshBodyColors();
 
     this.bodyMesh = new THREE.Mesh(this.bodyGeo, this.bodyMat);
-    this.bodyMesh.scale.set(1.55, 0.46, 0.95);  // flatter, lower-slung
-    this.bodyMesh.position.y = 0.058;
+    this.bodyMesh.scale.set(1.65, 0.40, 1.05);  // wide, flat, low-slung belly
+    this.bodyMesh.position.y = 0.040;
     this.bodyMesh.castShadow = true;
     this.poseGroup.add(this.bodyMesh);
 
@@ -254,7 +254,7 @@ export class Gecko {
     // Body ellipsoid: centre (0, 0.075, 0), semi-axes ax=0.2015, ay=0.0676, az=0.1235.
     // surfY(x,z) = bodyCY + ay * sqrt(max(0, 1 - (x/ax)² - (z/az)²)) + tiny lift
     this.spotMeshes = [];
-    const ax = 0.13 * 1.55, ay = 0.13 * 0.52, az = 0.13 * 0.95, bcy = 0.075;
+    const ax = 0.13 * 1.65, ay = 0.13 * 0.40, az = 0.13 * 1.05, bcy = 0.040;
     const surfY = (x: number, z: number) =>
       bcy + ay * Math.sqrt(Math.max(0, 1 - (x/ax)**2 - (z/az)**2)) + 0.003;
     const spotDefs: [number, number, number][] = [
@@ -422,32 +422,77 @@ export class Gecko {
     this.tongueMesh.visible = false;
     this.neckPivot.add(this.tongueMesh);
 
-    // ── Legs: hemispheres, dome pointing up, flat bottom on ground ───────────
-    const LEG_R = 0.058; // chunkier leopard gecko legs
+    // ── Legs: articulated thigh → knee → lower leg → foot → toes ─────────────
+    // Hip origins sit at body edge; each leg has proper sprawled-lizard anatomy.
+    // lgGroup.position is the hip joint. All child positions are in hip-local space.
     const legDefs: [number, number, number][] = [
-      [ 0.11, 0,  0.12],  // FL — tucked to body edge
-      [ 0.11, 0, -0.12],  // FR
-      [-0.06, 0,  0.11],  // RL
-      [-0.06, 0, -0.11],  // RR
+      [ 0.10, 0,  0.12],  // FL hip
+      [ 0.10, 0, -0.12],  // FR hip
+      [-0.05, 0,  0.11],  // RL hip
+      [-0.05, 0, -0.11],  // RR hip
     ];
+    const upVec = new THREE.Vector3(0, 1, 0);
+
+    const makeSeg = (
+      geo: THREE.BufferGeometry,
+      mat: THREE.MeshLambertMaterial,
+      from: THREE.Vector3,
+      to: THREE.Vector3,
+    ): THREE.Mesh => {
+      const dir = to.clone().sub(from);
+      const len = dir.length();
+      const mid = from.clone().add(to).multiplyScalar(0.5);
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.scale.y = len;           // unit cylinder scaled to length
+      mesh.position.copy(mid);
+      if (dir.length() > 0.0001) mesh.quaternion.setFromUnitVectors(upVec, dir.normalize());
+      return mesh;
+    };
 
     for (let li = 0; li < 4; li++) {
-      const [lx, ly, lz] = legDefs[li];
+      const [lx, , lz] = legDefs[li];
+      const zs = lz > 0 ? 1 : -1; // +1=left side, -1=right
+      const isFront = lx > 0;
       const lgGroup = new THREE.Group();
-      lgGroup.position.set(lx, ly, lz);
+      lgGroup.position.set(lx, 0, lz);
 
-      const leg = new THREE.Mesh(
-        new THREE.SphereGeometry(LEG_R, 10, 7, 0, Math.PI * 2, 0, Math.PI / 2),
-        this.darkMat
-      );
-      lgGroup.add(leg);
+      // Hip is slightly elevated (leg attaches at body underside)
+      const hipPt  = new THREE.Vector3(0,       0.030,  0);
+      // Elbow/knee: out to the side and level with hip
+      const kneePt = new THREE.Vector3(isFront ? 0.010 : -0.005, 0.015, zs * 0.058);
+      // Foot: forward (front legs) or back (rear legs), on the ground
+      const footPt = new THREE.Vector3(isFront ? 0.045 : -0.040, 0,     zs * 0.030);
 
-      // Toe bumps — 5 small spheres fanning outward
-      const toeSign = lz > 0 ? 1 : -1;
-      for (let ti = 0; ti < 5; ti++) {
-        const toeAngle = (ti / 4 - 0.5) * Math.PI * 0.7 + (toeSign > 0 ? Math.PI * 0.5 : -Math.PI * 0.5);
-        const toe = new THREE.Mesh(new THREE.SphereGeometry(0.012, 5, 4), this.darkMat);
-        toe.position.set(Math.cos(toeAngle) * 0.065, -0.005, Math.sin(toeAngle) * 0.065);
+      // Thigh cylinder
+      const thighGeo = new THREE.CylinderGeometry(0.020, 0.026, 1, 7);
+      lgGroup.add(makeSeg(thighGeo, this.darkMat, hipPt, kneePt));
+
+      // Knee sphere
+      const kn = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5), this.darkMat);
+      kn.position.copy(kneePt);
+      lgGroup.add(kn);
+
+      // Lower leg cylinder
+      const lowerGeo = new THREE.CylinderGeometry(0.013, 0.020, 1, 7);
+      lgGroup.add(makeSeg(lowerGeo, this.darkMat, kneePt, footPt));
+
+      // Ankle/foot sphere
+      const ft = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 5), this.darkMat);
+      ft.position.copy(footPt);
+      lgGroup.add(ft);
+
+      // 4 toes fanning forward from foot
+      const toeBaseAngle = isFront
+        ? (zs > 0 ?  Math.PI * 0.10 : Math.PI * 0.90)  // front: point forward-ish
+        : (zs > 0 ? -Math.PI * 0.10 : Math.PI * 1.10); // rear: point backward-ish
+      for (let ti = 0; ti < 4; ti++) {
+        const a = toeBaseAngle + (ti / 3 - 0.5) * Math.PI * 0.55;
+        const toe = new THREE.Mesh(new THREE.SphereGeometry(0.009, 5, 4), this.darkMat);
+        toe.position.set(
+          footPt.x + Math.cos(a) * 0.042,
+          0,
+          footPt.z + Math.sin(a) * 0.042,
+        );
         lgGroup.add(toe);
       }
 
@@ -964,18 +1009,15 @@ export class Gecko {
         // Leg animation — trot gait with fore-aft stride for realistic footfalls
         // Diagonal trot: FL+RR in phase (0), FR+RL offset by π
         const phases      = [0, Math.PI, Math.PI, 0];
-        const defaultLegX = [ 0.11,  0.11, -0.06, -0.06];
+        const defaultLegX = [ 0.10,  0.10, -0.05, -0.05];
         const defaultLegZ = [ 0.12, -0.12,  0.11, -0.11];
         this.legGroups.forEach((lg, i) => {
-          const phase = this.walkTime * LEG_SWING_SPEED + phases[i];
-          // Lift only during swing (sin > 0); small so leg doesn't clip into body
-          const lift  = Math.max(0, Math.sin(phase)) * 0.038;
-          // NEGATED cos: leg lands forward (+stride) sweeps back (-stride) while planted
-          const stride = -Math.cos(phase) * 0.055;
+          const phase  = this.walkTime * LEG_SWING_SPEED + phases[i];
+          const lift   = Math.max(0, Math.sin(phase)) * 0.030;
+          const stride = -Math.cos(phase) * 0.048;
           lg.position.y = lift;
           lg.position.x += (defaultLegX[i] + stride - lg.position.x) * 0.28;
           lg.position.z += (defaultLegZ[i] - lg.position.z) * 0.18;
-          lg.rotation.y  = 0;
         });
 
         this.setStatus('🦎 Exploring…');
@@ -996,15 +1038,15 @@ export class Gecko {
           const isFlat = this.targetItemId !== null &&
             items.find(i => i.id === this.targetItemId)?.type === ItemType.CORK_BARK;
           const perchFeet = isFlat ? [
-            { x:  0.11, y: 0, z:  0.12 },
-            { x:  0.11, y: 0, z: -0.12 },
-            { x: -0.06, y: 0, z:  0.11 },
-            { x: -0.06, y: 0, z: -0.11 },
+            { x:  0.10, y: 0, z:  0.12 },
+            { x:  0.10, y: 0, z: -0.12 },
+            { x: -0.05, y: 0, z:  0.11 },
+            { x: -0.05, y: 0, z: -0.11 },
           ] : [
-            { x:  0.11, y: -0.05, z:  0.11 },
-            { x:  0.11, y: -0.05, z: -0.11 },
-            { x: -0.06, y: -0.05, z:  0.10 },
-            { x: -0.06, y: -0.05, z: -0.10 },
+            { x:  0.10, y: -0.04, z:  0.11 },
+            { x:  0.10, y: -0.04, z: -0.11 },
+            { x: -0.05, y: -0.04, z:  0.10 },
+            { x: -0.05, y: -0.04, z: -0.10 },
           ];
           this.legGroups.forEach((lg, i) => {
             const t = perchFeet[i];
@@ -1020,12 +1062,12 @@ export class Gecko {
           // On ground — compensate pitch so legs stay flat on floor
           this.legGroups.forEach((lg, i) => {
             const pitch  = this.posePitch;
-            const localX = i < 2 ? 0.11 : -0.06;
+            const localX = i < 2 ? 0.10 : -0.05;
             const groupY = this.geckoY + 0.08 * Math.sin(-pitch);
             const targetLegY = (0 - groupY - localX * Math.sin(pitch)) / (Math.cos(pitch) || 1);
             lg.position.y += (targetLegY - lg.position.y) * 0.15;
             const defaultZ = [0.12, -0.12, 0.11, -0.11][i];
-            lg.position.x += ([0.11, 0.11, -0.06, -0.06][i] - lg.position.x) * 0.10;
+            lg.position.x += ([0.10, 0.10, -0.05, -0.05][i] - lg.position.x) * 0.10;
             lg.position.z += (defaultZ - lg.position.z) * 0.10;
           });
         }
@@ -1109,7 +1151,7 @@ export class Gecko {
       this.poseGroup.rotation.y += (0 - this.poseGroup.rotation.y) * Math.min(3 * delta, 1);
       this.neckPivot.rotation.y += (0 - this.neckPivot.rotation.y) * Math.min(3 * delta, 1);
       // Let leg X stride return to neutral
-      const defaultLegX2 = [ 0.11,  0.11, -0.06, -0.06];
+      const defaultLegX2 = [ 0.10,  0.10, -0.05, -0.05];
       const defaultLegZ2 = [ 0.12, -0.12,  0.11, -0.11];
       this.legGroups.forEach((lg, i) => {
         lg.position.x += (defaultLegX2[i] - lg.position.x) * Math.min(5 * delta, 1);
