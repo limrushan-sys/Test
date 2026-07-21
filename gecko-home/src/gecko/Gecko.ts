@@ -425,10 +425,10 @@ export class Gecko {
     // ── Legs: hemispheres, dome pointing up, flat bottom on ground ───────────
     const LEG_R = 0.058; // chunkier leopard gecko legs
     const legDefs: [number, number, number][] = [
-      [ 0.11, 0,  0.14],  // FL
-      [ 0.11, 0, -0.14],  // FR
-      [-0.06, 0,  0.13],  // RL
-      [-0.06, 0, -0.13],  // RR
+      [ 0.11, 0,  0.12],  // FL — tucked to body edge
+      [ 0.11, 0, -0.12],  // FR
+      [-0.06, 0,  0.11],  // RL
+      [-0.06, 0, -0.11],  // RR
     ];
 
     for (let li = 0; li < 4; li++) {
@@ -962,18 +962,20 @@ export class Gecko {
         this.neckPivot.rotation.y = -this.bodySway * 0.45;
 
         // Leg animation — trot gait with fore-aft stride for realistic footfalls
-        // Diagonal trot: FL+RR in phase, FR+RL offset by π
+        // Diagonal trot: FL+RR in phase (0), FR+RL offset by π
         const phases      = [0, Math.PI, Math.PI, 0];
         const defaultLegX = [ 0.11,  0.11, -0.06, -0.06];
-        const defaultLegZ = [ 0.14, -0.14,  0.13, -0.13];
+        const defaultLegZ = [ 0.12, -0.12,  0.11, -0.11];
         this.legGroups.forEach((lg, i) => {
-          const phase  = this.walkTime * LEG_SWING_SPEED + phases[i];
-          const lift   = Math.max(0, Math.sin(phase)) * 0.055;
-          const stride = Math.cos(phase) * 0.045; // fore-aft swing
+          const phase = this.walkTime * LEG_SWING_SPEED + phases[i];
+          // Lift only during swing (sin > 0); small so leg doesn't clip into body
+          const lift  = Math.max(0, Math.sin(phase)) * 0.038;
+          // NEGATED cos: leg lands forward (+stride) sweeps back (-stride) while planted
+          const stride = -Math.cos(phase) * 0.055;
           lg.position.y = lift;
-          lg.position.x += (defaultLegX[i] + stride - lg.position.x) * 0.25;
-          lg.position.z += (defaultLegZ[i] - lg.position.z) * 0.15;
-          lg.rotation.y  = 0; // no hip rotation — keeps legs attached
+          lg.position.x += (defaultLegX[i] + stride - lg.position.x) * 0.28;
+          lg.position.z += (defaultLegZ[i] - lg.position.z) * 0.18;
+          lg.rotation.y  = 0;
         });
 
         this.setStatus('🦎 Exploring…');
@@ -994,15 +996,15 @@ export class Gecko {
           const isFlat = this.targetItemId !== null &&
             items.find(i => i.id === this.targetItemId)?.type === ItemType.CORK_BARK;
           const perchFeet = isFlat ? [
-            { x:  0.11, y: 0, z:  0.14 },
-            { x:  0.11, y: 0, z: -0.14 },
-            { x: -0.06, y: 0, z:  0.13 },
-            { x: -0.06, y: 0, z: -0.13 },
+            { x:  0.11, y: 0, z:  0.12 },
+            { x:  0.11, y: 0, z: -0.12 },
+            { x: -0.06, y: 0, z:  0.11 },
+            { x: -0.06, y: 0, z: -0.11 },
           ] : [
-            { x:  0.11, y: -0.05, z:  0.13 },
-            { x:  0.11, y: -0.05, z: -0.13 },
-            { x: -0.06, y: -0.05, z:  0.12 },
-            { x: -0.06, y: -0.05, z: -0.12 },
+            { x:  0.11, y: -0.05, z:  0.11 },
+            { x:  0.11, y: -0.05, z: -0.11 },
+            { x: -0.06, y: -0.05, z:  0.10 },
+            { x: -0.06, y: -0.05, z: -0.10 },
           ];
           this.legGroups.forEach((lg, i) => {
             const t = perchFeet[i];
@@ -1018,11 +1020,11 @@ export class Gecko {
           // On ground — compensate pitch so legs stay flat on floor
           this.legGroups.forEach((lg, i) => {
             const pitch  = this.posePitch;
-            const localX = i < 2 ? 0.13 : -0.08;
+            const localX = i < 2 ? 0.11 : -0.06;
             const groupY = this.geckoY + 0.08 * Math.sin(-pitch);
             const targetLegY = (0 - groupY - localX * Math.sin(pitch)) / (Math.cos(pitch) || 1);
             lg.position.y += (targetLegY - lg.position.y) * 0.15;
-            const defaultZ = [0.14, -0.14, 0.13, -0.13][i];
+            const defaultZ = [0.12, -0.12, 0.11, -0.11][i];
             lg.position.x += ([0.11, 0.11, -0.06, -0.06][i] - lg.position.x) * 0.10;
             lg.position.z += (defaultZ - lg.position.z) * 0.10;
           });
@@ -1108,7 +1110,7 @@ export class Gecko {
       this.neckPivot.rotation.y += (0 - this.neckPivot.rotation.y) * Math.min(3 * delta, 1);
       // Let leg X stride return to neutral
       const defaultLegX2 = [ 0.11,  0.11, -0.06, -0.06];
-      const defaultLegZ2 = [ 0.14, -0.14,  0.13, -0.13];
+      const defaultLegZ2 = [ 0.12, -0.12,  0.11, -0.11];
       this.legGroups.forEach((lg, i) => {
         lg.position.x += (defaultLegX2[i] - lg.position.x) * Math.min(5 * delta, 1);
         lg.position.z += (defaultLegZ2[i] - lg.position.z) * 0.12;
