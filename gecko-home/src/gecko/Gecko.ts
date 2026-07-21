@@ -11,7 +11,7 @@ const MAX_TURN_RATE   = 2.8;   // rad/s — gradual curving turns
 const LEG_SWING_SPEED = 9.0;
 const BODY_BOB_AMP    = 0.010;
 const BODY_BOB_SPEED  = 5.0; // one gentle bob per stride
-const UNDULATE_AMP    = 0.18; // lateral body sway amplitude (rad) — visibly sinuous
+const UNDULATE_AMP    = 0.55; // lateral body sway amplitude (rad) — TEST: exaggerated
 const UNDULATE_SPEED  = 5.0; // matches leg frequency
 
 type GeckoState = 'IDLE' | 'WALKING' | 'ARRIVED';

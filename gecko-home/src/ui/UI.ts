@@ -166,7 +166,7 @@ export class UI {
     const top = document.createElement('div');
     top.id = 'top-bar';
     top.className = 'panel';
-    top.textContent = 'Gecko Home — Single Player Enclosure';
+    top.textContent = 'Gecko Home — v2 🦎';
     root.appendChild(top);
 
     // ── Info tip ─────────────────────────────────────────────────────────────
