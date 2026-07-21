@@ -11,7 +11,7 @@ const MAX_TURN_RATE   = 2.8;   // rad/s — gradual curving turns
 const LEG_SWING_SPEED = 9.0;
 const BODY_BOB_AMP    = 0.010;
 const BODY_BOB_SPEED  = 5.0; // one gentle bob per stride
-const UNDULATE_AMP    = 0.10; // lateral body sway amplitude (rad)
+const UNDULATE_AMP    = 0.18; // lateral body sway amplitude (rad) — visibly sinuous
 const UNDULATE_SPEED  = 5.0; // matches leg frequency
 
 type GeckoState = 'IDLE' | 'WALKING' | 'ARRIVED';
@@ -425,10 +425,10 @@ export class Gecko {
     // ── Legs: hemispheres, dome pointing up, flat bottom on ground ───────────
     const LEG_R = 0.058; // chunkier leopard gecko legs
     const legDefs: [number, number, number][] = [
-      [ 0.13, 0,  0.12],  // FL
-      [ 0.13, 0, -0.12],  // FR
-      [-0.08, 0,  0.12],  // RL
-      [-0.08, 0, -0.12],  // RR
+      [ 0.13, 0,  0.19],  // FL — sprawled wide
+      [ 0.13, 0, -0.19],  // FR
+      [-0.08, 0,  0.17],  // RL
+      [-0.08, 0, -0.17],  // RR
     ];
 
     for (let li = 0; li < 4; li++) {
@@ -962,7 +962,7 @@ export class Gecko {
 
         // Leg animation — trot gait with fore-aft stride for realistic footfalls
         const phases = [0, Math.PI, Math.PI, 0];
-        const defaultLegZ = [0.11, -0.11, 0.11, -0.11];
+        const defaultLegZ = [0.19, -0.19, 0.17, -0.17];
         const defaultLegX = [0.0, 0.0, 0.0, 0.0];
         this.legGroups.forEach((lg, i) => {
           const phase = this.walkTime * LEG_SWING_SPEED + phases[i];
@@ -1019,7 +1019,7 @@ export class Gecko {
             const groupY = this.geckoY + 0.08 * Math.sin(-pitch);
             const targetLegY = (0 - groupY - localX * Math.sin(pitch)) / (Math.cos(pitch) || 1);
             lg.position.y += (targetLegY - lg.position.y) * 0.15;
-            const defaultZ = [0.11, -0.11, 0.11, -0.11][i];
+            const defaultZ = [0.19, -0.19, 0.17, -0.17][i];
             lg.position.x += ([0.13, 0.13, -0.08, -0.08][i] - lg.position.x) * 0.10;
             lg.position.z += (defaultZ - lg.position.z) * 0.10;
           });
@@ -1104,7 +1104,7 @@ export class Gecko {
       this.poseGroup.rotation.y += (0 - this.poseGroup.rotation.y) * Math.min(3 * delta, 1);
       this.neckPivot.rotation.y += (0 - this.neckPivot.rotation.y) * Math.min(3 * delta, 1);
       // Let leg X stride return to neutral
-      const defaultLegZ2 = [0.11, -0.11, 0.11, -0.11];
+      const defaultLegZ2 = [0.19, -0.19, 0.17, -0.17];
       this.legGroups.forEach((lg, i) => {
         lg.position.x += (0 - lg.position.x) * Math.min(5 * delta, 1);
         lg.position.z += (defaultLegZ2[i] - lg.position.z) * 0.10;
@@ -1114,14 +1114,17 @@ export class Gecko {
     }
 
     // Tail follows body path with lag — sampled at different delays for S-curve
-    // tailGroup drives the base of the tail; delayed sway gives a whip effect
-    const tailDelay = Math.min(18, this.swayHistory.length - 1);
-    const tailSway = -(this.swayHistory[tailDelay] ?? 0) * 1.4;
-    this.tailGroup.rotation.y += (tailSway - this.tailGroup.rotation.y) * Math.min(8 * delta, 1);
+    const tailDelay = Math.min(22, this.swayHistory.length - 1);
+    const tailSway = -(this.swayHistory[tailDelay] ?? 0) * 1.8;
+    this.tailGroup.rotation.y += (tailSway - this.tailGroup.rotation.y) * Math.min(6 * delta, 1);
 
-    // Idle gentle sway when still (very subtle)
+    // Leopard gecko tail raise when walking — they often carry tail slightly elevated
+    const tailRaiseTarget = this.state === 'WALKING' ? -0.18 : 0;
+    this.tailGroup.rotation.x += (tailRaiseTarget - this.tailGroup.rotation.x) * Math.min(3 * delta, 1);
+
+    // Idle gentle sway when still
     if (this.state !== 'WALKING') {
-      const idleSway = Math.sin(Date.now() * 0.0008) * 0.06;
+      const idleSway = Math.sin(Date.now() * 0.0008) * 0.08;
       this.tailGroup.rotation.y += (idleSway - this.tailGroup.rotation.y) * Math.min(1.5 * delta, 1);
     }
 
