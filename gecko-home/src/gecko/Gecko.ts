@@ -3,16 +3,16 @@ import type { PlacedItem } from '../items/ItemManager.js';
 import type { EnclosureBounds } from '../scene/Enclosure.js';
 import { ITEM_COLLISION, ItemType, BRANCH_SPINE, BRANCH_SPINE_FORK } from '../items/ItemTypes.js';
 
-const WALK_SPEED      = 0.50;  // deliberate leopard gecko pace
+const WALK_SPEED      = 0.48;  // deliberate leopard gecko pace
 const ARRIVE_DIST     = 0.15;
 const IDLE_WAIT_MIN   = 1.5;
 const IDLE_WAIT_MAX   = 4.5;
-const MAX_TURN_RATE   = 2.2;   // rad/s — slow gradual turns
-const LEG_SWING_SPEED = 8.0;
-const BODY_BOB_AMP    = 0.008;
-const BODY_BOB_SPEED  = 4.0;
-const UNDULATE_AMP    = 0.13;  // subtle spine flex — leopard geckos aren't very sinuous
-const UNDULATE_SPEED  = 4.0;
+const MAX_TURN_RATE   = 2.0;
+const LEG_SWING_SPEED = 6.5;   // stride frequency
+const BODY_BOB_AMP    = 0.006;
+const BODY_BOB_SPEED  = 6.5;   // must match LEG_SWING_SPEED
+const UNDULATE_AMP    = 0.10;  // spine flex amplitude — synced with legs
+const UNDULATE_SPEED  = 6.5;   // must match LEG_SWING_SPEED
 
 type GeckoState = 'IDLE' | 'WALKING' | 'ARRIVED';
 
@@ -945,7 +945,8 @@ export class Gecko {
         const bob = Math.abs(Math.sin(this.walkTime * BODY_BOB_SPEED)) * 0.016;
         pos.y = this.geckoY + bob;
 
-        // Lateral body undulation — sinuous S-curve through the spine
+        // Lateral spine flex — synced with leg cycle so body bends toward swinging foot
+        // When FL (left, phase=0) is in air (sin>0), body bends left (positive Y)
         this.bodySway = Math.sin(this.walkTime * UNDULATE_SPEED) * UNDULATE_AMP;
         this.poseGroup.rotation.y = this.bodySway;
 
@@ -961,17 +962,23 @@ export class Gecko {
         this.neckPivot.rotation.y = -this.bodySway * 0.45;
 
         // Leg animation — trot gait with fore-aft stride for realistic footfalls
-        // Diagonal trot: FL+RR together (phase 0), FR+RL together (phase π)
-        const phases = [0, Math.PI, Math.PI, 0];
+        // Diagonal trot gait — FL+RR together (phase 0), FR+RL together (phase π)
+        // Hip sweep: lizard legs rotate at the hip in a horizontal arc (not just up/down)
+        // zSign: +1=left legs (+Z), -1=right legs (-Z)
+        const phases     = [0, Math.PI, Math.PI, 0];
         const defaultLegZ = [0.19, -0.19, 0.17, -0.17];
+        const legZSigns  = [1, -1, 1, -1];
         this.legGroups.forEach((lg, i) => {
           const phase = this.walkTime * LEG_SWING_SPEED + phases[i];
-          // lift only on upswing (sin > 0); keep heel drag on downswing
-          const lift = Math.max(0, Math.sin(phase)) * 0.06;
-          const stride = Math.cos(phase) * 0.07; // fore-aft footfall
+          // Lift: only during swing phase (sin > 0), exaggerated for visibility
+          const lift = Math.max(0, Math.sin(phase)) * 0.065;
+          // Hip sweep arc: foot sweeps forward during air, backward while planted
+          // -cos gives: forward at landing (phase=π), backward at takeoff (phase=0)
+          const hipSweep = legZSigns[i] * (-Math.cos(phase)) * 0.42;
           lg.position.y = lift;
-          lg.position.x += (stride - lg.position.x) * 0.22;
-          lg.position.z += (defaultLegZ[i] - lg.position.z) * 0.12;
+          lg.position.x = 0; // hip is fixed; rotation handles fore-aft reach
+          lg.position.z += (defaultLegZ[i] - lg.position.z) * 0.15;
+          lg.rotation.y = hipSweep;
         });
 
         this.setStatus('🦎 Exploring…');
@@ -1109,6 +1116,7 @@ export class Gecko {
       this.legGroups.forEach((lg, i) => {
         lg.position.x += (0 - lg.position.x) * Math.min(5 * delta, 1);
         lg.position.z += (defaultLegZ2[i] - lg.position.z) * 0.10;
+        lg.rotation.y += (0 - lg.rotation.y) * Math.min(5 * delta, 1);
       });
       // Shift history toward zero
       this.swayHistory = this.swayHistory.map(v => v * 0.92);
