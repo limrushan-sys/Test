@@ -3,16 +3,16 @@ import type { PlacedItem } from '../items/ItemManager.js';
 import type { EnclosureBounds } from '../scene/Enclosure.js';
 import { ITEM_COLLISION, ItemType, BRANCH_SPINE, BRANCH_SPINE_FORK } from '../items/ItemTypes.js';
 
-const WALK_SPEED      = 0.48;  // deliberate leopard gecko pace
+const WALK_SPEED      = 0.50;
 const ARRIVE_DIST     = 0.15;
 const IDLE_WAIT_MIN   = 1.5;
 const IDLE_WAIT_MAX   = 4.5;
-const MAX_TURN_RATE   = 2.0;
-const LEG_SWING_SPEED = 6.5;   // stride frequency
+const MAX_TURN_RATE   = 2.2;
+const LEG_SWING_SPEED = 7.0;
 const BODY_BOB_AMP    = 0.006;
-const BODY_BOB_SPEED  = 6.5;   // must match LEG_SWING_SPEED
-const UNDULATE_AMP    = 0.10;  // spine flex amplitude — synced with legs
-const UNDULATE_SPEED  = 6.5;   // must match LEG_SWING_SPEED
+const BODY_BOB_SPEED  = 7.0;
+const UNDULATE_AMP    = 0.08;  // very subtle — leopard geckos barely sway
+const UNDULATE_SPEED  = 7.0;
 
 type GeckoState = 'IDLE' | 'WALKING' | 'ARRIVED';
 
@@ -425,10 +425,10 @@ export class Gecko {
     // ── Legs: hemispheres, dome pointing up, flat bottom on ground ───────────
     const LEG_R = 0.058; // chunkier leopard gecko legs
     const legDefs: [number, number, number][] = [
-      [ 0.13, 0,  0.19],  // FL — sprawled wide
-      [ 0.13, 0, -0.19],  // FR
-      [-0.08, 0,  0.17],  // RL
-      [-0.08, 0, -0.17],  // RR
+      [ 0.11, 0,  0.14],  // FL
+      [ 0.11, 0, -0.14],  // FR
+      [-0.06, 0,  0.13],  // RL
+      [-0.06, 0, -0.13],  // RR
     ];
 
     for (let li = 0; li < 4; li++) {
@@ -945,14 +945,14 @@ export class Gecko {
         const bob = Math.abs(Math.sin(this.walkTime * BODY_BOB_SPEED)) * 0.016;
         pos.y = this.geckoY + bob;
 
-        // Lateral spine flex — synced with leg cycle so body bends toward swinging foot
-        // When FL (left, phase=0) is in air (sin>0), body bends left (positive Y)
-        this.bodySway = Math.sin(this.walkTime * UNDULATE_SPEED) * UNDULATE_AMP;
+        // Gentle lateral sway synced with stride
+        const swayTarget = Math.sin(this.walkTime * UNDULATE_SPEED) * UNDULATE_AMP;
+        this.bodySway += (swayTarget - this.bodySway) * Math.min(8 * delta, 1);
         this.poseGroup.rotation.y = this.bodySway;
 
-        // Bank into turns: lean the body into the curve
-        const bankTarget = -angleDiff * 0.25;
-        this.group.rotation.z += (bankTarget - this.group.rotation.z) * 0.08;
+        // Very slight banking into turns
+        const bankTarget = -angleDiff * 0.15;
+        this.group.rotation.z += (bankTarget - this.group.rotation.z) * 0.06;
 
         // Push sway into history ring buffer (index 0 = newest)
         this.swayHistory.unshift(this.bodySway);
@@ -962,23 +962,18 @@ export class Gecko {
         this.neckPivot.rotation.y = -this.bodySway * 0.45;
 
         // Leg animation — trot gait with fore-aft stride for realistic footfalls
-        // Diagonal trot gait — FL+RR together (phase 0), FR+RL together (phase π)
-        // Hip sweep: lizard legs rotate at the hip in a horizontal arc (not just up/down)
-        // zSign: +1=left legs (+Z), -1=right legs (-Z)
-        const phases     = [0, Math.PI, Math.PI, 0];
-        const defaultLegZ = [0.19, -0.19, 0.17, -0.17];
-        const legZSigns  = [1, -1, 1, -1];
+        // Diagonal trot: FL+RR in phase, FR+RL offset by π
+        const phases      = [0, Math.PI, Math.PI, 0];
+        const defaultLegX = [ 0.11,  0.11, -0.06, -0.06];
+        const defaultLegZ = [ 0.14, -0.14,  0.13, -0.13];
         this.legGroups.forEach((lg, i) => {
-          const phase = this.walkTime * LEG_SWING_SPEED + phases[i];
-          // Lift: only during swing phase (sin > 0), exaggerated for visibility
-          const lift = Math.max(0, Math.sin(phase)) * 0.065;
-          // Hip sweep arc: foot sweeps forward during air, backward while planted
-          // -cos gives: forward at landing (phase=π), backward at takeoff (phase=0)
-          const hipSweep = legZSigns[i] * (-Math.cos(phase)) * 0.42;
+          const phase  = this.walkTime * LEG_SWING_SPEED + phases[i];
+          const lift   = Math.max(0, Math.sin(phase)) * 0.055;
+          const stride = Math.cos(phase) * 0.045; // fore-aft swing
           lg.position.y = lift;
-          lg.position.x = 0; // hip is fixed; rotation handles fore-aft reach
+          lg.position.x += (defaultLegX[i] + stride - lg.position.x) * 0.25;
           lg.position.z += (defaultLegZ[i] - lg.position.z) * 0.15;
-          lg.rotation.y = hipSweep;
+          lg.rotation.y  = 0; // no hip rotation — keeps legs attached
         });
 
         this.setStatus('🦎 Exploring…');
@@ -999,15 +994,15 @@ export class Gecko {
           const isFlat = this.targetItemId !== null &&
             items.find(i => i.id === this.targetItemId)?.type === ItemType.CORK_BARK;
           const perchFeet = isFlat ? [
-            { x:  0.13, y: 0, z:  0.11 },
-            { x:  0.13, y: 0, z: -0.11 },
-            { x: -0.08, y: 0, z:  0.11 },
-            { x: -0.08, y: 0, z: -0.11 },
+            { x:  0.11, y: 0, z:  0.14 },
+            { x:  0.11, y: 0, z: -0.14 },
+            { x: -0.06, y: 0, z:  0.13 },
+            { x: -0.06, y: 0, z: -0.13 },
           ] : [
-            { x:  0.13, y: -0.05, z:  0.10 },
-            { x:  0.13, y: -0.05, z: -0.10 },
-            { x: -0.08, y: -0.05, z:  0.10 },
-            { x: -0.08, y: -0.05, z: -0.10 },
+            { x:  0.11, y: -0.05, z:  0.13 },
+            { x:  0.11, y: -0.05, z: -0.13 },
+            { x: -0.06, y: -0.05, z:  0.12 },
+            { x: -0.06, y: -0.05, z: -0.12 },
           ];
           this.legGroups.forEach((lg, i) => {
             const t = perchFeet[i];
@@ -1027,8 +1022,8 @@ export class Gecko {
             const groupY = this.geckoY + 0.08 * Math.sin(-pitch);
             const targetLegY = (0 - groupY - localX * Math.sin(pitch)) / (Math.cos(pitch) || 1);
             lg.position.y += (targetLegY - lg.position.y) * 0.15;
-            const defaultZ = [0.19, -0.19, 0.17, -0.17][i];
-            lg.position.x += ([0.13, 0.13, -0.08, -0.08][i] - lg.position.x) * 0.10;
+            const defaultZ = [0.14, -0.14, 0.13, -0.13][i];
+            lg.position.x += ([0.11, 0.11, -0.06, -0.06][i] - lg.position.x) * 0.10;
             lg.position.z += (defaultZ - lg.position.z) * 0.10;
           });
         }
@@ -1112,11 +1107,12 @@ export class Gecko {
       this.poseGroup.rotation.y += (0 - this.poseGroup.rotation.y) * Math.min(3 * delta, 1);
       this.neckPivot.rotation.y += (0 - this.neckPivot.rotation.y) * Math.min(3 * delta, 1);
       // Let leg X stride return to neutral
-      const defaultLegZ2 = [0.19, -0.19, 0.17, -0.17];
+      const defaultLegX2 = [ 0.11,  0.11, -0.06, -0.06];
+      const defaultLegZ2 = [ 0.14, -0.14,  0.13, -0.13];
       this.legGroups.forEach((lg, i) => {
-        lg.position.x += (0 - lg.position.x) * Math.min(5 * delta, 1);
-        lg.position.z += (defaultLegZ2[i] - lg.position.z) * 0.10;
-        lg.rotation.y += (0 - lg.rotation.y) * Math.min(5 * delta, 1);
+        lg.position.x += (defaultLegX2[i] - lg.position.x) * Math.min(5 * delta, 1);
+        lg.position.z += (defaultLegZ2[i] - lg.position.z) * 0.12;
+        lg.rotation.y  = 0;
       });
       // Shift history toward zero
       this.swayHistory = this.swayHistory.map(v => v * 0.92);
