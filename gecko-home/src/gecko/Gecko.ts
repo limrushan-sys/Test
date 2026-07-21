@@ -239,8 +239,9 @@ export class Gecko {
     // Body — procedural ring mesh for organic leopard gecko shape
     // [x, rz (half-width), ry (half-height), cy (center Y)]
     const bodySections: [number, number, number, number][] = [
-      [ 0.162, 0.052, 0.032, 0.058],  // neck pinch (just behind head)
-      [ 0.108, 0.078, 0.044, 0.044],  // shoulder
+      [ 0.185, 0.082, 0.052, 0.080],  // neck top (matches head ring junction)
+      [ 0.162, 0.050, 0.032, 0.060],  // neck pinch (narrowest)
+      [ 0.108, 0.080, 0.046, 0.046],  // shoulder
       [ 0.048, 0.108, 0.050, 0.038],  // upper body
       [-0.008, 0.120, 0.052, 0.036],  // widest
       [-0.062, 0.114, 0.050, 0.036],  // lower body
@@ -329,128 +330,85 @@ export class Gecko {
       [ 0.00,  0.00,  0.018],
     ];
     for (const [sx, sz, sr] of spotDefs) {
-      const spot = new THREE.Mesh(new THREE.SphereGeometry(sr, 6, 5), this.spotMat);
+      const spot = new THREE.Mesh(new THREE.SphereGeometry(sr, 12, 8), this.spotMat);
       spot.position.set(sx, surfY(sx, sz), sz);
       spot.scale.set(1, 0.18, 1); // very flat — sits as a skin patch
       this.poseGroup.add(spot);
       this.spotMeshes.push(spot);
     }
 
-    // Head — single BufferGeometry: trapezoidal prism + semicircular front cap.
-    // No separate meshes, so zero z-fighting.
+    // Head — organic ring mesh matching the body ring approach.
+    // Sections span from snout tip (x=0.390) to neck junction (x=0.185).
+    // All meshes live in neckPivot so the head pitches as a unit.
     {
-      const bx  = 0.185;  // neck X
-      const tx  = 0.390;  // snout X (cap arc pivots here)
-      const hw  = 0.090;  // wider — leopard gecko has broad triangular head
-      const yb  = 0.032;  // bottom Y
-      const ytB = 0.155;  // top Y at neck
-      const ytF = 0.105;  // top Y at snout
-
-      const snoutH = ytF - yb;
-      const r  = snoutH / 2;    // arc radius
-      const cy = yb + r;        // arc centre Y
-
-      // Arc segments for the front cap (half-circle from bottom to top)
-      const ARC = 10;
-      const posArr: number[] = [];
-      const idxArr: number[] = [];
-
-      // Helper to push a vertex and return its index
-      const v = (x: number, y: number, z: number) => {
-        posArr.push(x, y, z);
-        return posArr.length / 3 - 1;
-      };
-
-      // ── Prism vertices ───────────────────────────────────────────────────────
-      const v0 = v(bx, yb,   hw);   // back-bottom-left
-      const v1 = v(bx, yb,  -hw);   // back-bottom-right
-      const v2 = v(bx, ytB,  hw);   // back-top-left
-      const v3 = v(bx, ytB, -hw);   // back-top-right
-      // front-bottom and front-top are also the arc endpoints
-      const v4 = v(tx, yb,   hw);   // front-bottom-left  = arc start left
-      const v5 = v(tx, yb,  -hw);   // front-bottom-right = arc start right
-      const v6 = v(tx, ytF,  hw);   // front-top-left     = arc end left
-      const v7 = v(tx, ytF, -hw);   // front-top-right    = arc end right
-
-      // ── Prism faces ──────────────────────────────────────────────────────────
-      idxArr.push(
-        v0,v3,v1,  v0,v2,v3,   // back
-        v0,v1,v5,  v0,v5,v4,   // bottom
-        v2,v6,v7,  v2,v7,v3,   // top (slanted)
-        v0,v4,v6,  v0,v6,v2,   // left side
-        v1,v3,v7,  v1,v7,v5,   // right side
-      );
-
-      // ── Front arc cap ────────────────────────────────────────────────────────
-      // Generate N-1 intermediate ring pairs; endpoints reuse v4/v5 and v6/v7
-      const leftRing:  number[] = [v4];
-      const rightRing: number[] = [v5];
-      for (let i = 1; i < ARC; i++) {
-        const a  = -Math.PI / 2 + (Math.PI / ARC) * i;
-        const ax = tx + r * Math.cos(a);
-        const ay = cy + r * Math.sin(a);
-        leftRing.push(v(ax, ay,  hw));
-        rightRing.push(v(ax, ay, -hw));
-      }
-      leftRing.push(v6);
-      rightRing.push(v7);
-
-      // Curved surface between the two rings
-      for (let i = 0; i < ARC; i++) {
-        const l0 = leftRing[i],  l1 = leftRing[i + 1];
-        const r0 = rightRing[i], r1 = rightRing[i + 1];
-        idxArr.push(l0, r0, r1,  l0, r1, l1);
-      }
-
-      // End-cap fans at z=±hw — winding for outward normals (+Z left, -Z right)
-      const lcx = v(tx, cy,  hw);
-      const rcx = v(tx, cy, -hw);
-      for (let i = 0; i < ARC; i++) {
-        idxArr.push(lcx, leftRing[i],  leftRing[i + 1]);   // +Z face, CCW from +Z
-        idxArr.push(rcx, rightRing[i + 1], rightRing[i]);  // -Z face, CCW from -Z
-      }
-
-      // ── Build mesh ────────────────────────────────────────────────────────────
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posArr), 3));
-      geo.setIndex(idxArr);
-      geo.computeVertexNormals();
-      // All head parts go into neckPivot (offset by -bx so pivot is at neck joint)
-      const NX = bx; // neck pivot X in poseGroup space
+      const NX = 0.185; // neck pivot X in poseGroup space
       this.neckPivot.position.set(NX, 0, 0);
 
-      const headMesh = new THREE.Mesh(geo, this.baseMat);
-      headMesh.position.x = -NX;
+      // Head ring sections: [poseGroup-x, rz, ry, cy]
+      const headSects: [number, number, number, number][] = [
+        [ 0.390, 0.008, 0.010, 0.058],  // snout tip
+        [ 0.362, 0.030, 0.024, 0.065],  // snout front
+        [ 0.328, 0.058, 0.040, 0.074],  // snout mid
+        [ 0.290, 0.080, 0.055, 0.082],  // head mid
+        [ 0.248, 0.092, 0.062, 0.086],  // head widest (eyes here)
+        [ 0.210, 0.088, 0.058, 0.084],  // head back
+        [ 0.185, 0.082, 0.052, 0.080],  // neck junction (matches body ring)
+      ];
+      const HRING = 16, HNS = headSects.length;
+      const hPos: number[] = [], hIdx: number[] = [];
+      for (let si = 0; si < HNS; si++) {
+        const [pgx, rz, ry, cy] = headSects[si];
+        const lx = pgx - NX;
+        for (let vi = 0; vi < HRING; vi++) {
+          const theta = (vi / HRING) * Math.PI * 2;
+          hPos.push(lx, cy + ry * Math.sin(theta), rz * Math.cos(theta));
+        }
+      }
+      for (let si = 0; si < HNS - 1; si++) {
+        for (let vi = 0; vi < HRING; vi++) {
+          const a = si*HRING+vi, b = si*HRING+(vi+1)%HRING;
+          const c = (si+1)*HRING+vi, d = (si+1)*HRING+(vi+1)%HRING;
+          hIdx.push(a,c,b, b,c,d);
+        }
+      }
+      // Snout cap (+X face)
+      const sCap = HNS * HRING;
+      hPos.push(headSects[0][0]-NX, headSects[0][3], 0);
+      for (let vi = 0; vi < HRING; vi++) hIdx.push(sCap, (vi+1)%HRING, vi);
+      // Neck junction cap (-X face, open side — no cap needed, body ring covers it)
+
+      const hGeo = new THREE.BufferGeometry();
+      hGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(hPos), 3));
+      hGeo.setIndex(hIdx);
+      hGeo.computeVertexNormals();
+      const headMesh = new THREE.Mesh(hGeo, this.baseMat);
       this.neckPivot.add(headMesh);
 
-      // Nostrils
-      const nostMat = new THREE.MeshLambertMaterial({ color: 0x3a5010 });
+      // Nostrils — near snout tip
+      const nostMat = new THREE.MeshLambertMaterial({ color: 0x4a3010 });
       for (const side of [-1, 1] as const) {
-        const n = new THREE.Mesh(new THREE.SphereGeometry(0.007, 5, 4), nostMat);
-        n.position.set(tx + r * 0.65 - NX, cy + r * 0.55, side * 0.014);
+        const n = new THREE.Mesh(new THREE.SphereGeometry(0.007, 6, 4), nostMat);
+        n.position.set(0.368 - NX, 0.074, side * 0.022);
         this.neckPivot.add(n);
       }
 
-      // Eyes — gold iris with vertical slit pupil
+      // Eyes — upper-lateral at head widest point (poseGroup x≈0.248)
+      const exLoc = 0.248 - NX;  // neckPivot x = 0.063
+      const eyeY  = 0.100;        // upper-lateral position
+      const eyeZ  = 0.098;        // slightly outside rz=0.092
       this.eyeMeshes = [];
       for (const side of [-1, 1] as const) {
-        const ex   = bx + (tx - bx) * 0.45;
-        const eyeY = yb + (ytB - (ytB - ytF) * 0.5) * 0.70;
-        const eye  = new THREE.Mesh(new THREE.SphereGeometry(0.050, 10, 8), this.eyeMat);
-        eye.position.set(ex - NX, eyeY, side * (hw + 0.008));
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.050, 10, 8), this.eyeMat);
+        eye.position.set(exLoc, eyeY, side * eyeZ);
         this.neckPivot.add(eye);
         this.eyeMeshes.push(eye);
-        // Big cute pupil — nearly fills the whole eye, wider
-        const pupil = new THREE.Mesh(
-          new THREE.SphereGeometry(0.048, 8, 8),
-          pupilMat
-        );
+
+        const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.048, 8, 8), pupilMat);
         pupil.scale.set(1.1, 0.95, 0.5);
-        pupil.position.set(ex - NX, eyeY, side * (hw + 0.046));
+        pupil.position.set(exLoc, eyeY, side * (eyeZ + 0.042));
         this.neckPivot.add(pupil);
         this.pupilMeshes.push(pupil);
 
-        // U-shaped sleep eye — shown only when sleeping
         const uCurve = new THREE.QuadraticBezierCurve3(
           new THREE.Vector3(-0.072, 0.030, 0),
           new THREE.Vector3(0,      -0.055, 0),
@@ -458,7 +416,7 @@ export class Gecko {
         );
         const sleepGeo = new THREE.TubeGeometry(uCurve, 16, 0.012, 6, false);
         const sleepEye = new THREE.Mesh(sleepGeo, pupilMat);
-        sleepEye.position.set(ex - NX, eyeY - 0.018, side * (hw + 0.025));
+        sleepEye.position.set(exLoc, eyeY - 0.018, side * (eyeZ + 0.020));
         sleepEye.visible = false;
         this.neckPivot.add(sleepEye);
         this.sleepEyeMeshes.push(sleepEye);
@@ -469,9 +427,9 @@ export class Gecko {
 
     // Tongue — base at snout tip, offset by -NX since it lives in neckPivot
     const tongueGeo = new THREE.BoxGeometry(1, 0.009, 0.010);
-    tongueGeo.translate(0.5, 0, 0);  // shift base to x=0 (not centered)
+    tongueGeo.translate(0.5, 0, 0);
     this.tongueMesh = new THREE.Mesh(tongueGeo, tongueMat);
-    this.tongueMesh.position.set(0.408 - 0.185, 0.048, 0); // base at snout tip, offset for pivot
+    this.tongueMesh.position.set(0.408 - 0.185, 0.048, 0);
     this.tongueMesh.scale.set(0, 1, 1);
     this.tongueMesh.visible = false;
     this.neckPivot.add(this.tongueMesh);
@@ -596,7 +554,7 @@ export class Gecko {
   private refreshBodyColors() {
     const col  = this.bodyGeo.attributes.color as THREE.BufferAttribute;
     const RING = 16;
-    const NS   = 7; // must match bodySections.length in buildMesh
+    const NS   = 8; // must match bodySections.length in buildMesh
     const ringVerts = NS * RING;
     for (let i = 0; i < col.count; i++) {
       if (i >= ringVerts) {
