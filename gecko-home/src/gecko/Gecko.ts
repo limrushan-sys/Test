@@ -245,8 +245,8 @@ export class Gecko {
     this.refreshBodyColors();
 
     this.bodyMesh = new THREE.Mesh(this.bodyGeo, this.bodyMat);
-    this.bodyMesh.scale.set(1.65, 0.40, 1.05);  // wide, flat, low-slung belly
-    this.bodyMesh.position.y = 0.040;
+    this.bodyMesh.scale.set(1.80, 0.38, 1.00);  // elongated, very flat belly
+    this.bodyMesh.position.y = 0.038;
     this.bodyMesh.castShadow = true;
     this.poseGroup.add(this.bodyMesh);
 
@@ -254,7 +254,7 @@ export class Gecko {
     // Body ellipsoid: centre (0, 0.075, 0), semi-axes ax=0.2015, ay=0.0676, az=0.1235.
     // surfY(x,z) = bodyCY + ay * sqrt(max(0, 1 - (x/ax)² - (z/az)²)) + tiny lift
     this.spotMeshes = [];
-    const ax = 0.13 * 1.65, ay = 0.13 * 0.40, az = 0.13 * 1.05, bcy = 0.040;
+    const ax = 0.13 * 1.80, ay = 0.13 * 0.38, az = 0.13 * 1.00, bcy = 0.038;
     const surfY = (x: number, z: number) =>
       bcy + ay * Math.sqrt(Math.max(0, 1 - (x/ax)**2 - (z/az)**2)) + 0.003;
     const spotDefs: [number, number, number][] = [
@@ -422,76 +422,74 @@ export class Gecko {
     this.tongueMesh.visible = false;
     this.neckPivot.add(this.tongueMesh);
 
-    // ── Legs: articulated thigh → knee → lower leg → foot → toes ─────────────
-    // Hip origins sit at body edge; each leg has proper sprawled-lizard anatomy.
-    // lgGroup.position is the hip joint. All child positions are in hip-local space.
+    // ── Legs: anatomically correct sprawled lizard limbs ──────────────────────
+    // Viewed from above: thigh goes straight sideways, elbow sticks out wide,
+    // lower leg angles forward (front) or backward (rear) down to foot on ground.
     const legDefs: [number, number, number][] = [
-      [ 0.10, 0,  0.12],  // FL hip
-      [ 0.10, 0, -0.12],  // FR hip
-      [-0.05, 0,  0.11],  // RL hip
-      [-0.05, 0, -0.11],  // RR hip
+      [ 0.10, 0,  0.120],  // FL
+      [ 0.10, 0, -0.120],  // FR
+      [-0.05, 0,  0.110],  // RL
+      [-0.05, 0, -0.110],  // RR
     ];
-    const upVec = new THREE.Vector3(0, 1, 0);
+    const _up = new THREE.Vector3(0, 1, 0);
 
-    const makeSeg = (
-      geo: THREE.BufferGeometry,
-      mat: THREE.MeshLambertMaterial,
-      from: THREE.Vector3,
-      to: THREE.Vector3,
-    ): THREE.Mesh => {
+    const addCyl = (
+      grp: THREE.Group,
+      from: THREE.Vector3, to: THREE.Vector3,
+      rFrom: number, rTo: number,
+    ) => {
       const dir = to.clone().sub(from);
       const len = dir.length();
-      const mid = from.clone().add(to).multiplyScalar(0.5);
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.scale.y = len;           // unit cylinder scaled to length
-      mesh.position.copy(mid);
-      if (dir.length() > 0.0001) mesh.quaternion.setFromUnitVectors(upVec, dir.normalize());
-      return mesh;
+      if (len < 0.001) return;
+      const cyl = new THREE.Mesh(
+        new THREE.CylinderGeometry(rTo, rFrom, len, 8),
+        this.darkMat
+      );
+      cyl.position.copy(from.clone().add(to).multiplyScalar(0.5));
+      cyl.quaternion.setFromUnitVectors(_up, dir.normalize());
+      grp.add(cyl);
     };
 
     for (let li = 0; li < 4; li++) {
       const [lx, , lz] = legDefs[li];
-      const zs = lz > 0 ? 1 : -1; // +1=left side, -1=right
-      const isFront = lx > 0;
-      const lgGroup = new THREE.Group();
+      const zs       = lz > 0 ? 1 : -1; // +1=left, -1=right
+      const isFront  = lx > 0;
+      const lgGroup  = new THREE.Group();
       lgGroup.position.set(lx, 0, lz);
 
-      // Hip is slightly elevated (leg attaches at body underside)
-      const hipPt  = new THREE.Vector3(0,       0.030,  0);
-      // Elbow/knee: out to the side and level with hip
-      const kneePt = new THREE.Vector3(isFront ? 0.010 : -0.005, 0.015, zs * 0.058);
-      // Foot: forward (front legs) or back (rear legs), on the ground
-      const footPt = new THREE.Vector3(isFront ? 0.045 : -0.040, 0,     zs * 0.030);
+      // ── Three anatomy points in lgGroup-local space ──────────────────────
+      // shoulderPt: where leg meets body side, elevated
+      const shoulderPt = new THREE.Vector3(0,                          0.030, 0);
+      // elbowPt: elbow/knee sticks out sideways — the widest point
+      const elbowPt    = new THREE.Vector3(isFront ?  0.008 : -0.006, 0.012, zs * 0.062);
+      // footPt: on the ground, foot reaches forward (front) or backward (rear)
+      const footPt     = new THREE.Vector3(isFront ?  0.058 : -0.055, 0.002, zs * 0.010);
 
-      // Thigh cylinder
-      const thighGeo = new THREE.CylinderGeometry(0.020, 0.026, 1, 7);
-      lgGroup.add(makeSeg(thighGeo, this.darkMat, hipPt, kneePt));
+      // Thigh: shoulder → elbow (chunky, slightly tapered)
+      addCyl(lgGroup, shoulderPt, elbowPt, 0.026, 0.019);
 
-      // Knee sphere
-      const kn = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5), this.darkMat);
-      kn.position.copy(kneePt);
+      // Elbow joint sphere
+      const kn = new THREE.Mesh(new THREE.SphereGeometry(0.020, 7, 5), this.darkMat);
+      kn.position.copy(elbowPt);
       lgGroup.add(kn);
 
-      // Lower leg cylinder
-      const lowerGeo = new THREE.CylinderGeometry(0.013, 0.020, 1, 7);
-      lgGroup.add(makeSeg(lowerGeo, this.darkMat, kneePt, footPt));
+      // Lower leg: elbow → foot (slender, tapers to ankle)
+      addCyl(lgGroup, elbowPt, footPt, 0.019, 0.012);
 
-      // Ankle/foot sphere
-      const ft = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 5), this.darkMat);
+      // Ankle/wrist sphere
+      const ft = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 4), this.darkMat);
       ft.position.copy(footPt);
       lgGroup.add(ft);
 
-      // 4 toes fanning forward from foot
-      const toeBaseAngle = isFront
-        ? (zs > 0 ?  Math.PI * 0.10 : Math.PI * 0.90)  // front: point forward-ish
-        : (zs > 0 ? -Math.PI * 0.10 : Math.PI * 1.10); // rear: point backward-ish
-      for (let ti = 0; ti < 4; ti++) {
-        const a = toeBaseAngle + (ti / 3 - 0.5) * Math.PI * 0.55;
-        const toe = new THREE.Mesh(new THREE.SphereGeometry(0.009, 5, 4), this.darkMat);
+      // 5 toes — fan forward (front legs) or backward (rear legs)
+      const toeDir = isFront ? 0 : Math.PI; // 0=+X(fwd), π=-X(back)
+      for (let ti = 0; ti < 5; ti++) {
+        const a   = toeDir + (ti / 4 - 0.5) * 1.15;
+        const toe = new THREE.Mesh(new THREE.SphereGeometry(0.007, 5, 4), this.darkMat);
         toe.position.set(
-          footPt.x + Math.cos(a) * 0.042,
-          0,
-          footPt.z + Math.sin(a) * 0.042,
+          footPt.x + Math.cos(a) * 0.036,
+          0.001,
+          footPt.z + Math.sin(a) * 0.036,
         );
         lgGroup.add(toe);
       }
@@ -499,6 +497,12 @@ export class Gecko {
       this.poseGroup.add(lgGroup);
       this.legGroups.push(lgGroup);
     }
+
+    // Neck — narrow bridge between broad head and body
+    const neckMesh = new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 7), this.baseMat);
+    neckMesh.scale.set(0.55, 0.46, 0.62);
+    neckMesh.position.set(0.168, 0.045, 0);
+    this.poseGroup.add(neckMesh);
 
     // ── Perch reach legs: 4 cylinders that connect hip→foot when on a tree ───
     const reachMat = new THREE.MeshLambertMaterial({ color: 0xc04010 });
